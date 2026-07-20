@@ -100,7 +100,7 @@ class PlayerScreen extends ConsumerWidget {
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.play_arrow_rounded, size: 36, color: Colors.white),
-                      onPressed: () => _playSong(ref, song),
+                      onPressed: () => _playSong(context, ref, song),
                     ),
                   ),
                   const SizedBox(width: 24),
@@ -117,13 +117,18 @@ class PlayerScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _playSong(WidgetRef ref, Song song) async {
+  Future<void> _playSong(BuildContext context, WidgetRef ref, Song song) async {
     final client = ref.read(gdMusicClientProvider);
+    final audioService = ref.read(audioServiceProvider);
     try {
       final playUrl = await client.getPlayUrl(songId: song.id, source: song.source);
-      // TODO: 接入 AudioService 播放 playUrl.url
+      await audioService.play(playUrl.url);
     } catch (e) {
-      // 播放失败
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('播放失败: $e')),
+        );
+      }
     }
   }
 
