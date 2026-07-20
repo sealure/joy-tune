@@ -1,89 +1,50 @@
 import '../db/app_database.dart';
 import '../models/song.dart';
+import 'favorite_repository.dart';
 
-/// 收藏数据仓库抽象接口
-/// 当前用 Isar 本地实现，以后加后端时额外写 ApiFavoriteRepository
-abstract class FavoriteRepository {
-  Future<List<Song>> getAll();
-  Future<void> add(Song song);
-  Future<void> remove(String songId);
-  Future<bool> isFavorited(String songId);
-  Future<List<Song>> search(String keyword);
-  Future<int> count();
-}
-
-/// 本地数据库实现（Isar）
+/// 本地收藏仓库实现（SharedPreferences + JSON）
 class LocalFavoriteRepository implements FavoriteRepository {
   @override
   Future<List<Song>> getAll() async {
-    final isar = await AppDatabase.instance;
-    final records = await isar.favoriteSongDbs.where().findAll();
-    return records.map((r) => r.toSong()).toList();
+    return AppDatabase.getFavorites();
   }
 
   @override
   Future<void> add(Song song) async {
-    final isar = await AppDatabase.instance;
-    final exists = await isar.favoriteSongDbs
-        .filter()
-        .songIdEqualTo(song.id)
-        .findFirst();
-
-    if (exists != null) return; // 已收藏，跳过
-
-    final record = FavoriteSongDb()
-      ..songId = song.id
-      ..source = song.source
-      ..name = song.name
-      ..artist = song.artist
-      ..album = song.album
-      ..coverUrl = song.picId
-      ..lyricId = song.lyricId
-      ..addedAt = DateTime.now();
-
-    await isar.writeTxn(() => isar.favoriteSongDbs.put(record));
+    final list = await AppDatabase.getFavorites();
+    if (list.any((s) => s.id == song.id)) return; // 已存在
+    list.add(song);
+    await AppDatabase.saveFavorites(list);
   }
 
   @override
   Future<void> remove(String songId) async {
-    final isar = await AppDatabase.instance;
-    final record = await isar.favoriteSongDbs
-        .filter()
-        .songIdEqualTo(songId)
-        .findFirst();
-    if (record != null) {
-      await isar.writeTxn(() => isar.favoriteSongDbs.delete(record.id));
-    }
+    final list = await AppDatabase.getFavorites();
+    list.removeWhere((s) => s.id == songId);
+    await AppDatabase.saveFavorites(list);
   }
 
   @override
   Future<bool> isFavorited(String songId) async {
-    final isar = await AppDatabase.instance;
-    final record = await isar.favoriteSongDbs
-        .filter()
-        .songIdEqualTo(songId)
-        .findFirst();
-    return record != null;
+    final list = await AppDatabase.getFavorites();
+    return list.any((s) => s.id == songId);
   }
 
   @override
   Future<List<Song>> search(String keyword) async {
-    final isar = await AppDatabase.instance;
-    final records = await isar.favoriteSongDbs
-        .filter()
-        .anyOf([keyword.toLowerCase()], (q, kw) => q
-            .nameLowerCase(kw)
-            .or()
-            .artistLowerCase(kw)
-            .or()
-            .albumLowerCase(kw))
-        .findAll();
-    return records.map((r) => r.toSong()).toList();
+    final list = await AppDatabase.getFavorites();
+    final kw = keyword.toLowerCase();
+    return list
+        .where((s) =>
+            s.name.toLowerCase().contains(kw) ||
+            s.artist.toLowerCase().contains(kw) ||
+            s.album.toLowerCase().contains(kw))
+        .toList();
   }
 
   @override
   Future<int> count() async {
-    final isar = await AppDatabase.instance;
-    return await isar.favoriteSongDbs.count();
+    final list = await AppDatabase.getFavorites();
+    return list.length;
   }
 }

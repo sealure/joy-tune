@@ -1,23 +1,24 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/gdmusic_client.dart';
 import '../repositories/local_favorite_repository.dart';
 import '../repositories/favorite_repository.dart';
-
-part 'providers.g.dart';
+import '../services/search_service.dart';
+import '../services/favorite_service.dart';
+import '../services/audio_service.dart';
 
 // ── 单例 Provider ──
 
-/// GD Music API 客户端
-@riverpod
-GdMusicClient gdMusicClient(GdMusicClientRef ref) => GdMusicClient();
+final gdMusicClientProvider = Provider<GdMusicClient>((ref) => GdMusicClient());
 
-/// 收藏仓库（当前为本地 Isar 实现）
-/// 以后加后端时，把 LocalFavoriteRepository 换成 ApiFavoriteRepository 即可
-@riverpod
-FavoriteRepository favoriteRepository(FavoriteRepositoryRef ref) =>
-    LocalFavoriteRepository();
+final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) => LocalFavoriteRepository());
 
-/// 搜索服务
-@riverpod
-SearchService searchService(SearchServiceRef ref) =>
-    SearchService(ref.watch(gdMusicClientProvider));
+final searchServiceProvider = Provider<SearchService>((ref) {
+  return SearchService(ref.watch(gdMusicClientProvider));
+});
+
+final favoriteServiceProvider = Provider<FavoriteService>((ref) {
+  return FavoriteService(ref.watch(favoriteRepositoryProvider));
+});
+
+final audioServiceProvider = Provider<AudioService>((ref) => AudioService());
