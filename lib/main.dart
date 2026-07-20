@@ -10,5 +10,5 @@ void main() async {
   // 初始化本地数据库
   await AppDatabase.initialize();
 
-  runApp(const ProviderScope(child: ViaMusicApp()));
+  runApp(ProviderScope(child: ViaMusicApp()));
 }

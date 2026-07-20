@@ -43,7 +43,7 @@ class AppTheme {
       bodyMedium: TextStyle(fontSize: 14, color: _text),
       bodySmall: TextStyle(fontSize: 12, color: _textSecondary),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: _surface,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -87,7 +87,7 @@ class AppTheme {
       bodyMedium: TextStyle(fontSize: 14, color: _textDark),
       bodySmall: TextStyle(fontSize: 12, color: _textSecondary),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: _surfaceDark,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

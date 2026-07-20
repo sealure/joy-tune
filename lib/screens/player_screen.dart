@@ -11,7 +11,7 @@ class PlayerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final song = ModalRoute.of(context)?.settings.extra as Song?;
+    final song = GoRouterState.of(context).extra as Song?;
     if (song == null) return const Scaffold(body: Center(child: Text('无播放内容')));
 
     final theme = Theme.of(context);
