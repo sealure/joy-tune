@@ -1,0 +1,80 @@
+/// 歌曲搜索结果
+class Song {
+  final String id;
+  final String source;
+  final String name;
+  final String artist;
+  final String album;
+  final String? picId;
+  final String? lyricId;
+
+  const Song({
+    required this.id,
+    required this.source,
+    required this.name,
+    required this.artist,
+    required this.album,
+    this.picId,
+    this.lyricId,
+  });
+
+  factory Song.fromJson(Map<String, dynamic> json, {String? source}) {
+    return Song(
+      id: json['id']?.toString() ?? '',
+      source: json['source']?.toString() ?? source ?? 'netease',
+      name: json['name']?.toString() ?? '',
+      artist: json['artist']?.toString() ?? '',
+      album: json['album']?.toString() ?? '',
+      picId: json['pic_id']?.toString(),
+      lyricId: json['lyric_id']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'source': source,
+        'name': name,
+        'artist': artist,
+        'album': album,
+        'pic_id': picId,
+        'lyric_id': lyricId,
+      };
+}
+
+/// 播放 URL 响应
+class PlayUrl {
+  final String url;
+  final int bitrate;
+  final int size;
+
+  const PlayUrl({required this.url, this.bitrate = 320000, this.size = 0});
+
+  factory PlayUrl.fromJson(Map<String, dynamic> json) {
+    return PlayUrl(
+      url: json['url']?.toString() ?? '',
+      bitrate: json['br'] is int ? json['br'] : int.tryParse(json['br']?.toString() ?? '0') ?? 0,
+      size: json['size'] is int ? json['size'] : int.tryParse(json['size']?.toString() ?? '0') ?? 0,
+    );
+  }
+}
+
+/// 歌词响应
+class Lyric {
+  final String? lyric;
+  final String? tlyric;
+
+  const Lyric({this.lyric, this.tlyric});
+
+  factory Lyric.fromJson(Map<String, dynamic> json) {
+    return Lyric(
+      lyric: json['lyric']?.toString(),
+      tlyric: json['tlyric']?.toString(),
+    );
+  }
+}
+
+/// 播放状态
+enum PlayState { stopped, playing, paused, loading }
+
+/// 播放模式
+enum PlayMode { sequential, loop, shuffle }
