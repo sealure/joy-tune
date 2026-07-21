@@ -16,10 +16,8 @@ class AudioCache {
     return _instance!;
   }
 
-  /// 从歌曲名+歌手生成稳定的缓存 key（无 ID 的 mock 歌曲也能用）
-  static String cacheKey(String name, String artist, {String? songId}) {
-    if (songId != null && songId.isNotEmpty) return songId;
-    // 使用名称作为 key，只保留字母数字中文和下划线
+  /// 从歌曲名+歌手生成稳定的缓存 key
+  static String cacheKey(String name, String artist) {
     final raw = '$name-$artist';
     return raw.replaceAll(RegExp(r'[^\w\u4e00-\u9fff\-]'), '_');
   }

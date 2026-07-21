@@ -129,7 +129,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   Future<void> _onQueueAdvance(Song song) async {
     final audio = ref.read(audioServiceProvider);
     final cache = AudioCache.instance;
-    final cacheKey = AudioCache.cacheKey(song.name, song.artist, songId: song.id);
+    final cacheKey = AudioCache.cacheKey(song.name, song.artist);
 
     // 有缓存 → 直接本地播放，零网络
     final localPath = await cache.getLocalPath(cacheKey);

@@ -115,12 +115,11 @@ class AudioService {
     currentSongId = songId;
     currentSong = song;
 
-    // 用 songId 或名称生成缓存 key
-    final cacheKey = song != null
-        ? AudioCache.cacheKey(song.name, song.artist, songId: songId)
-        : (songId ?? '');
+    // 用名称生成缓存 key，检查本地缓存
+    String? cacheKey;
     String playSource = url;
-    if (cacheKey.isNotEmpty) {
+    if (song != null) {
+      cacheKey = AudioCache.cacheKey(song.name, song.artist);
       final cache = AudioCache.instance;
       final localPath = await cache.getLocalPath(cacheKey);
       if (localPath != null) {
