@@ -405,7 +405,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         _buildProgressBar(progress),
         const SizedBox(height: 12),
         _buildControlRow(song),
-        SizedBox(height: MediaQuery.of(context).padding.bottom),
+        SizedBox(height: MediaQuery.of(context).padding.bottom + 24),
       ],
     );
   }
@@ -721,7 +721,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
