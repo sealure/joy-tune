@@ -80,7 +80,8 @@ class SearchScreen extends ConsumerWidget {
                     itemBuilder: (_, i) => SongTile(
                       song: results[i],
                       onTap: () {
-                        // 传给播放页
+                        // 加入当前播放队列后跳转
+                        ref.read(audioServiceProvider).insertNext(results[i]);
                         context.push('/player', extra: results[i]);
                       },
                     ),

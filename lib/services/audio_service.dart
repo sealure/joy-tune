@@ -67,6 +67,17 @@ class AudioService {
     _currentQueueIndex = startIndex.clamp(0, _queue.length - 1);
   }
 
+  /// 把歌曲插入当前歌曲之后（不触发播放）
+  void insertNext(Song song) {
+    if (_currentQueueIndex < 0) {
+      _queue.add(song);
+      _currentQueueIndex = _queue.length - 1;
+    } else {
+      _queue.insert(_currentQueueIndex + 1, song);
+      _currentQueueIndex++;
+    }
+  }
+
   /// 跳转到队列中指定位置的歌曲
   Future<void> jumpTo(int index) async {
     if (index < 0 || index >= _queue.length) return;
