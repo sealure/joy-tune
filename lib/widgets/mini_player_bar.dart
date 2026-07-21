@@ -15,7 +15,6 @@ class MiniPlayerBar extends ConsumerStatefulWidget {
 }
 
 class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
-  PlayState _playState = PlayState.stopped;
   StreamSubscription<PlayState>? _stateSub;
 
   @override
@@ -23,10 +22,9 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final audio = ref.read(audioServiceProvider);
-      _playState = audio.state;
-      _stateSub = audio.stateStream.listen((s) {
-        if (mounted) setState(() => _playState = s);
+      _stateSub = ref.read(audioServiceProvider).stateStream.listen((_) {
+        // 触发 rebuild，build 中直接从 audioService 读最新状态
+        if (mounted) setState(() {});
       });
     });
   }
@@ -41,10 +39,11 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
   Widget build(BuildContext context) {
     final audio = ref.read(audioServiceProvider);
     final song = audio.currentSong;
+    final playState = audio.state;
     final theme = Theme.of(context);
 
     // 无播放内容时隐藏
-    if (song == null && _playState == PlayState.stopped) {
+    if (song == null && playState == PlayState.stopped) {
       return const SizedBox.shrink();
     }
 
@@ -96,12 +95,12 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                 // 控制按钮
                 IconButton(
                   icon: Icon(
-                    _playState == PlayState.playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
+                    playState == PlayState.playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
                     size: 36,
                     color: theme.colorScheme.primary,
                   ),
                   onPressed: () {
-                    if (_playState == PlayState.playing) {
+                    if (playState == PlayState.playing) {
                       audio.pause();
                     } else {
                       audio.resume();
