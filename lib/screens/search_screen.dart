@@ -98,7 +98,11 @@ class SearchScreen extends ConsumerWidget {
       final results = await client.search(keyword: keyword, source: source);
       ref.read(_resultsProvider.notifier).state = results;
     } catch (e) {
-      // 搜索失败
+      if (ref.context.mounted) {
+        ScaffoldMessenger.of(ref.context).showSnackBar(
+          SnackBar(content: Text('搜索失败: $e')),
+        );
+      }
     }
   }
 }

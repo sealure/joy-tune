@@ -19,11 +19,17 @@ class Song {
   });
 
   factory Song.fromJson(Map<String, dynamic> json, {String? source}) {
+    // artist 可能是数组 ["周杰伦", "温岚"] 或单字符串
+    final artistRaw = json['artist'];
+    final artistStr = artistRaw is List
+        ? (artistRaw as List).join(' / ')
+        : (artistRaw?.toString() ?? '');
+
     return Song(
       id: json['id']?.toString() ?? '',
       source: json['source']?.toString() ?? source ?? 'netease',
       name: json['name']?.toString() ?? '',
-      artist: json['artist']?.toString() ?? '',
+      artist: artistStr,
       album: json['album']?.toString() ?? '',
       picId: json['pic_id']?.toString(),
       lyricId: json['lyric_id']?.toString(),
