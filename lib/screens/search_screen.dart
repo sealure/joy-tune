@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../api/gdmusic_client.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../widgets/song_tile.dart';
+import '../utils/player_utils.dart';
 
 final _searchProvider = StateProvider<String>((ref) => '');
 final _sourceProvider = StateProvider<String>((ref) => 'netease');
@@ -79,11 +79,7 @@ class SearchScreen extends ConsumerWidget {
                     itemCount: results.length,
                     itemBuilder: (_, i) => SongTile(
                       song: results[i],
-                      onTap: () {
-                        // 加入当前播放队列后跳转
-                        ref.read(audioServiceProvider).insertNext(results[i]);
-                        context.push('/player', extra: results[i]);
-                      },
+                      onTap: () => playSong(context, ref, results[i]),
                     ),
                   ),
           ),

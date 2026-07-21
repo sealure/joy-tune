@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../widgets/song_tile.dart';
+import '../utils/player_utils.dart';
 
 final _favoritesProvider = FutureProvider<List<Song>>((ref) async {
   final repo = ref.watch(favoriteRepositoryProvider);
@@ -42,7 +42,7 @@ class FavoritesScreen extends ConsumerWidget {
             itemCount: songs.length,
             itemBuilder: (_, i) => SongTile(
               song: songs[i],
-              onTap: () => context.push('/player', extra: songs[i]),
+              onTap: () => playSong(context, ref, songs[i]),
               trailing: IconButton(
                 icon: const Icon(Icons.favorite_rounded, color: Colors.red, size: 20),
                 onPressed: () async {

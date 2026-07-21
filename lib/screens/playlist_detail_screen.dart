@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/song.dart';
 import '../models/mock_data.dart';
 import '../services/providers.dart';
 import '../widgets/mini_player_bar.dart';
+import '../utils/player_utils.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -107,7 +107,11 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(24),
-                      onTap: () => _playAll(context, ref, playlist.songs),
+                      onTap: () {
+                        final audio = ref.read(audioServiceProvider);
+                        audio.setQueue(playlist.songs, startIndex: 0);
+                        context.push('/player', extra: playlist.songs[0]);
+                      },
                       child: const Padding(
                         padding: EdgeInsets.symmetric(vertical: 12),
                         child: Row(
@@ -152,9 +156,9 @@ class PlaylistDetailScreen extends ConsumerWidget {
           subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: IconButton(
             icon: Icon(Icons.play_circle_outline_rounded, color: Theme.of(context).colorScheme.primary),
-            onPressed: () => _playSong(context, ref, playlist.songs, startIndex: i),
+            onPressed: () => playSong(context, ref, song),
           ),
-          onTap: () => _playSong(context, ref, playlist.songs, startIndex: i),
+          onTap: () => playSong(context, ref, song),
         );
       },
     );
@@ -181,16 +185,4 @@ class PlaylistDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _playSong(BuildContext context, WidgetRef ref, List<Song> mockList, {int startIndex = 0}) async {
-    final audio = ref.read(audioServiceProvider);
-
-    // 只做一件事：设队列 + 跳转播放页
-    audio.setQueue(mockList, startIndex: startIndex);
-    if (!context.mounted) return;
-    context.push('/player', extra: mockList[startIndex]);
-  }
-
-  Future<void> _playAll(BuildContext context, WidgetRef ref, List<Song> songs) async {
-    await _playSong(context, ref, songs, startIndex: 0);
-  }
 }
