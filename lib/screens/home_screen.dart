@@ -17,44 +17,6 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // 顶部
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Via Music', style: theme.textTheme.headlineLarge),
-                  GestureDetector(
-                    onTap: () => context.push('/profile'),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 40, height: 40,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(Icons.person_rounded, color: theme.colorScheme.primary, size: 22),
-                        ),
-                        // 小红点
-                        Positioned(
-                          right: -2, top: -2,
-                          child: Container(
-                            width: 10, height: 10,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             // 快捷入口
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
