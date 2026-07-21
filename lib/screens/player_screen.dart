@@ -348,12 +348,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     });
   }
 
-  String _playModeLabel(PlayMode mode) => switch (mode) {
-    PlayMode.listLoop => '列表循环',
-    PlayMode.singleLoop => '单曲循环',
-    PlayMode.shuffle => '随机播放',
-  };
-
   IconData _playModeIcon(PlayMode mode) => switch (mode) {
     PlayMode.listLoop => Icons.repeat_rounded,
     PlayMode.singleLoop => Icons.repeat_one_rounded,
@@ -400,8 +394,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         _buildTopBar(song),
         Expanded(child: _buildMainContent()),
         _buildProgressBar(progress),
-        const SizedBox(height: 6),
-        _buildPlayMode(),
         const SizedBox(height: 12),
         _buildBottomRow(song),
         SizedBox(height: MediaQuery.of(context).padding.bottom),
@@ -680,29 +672,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildPlayMode() {
-    return Center(
-      child: GestureDetector(
-        onTap: _cyclePlayMode,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(_playModeIcon(_playMode), size: 16, color: Colors.white.withValues(alpha: 0.5)),
-              const SizedBox(width: 6),
-              Text(_playModeLabel(_playMode), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _ctrlBtn(IconData icon, double size, VoidCallback? onTap) {
     return SizedBox(
       width: 44, height: 44,
@@ -724,9 +693,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 区域一：歌曲信息 + 收藏/评论
+          // 区域一：歌曲信息 + 操作按钮
           Expanded(
-            flex: 3,
+            flex: 1,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -748,6 +717,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
                     const SizedBox(width: 4),
                     _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
+                    const SizedBox(width: 4),
+                    _bottomIcon(_playModeIcon(_playMode), null, _cyclePlayMode),
                   ],
                 ),
               ],
@@ -755,7 +726,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
           // 区域二：播放控制
           Expanded(
-            flex: 4,
+            flex: 1,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -783,7 +754,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             ),
           ),
           // 区域三：播放列表
-          _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
+              ],
+            ),
+          ),
         ],
       ),
     );
