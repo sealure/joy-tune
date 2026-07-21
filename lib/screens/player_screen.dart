@@ -691,7 +691,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   Widget _buildBottomRow(Song song) {
-    final audio = ref.read(audioServiceProvider);
+    final audio = ref.watch(audioServiceProvider);
     final hasPrev = audio.currentQueueIndex > 0;
     final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
 
