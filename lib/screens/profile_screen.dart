@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/audio_cache.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -125,13 +124,6 @@ class ProfileScreen extends StatelessWidget {
                     enabled: isLoggedIn,
                   ),
                   _MenuTile(
-                    icon: Icons.storage_rounded,
-                    label: '缓存管理',
-                    iconBg: const Color(0xFFF0FDF4),
-                    iconColor: const Color(0xFF22C55E),
-                    onTap: () => _showCacheDialog(context),
-                  ),
-                  _MenuTile(
                     icon: Icons.settings_outlined,
                     label: '设置',
                     iconBg: const Color(0xFFF5F3FF),
@@ -173,61 +165,6 @@ class ProfileScreen extends StatelessWidget {
   }
 
   static bool _checkLoginStatus() => false;
-
-  void _showCacheDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => FutureBuilder<int>(
-        future: AudioCache.instance.cacheSize(),
-        builder: (_, snapshot) {
-          final size = snapshot.data ?? 0;
-          final sizeStr = size >= 1073741824
-              ? '${(size / 1073741824).toStringAsFixed(2)} GB'
-              : size >= 1048576
-                  ? '${(size / 1048576).toStringAsFixed(2)} MB'
-                  : '${(size / 1024).toStringAsFixed(1)} KB';
-          return AlertDialog(
-            title: const Text('缓存管理'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text('当前缓存：'),
-                    Text(sizeStr, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '缓存的歌曲音频、封面和歌词数据，可手动清理释放空间。不会自动删除。',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('关闭'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await AudioCache.instance.clear();
-                  if (ctx.mounted) Navigator.pop(ctx);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('缓存已清除')),
-                    );
-                  }
-                },
-                child: const Text('清除缓存', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
 }
 
 class _StatItem extends StatelessWidget {
