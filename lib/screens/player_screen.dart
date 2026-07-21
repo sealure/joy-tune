@@ -399,15 +399,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       children: [
         _buildTopBar(song),
         Expanded(child: _buildMainContent()),
-        _buildSongInfo(song),
-        const SizedBox(height: 8),
         _buildProgressBar(progress),
-        const SizedBox(height: 2),
+        const SizedBox(height: 6),
         _buildPlayMode(),
-        const SizedBox(height: 2),
-        _buildControls(song),
-        const SizedBox(height: 4),
-        _buildBottomBar(song),
+        const SizedBox(height: 12),
+        _buildBottomRow(song),
         SizedBox(height: MediaQuery.of(context).padding.bottom),
       ],
     );
@@ -617,31 +613,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildSongInfo(Song song) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Column(
-        children: [
-          Text(
-            song.name,
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 0.3),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            song.artist,
-            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.4)),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildProgressBar(double progress) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -732,41 +703,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildControls(Song song) {
-    final audio = ref.read(audioServiceProvider);
-    final hasPrev = audio.currentQueueIndex > 0;
-    final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _ctrlBtn(Icons.skip_previous_rounded, 30, hasPrev ? () => audio.playPrevious() : null),
-          const SizedBox(width: 28),
-          GestureDetector(
-            onTap: () => _onPlayToggle(song),
-            child: Container(
-              width: 64, height: 64,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
-              ),
-              child: Icon(
-                _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                size: 36,
-                color: Colors.black87,
-              ),
-            ),
-          ),
-          const SizedBox(width: 28),
-          _ctrlBtn(Icons.skip_next_rounded, 30, hasNext ? () => audio.playNext() : null),
-        ],
-      ),
-    );
-  }
-
   Widget _ctrlBtn(IconData icon, double size, VoidCallback? onTap) {
     return SizedBox(
       width: 44, height: 44,
@@ -779,14 +715,74 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildBottomBar(Song song) {
+  Widget _buildBottomRow(Song song) {
+    final audio = ref.read(audioServiceProvider);
+    final hasPrev = audio.currentQueueIndex > 0;
+    final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
-          _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
+          // 区域一：歌曲信息 + 收藏/评论
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  song.name,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  song.artist,
+                  style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
+                    const SizedBox(width: 4),
+                    _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // 区域二：播放控制
+          Expanded(
+            flex: 4,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ctrlBtn(Icons.skip_previous_rounded, 28, hasPrev ? () => audio.playPrevious() : null),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: () => _onPlayToggle(song),
+                  child: Container(
+                    width: 56, height: 56,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
+                    ),
+                    child: Icon(
+                      _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      size: 32,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                _ctrlBtn(Icons.skip_next_rounded, 28, hasNext ? () => audio.playNext() : null),
+              ],
+            ),
+          ),
+          // 区域三：播放列表
           _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
         ],
       ),
