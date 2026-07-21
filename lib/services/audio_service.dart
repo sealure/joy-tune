@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:media_kit/media_kit.dart';
 import '../models/song.dart';
 import 'audio_cache.dart';
@@ -30,6 +31,11 @@ class AudioService {
 
   PlayState _state = PlayState.stopped;
   PlayState get state => _state;
+
+  /// 当前播放模式
+  PlayMode _playMode = PlayMode.loop;
+  PlayMode get playMode => _playMode;
+  set playMode(PlayMode mode) => _playMode = mode;
 
   Duration? get position => _player.state.position;
   Duration? get duration => _player.state.duration;
@@ -92,11 +98,32 @@ class AudioService {
 
   /// 播放下⼀首（触发外部获取 URL）
   Future<void> playNext() async {
-    if (_queue.isEmpty || _currentQueueIndex >= _queue.length - 1) {
-      stop();
-      return;
+    if (_queue.isEmpty) return;
+
+    int nextIndex;
+    switch (_playMode) {
+      case PlayMode.sequential:
+        // 单曲循环：重播当前歌曲
+        nextIndex = _currentQueueIndex;
+        break;
+      case PlayMode.shuffle:
+        // 随机播放：随机选一首（队列只有一首时直接重播）
+        if (_queue.length == 1) {
+          nextIndex = 0;
+        } else {
+          final rng = math.Random();
+          do {
+            nextIndex = rng.nextInt(_queue.length);
+          } while (nextIndex == _currentQueueIndex);
+        }
+        break;
+      case PlayMode.loop:
+        // 列表循环：顺序播放，到末尾回到开头
+        nextIndex = (_currentQueueIndex + 1) % _queue.length;
+        break;
     }
-    _currentQueueIndex++;
+
+    _currentQueueIndex = nextIndex;
     final next = _queue[_currentQueueIndex];
     currentSong = next;
     currentSongId = next.id.isEmpty ? null : next.id;
@@ -153,11 +180,32 @@ class AudioService {
   }
 
   void _advanceToNext() {
-    if (_queue.isEmpty || _currentQueueIndex >= _queue.length - 1) {
+    if (_queue.isEmpty) {
       _updateState(PlayState.stopped);
       return;
     }
-    _currentQueueIndex++;
+
+    int nextIndex;
+    switch (_playMode) {
+      case PlayMode.sequential:
+        nextIndex = _currentQueueIndex;
+        break;
+      case PlayMode.shuffle:
+        if (_queue.length == 1) {
+          nextIndex = 0;
+        } else {
+          final rng = math.Random();
+          do {
+            nextIndex = rng.nextInt(_queue.length);
+          } while (nextIndex == _currentQueueIndex);
+        }
+        break;
+      case PlayMode.loop:
+        nextIndex = (_currentQueueIndex + 1) % _queue.length;
+        break;
+    }
+
+    _currentQueueIndex = nextIndex;
     final next = _queue[_currentQueueIndex];
     currentSong = next;
     currentSongId = next.id.isEmpty ? null : next.id;

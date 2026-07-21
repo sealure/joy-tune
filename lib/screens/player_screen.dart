@@ -10,8 +10,6 @@ import '../services/audio_cache.dart';
 import '../api/gdmusic_client.dart';
 import 'playlist_queue_sheet.dart';
 
-enum PlayMode { listLoop, singleLoop, shuffle }
-
 const _emeraldStart = Color(0xFF064E3B);
 const _emeraldMid = Color(0xFF065F46);
 const _emeraldEnd = Color(0xFF022C22);
@@ -31,7 +29,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   PlayState _playState = PlayState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
-  PlayMode _playMode = PlayMode.listLoop;
 
   String? _coverUrl;
   List<LyricLine> _lyrics = [];
@@ -339,18 +336,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   void _cyclePlayMode() {
-    setState(() {
-      _playMode = switch (_playMode) {
-        PlayMode.listLoop => PlayMode.singleLoop,
-        PlayMode.singleLoop => PlayMode.shuffle,
-        PlayMode.shuffle => PlayMode.listLoop,
-      };
-    });
+    final audio = ref.read(audioServiceProvider);
+    final next = switch (audio.playMode) {
+      PlayMode.loop => PlayMode.sequential,
+      PlayMode.sequential => PlayMode.shuffle,
+      PlayMode.shuffle => PlayMode.loop,
+    };
+    audio.playMode = next;
+    setState(() {});
   }
 
   IconData _playModeIcon(PlayMode mode) => switch (mode) {
-    PlayMode.listLoop => Icons.repeat_rounded,
-    PlayMode.singleLoop => Icons.repeat_one_rounded,
+    PlayMode.loop => Icons.repeat_rounded,
+    PlayMode.sequential => Icons.repeat_one_rounded,
     PlayMode.shuffle => Icons.shuffle_rounded,
   };
 
@@ -764,7 +762,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _bottomIcon(_playModeIcon(_playMode), null, _cyclePlayMode),
+              _bottomIcon(_playModeIcon(audio.playMode), null, _cyclePlayMode),
               const SizedBox(width: 4),
               _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
             ],
