@@ -130,12 +130,6 @@ class ProfileScreen extends StatelessWidget {
                     iconColor: const Color(0xFF8B5CF6),
                     onTap: () => context.push('/settings'),
                   ),
-                  _MenuTile(
-                    icon: Icons.info_outline_rounded,
-                    label: '关于',
-                    iconBg: const Color(0xFFEEF2FF),
-                    iconColor: const Color(0xFF6366F1),
-                  ),
                 ],
               ),
             ),
