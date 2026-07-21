@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// 启动/欢迎页 — 全屏渐变背景，Logo 呼吸动画，自动检测登录状态
+/// 启动/欢迎页 — 深色靛蓝主题，Logo 呼吸动画，自动检测登录状态
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -18,7 +18,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   void initState() {
     super.initState();
 
-    // 呼吸灯动画
     _breathCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1600),
@@ -28,15 +27,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
     _breathCtrl.repeat(reverse: true);
 
-    // 1.8 秒后检测并跳转
     Future.delayed(const Duration(milliseconds: 1800), _navigate);
   }
 
   void _navigate() {
     if (!mounted) return;
-    // TODO: 接入 Appwrite 后检测本地 token
-    // 有 token → context.go('/home')
-    // 无 token → context.go('/login')
     context.go('/login');
   }
 
@@ -50,89 +45,115 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+        decoration: BoxDecoration(
+          gradient: const RadialGradient(
+            center: Alignment(0, -0.4),
+            radius: 1.2,
             colors: [
-              Color(0xFF059669),
-              Color(0xFF047857),
-              Color(0xFF065F46),
-              Color(0xFF064E3B),
+              Color(0xFF1E1B4B),
+              Color(0xFF0A0A14),
             ],
           ),
         ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Logo 呼吸动画
-              AnimatedBuilder(
-                animation: _breathAnim,
-                builder: (_, child) => Transform.scale(
-                  scale: _breathAnim.value,
-                  child: child,
-                ),
-                child: Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF34D399).withValues(alpha: 0.3),
-                        blurRadius: 40,
-                        spreadRadius: 8,
+        child: Stack(
+          children: [
+            // 光晕
+            Positioned(
+              top: -40,
+              left: -40,
+              child: _Glow(size: 280, color: const Color(0xFF6366F1).withValues(alpha: 0.18)),
+            ),
+            Positioned(
+              bottom: 60,
+              right: -60,
+              child: _Glow(size: 200, color: const Color(0xFF8B5CF6).withValues(alpha: 0.12)),
+            ),
+            // 主内容
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedBuilder(
+                    animation: _breathAnim,
+                    builder: (_, child) => Transform.scale(
+                      scale: _breathAnim.value,
+                      child: child,
+                    ),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                            blurRadius: 32,
+                            spreadRadius: 4,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: const Icon(
+                        Icons.music_note_rounded,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.music_note_rounded,
-                    size: 44,
-                    color: Colors.white,
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Via Music',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '多音源聚合 · 沉浸聆听',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.35),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 32),
-
-              // 应用名称
-              const Text(
-                'Via Music',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w200,
-                  color: Colors.white,
-                  letterSpacing: 2.0,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // 标语
-              Text(
-                '多音源聚合 · 沉浸聆听',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withValues(alpha: 0.5),
-                  letterSpacing: 1.0,
-                ),
-              ),
-
-              const SizedBox(height: 80),
-
-              // 版本号
-              Text(
+            ),
+            // 版本号
+            Positioned(
+              left: 24,
+              bottom: 40,
+              child: Text(
                 'v0.1.0',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
+                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.15)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _Glow extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _Glow({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
       ),
     );
   }

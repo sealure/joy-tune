@@ -120,9 +120,9 @@ class _QueueTile extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isCurrent ? const Color(0xFF059669).withValues(alpha: 0.06) : null,
+        color: isCurrent ? const Color(0xFF6366F1).withValues(alpha: 0.06) : null,
         border: isCurrent
-            ? const Border(left: BorderSide(color: Color(0xFF059669), width: 3))
+            ? const Border(left: BorderSide(color: Color(0xFF6366F1), width: 3))
             : null,
       ),
       child: ListTile(

@@ -1,124 +1,196 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+/// 登录页 — 深色背景 + 靛蓝/紫色光晕动画，GitHub / Google OAuth
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+          gradient: RadialGradient(
+            center: Alignment(0, -0.4),
+            radius: 1.4,
             colors: [
-              Color(0xFFF0FDF4),
-              Color(0xFFECFDF5),
-              Color(0xFFFFFFFF),
+              Color(0xFF1E1B4B),
+              Color(0xFF0A0A14),
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-
-              // Logo
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF059669), Color(0xFF10B981)],
+        child: Stack(
+          children: [
+            // 光晕
+            Positioned(
+              top: -60,
+              right: -40,
+              child: _Orb(size: 300, color: const Color(0xFF6366F1).withValues(alpha: 0.25)),
+            ),
+            Positioned(
+              bottom: 120,
+              left: -60,
+              child: _Orb(size: 220, color: const Color(0xFF8B5CF6).withValues(alpha: 0.15)),
+            ),
+            Positioned(
+              bottom: -30,
+              right: 30,
+              child: _Orb(size: 160, color: const Color(0xFFEC4899).withValues(alpha: 0.1)),
+            ),
+            // 波形装饰
+            Positioned(
+              bottom: 220,
+              left: 0,
+              right: 0,
+              child: _Waveform(),
+            ),
+            // 内容
+            SafeArea(
+              child: Column(
+                children: [
+                  const Spacer(flex: 2),
+                  // Logo
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                          blurRadius: 32,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.music_note_rounded, size: 40, color: Colors.white),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF059669).withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Via Music',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.music_note_rounded,
-                  size: 44,
-                  color: Colors.white,
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              Text('Via Music', style: theme.textTheme.headlineLarge),
-              const SizedBox(height: 8),
-              Text(
-                '极简 · 多音源 · 跨平台',
-                style: theme.textTheme.bodySmall?.copyWith(fontSize: 13),
-              ),
-
-              const Spacer(flex: 1),
-
-              // 登录按钮
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  children: [
-                    _SocialButton(
-                      icon: Icons.code_rounded,
-                      label: 'GitHub 账号登录',
-                      backgroundColor: const Color(0xFF24292F),
-                      textColor: Colors.white,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('GitHub OAuth 接入中...')),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 14),
-                    _SocialButton(
-                      icon: Icons.g_mobiledata_rounded,
-                      label: 'Google 账号登录',
-                      backgroundColor: Colors.white,
-                      textColor: const Color(0xFF1A1A1A),
-                      borderColor: const Color(0xFFE5E5E5),
-                      iconColor: const Color(0xFF4285F4),
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Google OAuth 接入中...')),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-              Text(
-                '登录即表示同意服务条款',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-              ),
-
-              const Spacer(flex: 1),
-
-              // 跳过
-              TextButton(
-                onPressed: () => context.go('/home'),
-                child: Text(
-                  '跳过，先听听看',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w500,
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '欢迎回来',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                  // 按钮
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      children: [
+                        _SocialButton(
+                          icon: Icons.code_rounded,
+                          label: 'GitHub 账号登录',
+                          backgroundColor: const Color(0xFF1A1A2E),
+                          textColor: Colors.white,
+                          borderColor: Colors.white.withValues(alpha: 0.08),
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('GitHub OAuth 接入中...')),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _SocialButton(
+                          icon: Icons.g_mobiledata_rounded,
+                          label: 'Google 账号登录',
+                          backgroundColor: Colors.white,
+                          textColor: const Color(0xFF1A1A1A),
+                          iconColor: const Color(0xFF4285F4),
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Google OAuth 接入中...')),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          '登录即表示同意服务条款',
+                          style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                  TextButton(
+                    onPressed: () => context.go('/home'),
+                    child: Text(
+                      '跳过，先听听看',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.35),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-
-              const Spacer(flex: 1),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _Orb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _Orb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+  }
+}
+
+class _Waveform extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final bars = <Widget>[];
+    final heights = [20, 30, 45, 55, 60, 50, 40, 28, 18];
+    for (int i = 0; i < heights.length; i++) {
+      bars.add(
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.6, end: 1.0),
+          duration: Duration(milliseconds: 1500 + i * 100),
+          builder: (_, value, __) => Transform.scale(
+            scaleY: value,
+            child: Container(
+              width: 3,
+              height: heights[i].toDouble(),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: bars,
     );
   }
 }
@@ -146,32 +218,25 @@ class _SocialButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 54,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           border: borderColor != null ? Border.all(color: borderColor!) : null,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(16),
             child: Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(icon, size: 22, color: iconColor ?? textColor),
                   const SizedBox(width: 10),
-                  Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor)),
+                  Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: textColor)),
                 ],
               ),
             ),

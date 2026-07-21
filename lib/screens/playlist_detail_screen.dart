@@ -22,11 +22,11 @@ class PlaylistDetailScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded),
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                     onPressed: () => context.pop(),
                   ),
                   const Spacer(),
-                  Text('歌单详情', style: theme.textTheme.titleMedium),
+                  const Text('歌单详情', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
                   const Spacer(),
                   const SizedBox(width: 48),
                 ],
@@ -37,7 +37,7 @@ class PlaylistDetailScreen extends StatelessWidget {
             _buildHeader(theme),
 
             // 歌曲列表
-            Expanded(child: _buildSongList(context, theme)),
+            Expanded(child: _buildSongList(context)),
 
             // 迷你播放栏
             const MiniPlayerBar(),
@@ -55,7 +55,7 @@ class PlaylistDetailScreen extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF065F46), Color(0xFF059669), Color(0xFF10B981)],
+          colors: [Color(0xFF4C1D95), Color(0xFF5B21B6), Color(0xFF6D28D9), Color(0xFF312E81)],
         ),
       ),
       child: Padding(
@@ -91,9 +91,9 @@ class PlaylistDetailScreen extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.play_arrow_rounded, color: Color(0xFF059669), size: 22),
-                          SizedBox(width: 6),
-                          Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF059669))),
+                          Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
+                          const SizedBox(width: 6),
+                          Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
                         ],
                       ),
                     ),
@@ -107,7 +107,8 @@ class PlaylistDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSongList(BuildContext context, ThemeData theme) {
+  Widget _buildSongList(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,

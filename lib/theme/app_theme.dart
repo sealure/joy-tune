@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  // ── 配色 ──
-  static const _accent = Color(0xFF059669); // 翡翠绿为主色调
-  static const _accentDark = Color(0xFF34D399);
+  // ── 调色板（设计稿: #6366F1 靛蓝系）──
+  static const _accent = Color(0xFF6366F1);
+  static const _accentLight = Color(0xFF818CF8);
 
   static const _bg = Color(0xFFFAFAFA);
   static const _bgDark = Color(0xFF121212);
@@ -50,7 +50,7 @@ class AppTheme {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: _surface,
+      fillColor: const Color(0xFFF3F4F6),
       hintStyle: const TextStyle(color: _textSecondary),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
@@ -66,7 +66,7 @@ class AppTheme {
     brightness: Brightness.dark,
     scaffoldBackgroundColor: _bgDark,
     colorScheme: const ColorScheme.dark(
-      primary: _accentDark,
+      primary: _accentLight,
       surface: _surfaceDark,
       onSurface: _textDark,
       secondary: _textSecondary,
