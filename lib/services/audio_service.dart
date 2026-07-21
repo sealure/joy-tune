@@ -74,6 +74,8 @@ class AudioService {
     final song = _queue[index];
     currentSong = song;
     currentSongId = song.id.isEmpty ? null : song.id;
+    _player.stop();
+    _updateState(PlayState.loading);
     _nextSongController.add(song);
   }
 
@@ -87,6 +89,8 @@ class AudioService {
     final next = _queue[_currentQueueIndex];
     currentSong = next;
     currentSongId = next.id.isEmpty ? null : next.id;
+    _player.stop();
+    _updateState(PlayState.loading);
     _nextSongController.add(next);
   }
 
@@ -99,6 +103,8 @@ class AudioService {
     final prev = _queue[_currentQueueIndex];
     currentSong = prev;
     currentSongId = prev.id.isEmpty ? null : prev.id;
+    _player.stop();
+    _updateState(PlayState.loading);
     _nextSongController.add(prev);
   }
 
