@@ -4,8 +4,8 @@ class AppTheme {
   AppTheme._();
 
   // ── 配色 ──
-  static const _accent = Color(0xFF6366F1); // Indigo 为主色调
-  static const _accentDark = Color(0xFF818CF8);
+  static const _accent = Color(0xFF059669); // 翡翠绿为主色调
+  static const _accentDark = Color(0xFF34D399);
 
   static const _bg = Color(0xFFFAFAFA);
   static const _bgDark = Color(0xFF121212);

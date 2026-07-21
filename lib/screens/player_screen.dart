@@ -7,6 +7,18 @@ import 'package:go_router/go_router.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../api/gdmusic_client.dart';
+import 'playlist_queue_sheet.dart';
+
+// ── 播放模式 ──
+enum PlayMode { listLoop, singleLoop, shuffle }
+
+// ── 配色 ──
+const _emeraldStart = Color(0xFF064E3B);
+const _emeraldMid = Color(0xFF065F46);
+const _emeraldEnd = Color(0xFF022C22);
+const _placeholderStart = Color(0xFF065F46);
+const _placeholderMid = Color(0xFF059669);
+const _placeholderEnd = Color(0xFF10B981);
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
@@ -16,10 +28,11 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   PlayState _playState = PlayState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  PlayMode _playMode = PlayMode.listLoop;
 
   // 封面 & 歌词
   String? _coverUrl;
@@ -28,8 +41,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   bool _showLyrics = false;
   final ScrollController _lyricScrollCtrl = ScrollController();
 
-  // 专辑旋转动画
+  // 收藏状态
+  bool _isFavorited = false;
+
+  // 动画
   late AnimationController _rotationCtrl;
+  late AnimationController _favCtrl;
 
   StreamSubscription<PlayState>? _stateSub;
   StreamSubscription<Duration>? _posSub;
@@ -42,6 +59,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       vsync: this,
       duration: const Duration(seconds: 20),
     );
+    _favCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _initPlayer());
   }
 
@@ -52,6 +73,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _durSub?.cancel();
     _lyricScrollCtrl.dispose();
     _rotationCtrl.dispose();
+    _favCtrl.dispose();
     super.dispose();
   }
 
@@ -62,6 +84,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (song == null) return;
     final audio = ref.read(audioServiceProvider);
     _loadSongMetadata(song);
+    _checkFavorite(song);
     if (audio.currentSongId != song.id) {
       _playSong(song);
     }
@@ -91,6 +114,25 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (audio.isPlaying) _rotationCtrl.repeat();
     _position = audio.position ?? Duration.zero;
     _duration = audio.duration ?? Duration.zero;
+  }
+
+  // ── 收藏状态 ──
+  Future<void> _checkFavorite(Song song) async {
+    final repo = ref.read(favoriteRepositoryProvider);
+    final fav = await repo.isFavorited(song.id);
+    if (mounted) setState(() => _isFavorited = fav);
+  }
+
+  Future<void> _toggleFavorite(Song song) async {
+    final repo = ref.read(favoriteRepositoryProvider);
+    if (_isFavorited) {
+      await repo.remove(song.id);
+      setState(() => _isFavorited = false);
+    } else {
+      await repo.add(song);
+      setState(() => _isFavorited = true);
+      _favCtrl.forward().then((_) => _favCtrl.reverse());
+    }
   }
 
   Future<void> _loadSongMetadata(Song song) async {
@@ -150,6 +192,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
+  void _cyclePlayMode() {
+    setState(() {
+      _playMode = switch (_playMode) {
+        PlayMode.listLoop => PlayMode.singleLoop,
+        PlayMode.singleLoop => PlayMode.shuffle,
+        PlayMode.shuffle => PlayMode.listLoop,
+      };
+    });
+  }
+
+  String _playModeLabel(PlayMode mode) => switch (mode) {
+    PlayMode.listLoop => '列表循环',
+    PlayMode.singleLoop => '单曲循环',
+    PlayMode.shuffle => '随机播放',
+  };
+
+  IconData _playModeIcon(PlayMode mode) => switch (mode) {
+    PlayMode.listLoop => Icons.repeat_rounded,
+    PlayMode.singleLoop => Icons.repeat_one_rounded,
+    PlayMode.shuffle => Icons.shuffle_rounded,
+  };
+
   @override
   Widget build(BuildContext context) {
     final song = GoRouterState.of(context).extra as Song?;
@@ -162,84 +226,88 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         ? _position.inMilliseconds / _duration.inMilliseconds
         : 0.0;
 
+    final isDesktop = MediaQuery.sizeOf(context).width > 600;
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // ── 模糊背景 ──
           _buildBackground(),
-
-          // ── 主内容 ──
           SafeArea(
-            child: Column(
-              children: [
-                // ── 顶栏 ──
-                _buildTopBar(song),
-
-                // ── 封面/歌词区域 ──
-                Expanded(child: _buildMainContent()),
-
-                // ── 歌名 + 歌手 ──
-                _buildSongInfo(song),
-
-                const SizedBox(height: 16),
-
-                // ── 进度条 + 时间 ──
-                _buildProgressBar(progress),
-
-                const SizedBox(height: 8),
-
-                // ── 控制栏 ──
-                _buildControls(song, isCurrentSong),
-
-                const SizedBox(height: 16),
-
-                // ── 底栏 ──
-                _buildBottomBar(song),
-              ],
-            ),
+            child: isDesktop
+                ? Center(
+                    child: SizedBox(
+                      width: 480,
+                      child: _buildPlayerColumn(song, isCurrentSong, progress),
+                    ),
+                  )
+                : _buildPlayerColumn(song, isCurrentSong, progress),
           ),
         ],
       ),
     );
   }
 
-  // ── 模糊背景 ──
+  Widget _buildPlayerColumn(Song song, bool isCurrentSong, double progress) {
+    return Column(
+      children: [
+        _buildTopBar(song),
+        Expanded(child: _buildMainContent()),
+        _buildSongInfo(song),
+        const SizedBox(height: 8),
+        _buildProgressBar(progress),
+        const SizedBox(height: 2),
+        _buildPlayMode(),
+        const SizedBox(height: 2),
+        _buildControls(song, isCurrentSong),
+        const SizedBox(height: 4),
+        _buildBottomBar(song),
+        // 用 SafeArea 底部 inset 代替固定 padding
+        SizedBox(height: MediaQuery.of(context).padding.bottom),
+      ],
+    );
+  }
+
+  // ── 背景 ──
 
   Widget _buildBackground() {
-    if (_coverUrl == null) {
-      return Container(color: Colors.black);
-    }
-    return Image.network(
-      _coverUrl!,
-      fit: BoxFit.cover,
-      loadingBuilder: (_, child, progress) {
-        if (progress == null) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              child,
-              // 暗色渐变遮罩
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.4),
-                      Colors.black.withValues(alpha: 0.7),
-                      Colors.black,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
-                  ),
-                ),
-              ),
-            ],
-          );
-        }
-        return Container(color: Colors.black);
-      },
-      errorBuilder: (_, __, ___) => Container(color: Colors.black),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [_emeraldStart, _emeraldMid, _emeraldEnd],
+            ),
+          ),
+        ),
+        if (_coverUrl != null)
+          Image.network(
+            _coverUrl!,
+            fit: BoxFit.cover,
+            loadingBuilder: (_, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const SizedBox.shrink();
+            },
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.2),
+                Colors.black.withValues(alpha: 0.6),
+                Colors.black,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -250,29 +318,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70),
-            onPressed: () => context.pop(),
-          ),
+          _topBarBtn(Icons.keyboard_arrow_down_rounded, () => context.pop()),
           Expanded(
             child: Text(
               song.name,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: Colors.white70, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0x99FFFFFF),
+                fontWeight: FontWeight.w500,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70),
-            onPressed: () {},
-          ),
+          _topBarBtn(Icons.more_horiz_rounded, () {}),
         ],
       ),
     );
   }
 
-  // ── 主内容区域 ──
+  Widget _topBarBtn(IconData icon, VoidCallback onTap) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: IconButton(
+        icon: Icon(icon, color: const Color(0x99FFFFFF), size: 24),
+        onPressed: onTap,
+        splashRadius: 18,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  // ── 主内容 ──
 
   Widget _buildMainContent() {
     return GestureDetector(
@@ -290,15 +369,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 封面页 ──
-
   Widget _buildCoverPage() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 20),
-          // 圆形专辑封面（带旋转）
           AnimatedBuilder(
             animation: _rotationCtrl,
             builder: (_, child) => Transform.rotate(
@@ -312,9 +388,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 40,
-                    offset: const Offset(0, 12),
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 60,
+                    offset: const Offset(0, 20),
                   ),
                 ],
               ),
@@ -334,14 +410,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               ),
             ),
           ),
-          const SizedBox(height: 28),
-          // 切换歌词提示
+          const SizedBox(height: 20),
           if (_lyrics.isNotEmpty)
             Text(
               '轻点显示歌词',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.35),
+                color: Colors.white.withValues(alpha: 0.25),
+                letterSpacing: 0.5,
               ),
             ),
         ],
@@ -351,14 +427,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _coverPlaceholder() {
     return Container(
-      color: const Color(0xFF2A2A2A),
-      child: const Center(
-        child: Icon(Icons.music_note_rounded, size: 80, color: Colors.white24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_placeholderStart, _placeholderMid, _placeholderEnd],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.music_note_rounded,
+          size: 80,
+          color: Colors.white.withValues(alpha: 0.15),
+        ),
       ),
     );
   }
-
-  // ── 歌词页 ──
 
   Widget _buildLyricsPage() {
     return ShaderMask(
@@ -427,7 +511,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             song.artist,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.5),
+              color: Colors.white.withValues(alpha: 0.4),
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -445,7 +529,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         children: [
-          // 进度条轨道
           LayoutBuilder(
             builder: (_, constraints) {
               return GestureDetector(
@@ -462,15 +545,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      // 背景轨道
                       Container(
                         height: 3,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
-                          color: Colors.white.withValues(alpha: 0.15),
+                          color: Colors.white.withValues(alpha: 0.12),
                         ),
                       ),
-                      // 已播放轨道
                       FractionallySizedBox(
                         widthFactor: progress.clamp(0.0, 1.0),
                         child: Container(
@@ -481,21 +562,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           ),
                         ),
                       ),
-                      // 拖动圆点
                       Positioned(
                         left: (progress.clamp(0.0, 1.0) * constraints.maxWidth) - 6,
                         top: -4,
                         child: Container(
-                          width: 11,
-                          height: 11,
+                          width: 12,
+                          height: 12,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(0, 1),
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
                               ),
                             ],
                           ),
@@ -508,21 +588,61 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             },
           ),
           const SizedBox(height: 4),
-          // 时间
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 _formatDuration(_position),
-                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.3),
+                ),
               ),
               Text(
                 _formatDuration(_duration),
-                style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.3),
+                ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // ── 播放模式 ──
+
+  Widget _buildPlayMode() {
+    return Center(
+      child: GestureDetector(
+        onTap: _cyclePlayMode,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _playModeIcon(_playMode),
+                size: 16,
+                color: Colors.white.withValues(alpha: 0.5),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _playModeLabel(_playMode),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -535,45 +655,49 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 上一首
-          IconButton(
-            icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 30),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 32),
-          // 播放/暂停
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: Icon(
+          _ctrlBtn(Icons.skip_previous_rounded, 30, () {}),
+          const SizedBox(width: 28),
+          GestureDetector(
+            onTap: () => _onPlayToggle(song, isCurrentSong),
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 20,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Icon(
                 _playState == PlayState.playing
                     ? Icons.pause_rounded
                     : Icons.play_arrow_rounded,
                 size: 36,
                 color: Colors.black87,
               ),
-              onPressed: () => _onPlayToggle(song, isCurrentSong),
             ),
           ),
-          const SizedBox(width: 32),
-          // 下一首
-          IconButton(
-            icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 30),
-            onPressed: () {},
-          ),
+          const SizedBox(width: 28),
+          _ctrlBtn(Icons.skip_next_rounded, 30, () {}),
         ],
+      ),
+    );
+  }
+
+  Widget _ctrlBtn(IconData icon, double size, VoidCallback onTap) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: size),
+        onPressed: onTap,
+        splashRadius: 22,
+        padding: EdgeInsets.zero,
       ),
     );
   }
@@ -582,28 +706,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _buildBottomBar(Song song) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          // 收藏
-          _bottomIcon(Icons.favorite_outline_rounded, () => _toggleFavorite(song)),
-          // 下载
-          _bottomIcon(Icons.download_outlined, () {}),
-          // 评论
-          _bottomIcon(Icons.chat_bubble_outline_rounded, () {}),
-          // 菜单
-          _bottomIcon(Icons.playlist_play_rounded, () {}),
+          _bottomIcon(
+            _isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+            _isFavorited ? const Color(0xFFEF4444) : null,
+            () => _toggleFavorite(song),
+          ),
+          _bottomIcon(
+            Icons.chat_bubble_outline_rounded,
+            null,
+            () => context.push('/comments', extra: song),
+          ),
+          _bottomIcon(
+            Icons.playlist_play_rounded,
+            null,
+            () => PlaylistQueueSheet.show(context),
+          ),
         ],
       ),
     );
   }
 
-  Widget _bottomIcon(IconData icon, VoidCallback onTap) {
-    return IconButton(
-      icon: Icon(icon, color: Colors.white.withValues(alpha: 0.6), size: 24),
-      onPressed: onTap,
-      splashRadius: 20,
+  Widget _bottomIcon(IconData icon, Color? color, VoidCallback onTap) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: IconButton(
+        icon: Icon(icon, color: color ?? Colors.white.withValues(alpha: 0.6), size: 24),
+        onPressed: onTap,
+        splashRadius: 22,
+        padding: EdgeInsets.zero,
+      ),
     );
   }
 
@@ -631,23 +767,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final audioService = ref.read(audioServiceProvider);
     try {
       final playUrl = await client.getPlayUrl(songId: song.id, source: song.source);
+      if (!mounted) return;
       await audioService.play(playUrl.url, songId: song.id, song: song);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('播放失败: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _toggleFavorite(Song song) async {
-    final repo = ref.read(favoriteRepositoryProvider);
-    final isFav = await repo.isFavorited(song.id);
-    if (isFav) {
-      await repo.remove(song.id);
-    } else {
-      await repo.add(song);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('播放失败: $e')),
+      );
     }
   }
 }

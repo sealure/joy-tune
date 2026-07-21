@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../widgets/mini_player_bar.dart';
-import '../widgets/song_tile.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});

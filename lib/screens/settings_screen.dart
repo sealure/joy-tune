@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../api/gdmusic_client.dart';
-import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

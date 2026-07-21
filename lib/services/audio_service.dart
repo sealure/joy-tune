@@ -13,8 +13,8 @@ class AudioService {
       StreamController<PlayState>.broadcast();
 
   Stream<PlayState> get stateStream => _stateController.stream;
-  Stream<Duration> get positionStream => _player.streams.position;
-  Stream<Duration?> get durationStream => _player.streams.duration;
+  Stream<Duration> get positionStream => _player.stream.position;
+  Stream<Duration?> get durationStream => _player.stream.duration;
 
   PlayState _state = PlayState.stopped;
   PlayState get state => _state;
@@ -25,19 +25,19 @@ class AudioService {
 
   AudioService() {
     // 错误处理
-    _player.streams.error.listen((error) {
+    _player.stream.error.listen((error) {
       _updateState(PlayState.stopped);
     });
 
     // 缓冲中 → loading
-    _player.streams.buffering.listen((buffering) {
+    _player.stream.buffering.listen((buffering) {
       if (buffering && !_player.state.playing) {
         _updateState(PlayState.loading);
       }
     });
 
     // 播放状态变化
-    _player.streams.playing.listen((playing) {
+    _player.stream.playing.listen((playing) {
       if (playing) {
         _updateState(PlayState.playing);
       } else if (_state == PlayState.playing || _state == PlayState.loading) {
@@ -46,7 +46,7 @@ class AudioService {
     });
 
     // 播放完成
-    _player.streams.completed.listen((completed) {
+    _player.stream.completed.listen((completed) {
       if (completed) {
         _updateState(PlayState.stopped);
       }

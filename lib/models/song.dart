@@ -22,7 +22,7 @@ class Song {
     // artist 可能是数组 ["周杰伦", "温岚"] 或单字符串
     final artistRaw = json['artist'];
     final artistStr = artistRaw is List
-        ? (artistRaw as List).join(' / ')
+        ? (artistRaw).join(' / ')
         : (artistRaw?.toString() ?? '');
 
     return Song(
