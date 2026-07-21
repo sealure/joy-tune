@@ -721,7 +721,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
