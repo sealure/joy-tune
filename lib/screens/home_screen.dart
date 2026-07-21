@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/mock_data.dart';
+import '../services/providers.dart';
 import '../widgets/mini_player_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -94,7 +96,15 @@ class HomeScreen extends StatelessWidget {
                       itemBuilder: (_, i) => _PlaylistCard(
                         playlist: recommendedPlaylists[i],
                         gradient: recommendationGradients[i % recommendationGradients.length],
-                        onTap: () => context.push('/playlist/${recommendedPlaylists[i].id}', extra: recommendedPlaylists[i]),
+                        onTap: () => context.push(
+                          '/playlist/${recommendedPlaylists[i].id}',
+                          // 传递歌单元数据，不含歌曲列表
+                          extra: {
+                            'id': recommendedPlaylists[i].id,
+                            'name': recommendedPlaylists[i].name,
+                            'subtitle': recommendedPlaylists[i].subtitle,
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -152,7 +162,7 @@ class _QuickCard extends StatelessWidget {
 
 // ── 推荐歌单卡片 ──
 
-class _PlaylistCard extends StatelessWidget {
+class _PlaylistCard extends ConsumerWidget {
   final MockPlaylist playlist;
   final List<Color> gradient;
   final VoidCallback onTap;
@@ -160,7 +170,10 @@ class _PlaylistCard extends StatelessWidget {
   const _PlaylistCard({required this.playlist, required this.gradient, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 监听歌单歌曲数量（使用 playlistId 作为 key）
+    final songsAsync = ref.watch(playlistSongsProvider(playlist.id));
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -189,9 +202,20 @@ class _PlaylistCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text(
-                '${playlist.songs.length} 首',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+              // 根据 Provider 状态显示歌曲数量
+              songsAsync.when(
+                data: (songs) => Text(
+                  '${songs.length} 首',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                ),
+                loading: () => Text(
+                  '加载中...',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                ),
+                error: (_, __) => Text(
+                  '加载失败',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                ),
               ),
             ],
           ),

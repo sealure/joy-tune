@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/mock_data.dart';
+import '../models/song.dart';
 import '../services/providers.dart';
 import '../widgets/mini_player_bar.dart';
 import '../utils/player_utils.dart';
@@ -16,8 +17,23 @@ class PlaylistDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    // 从 extra 获取歌单数据
-    final playlist = GoRouterState.of(context).extra as MockPlaylist?;
+    // 从路由 extra 获取歌单元数据（Map 格式）
+    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
+    final playlistName = extra?['name'] as String? ?? '歌单详情';
+    final playlistSubtitle = extra?['subtitle'] as String?;
+
+    // 根据 playlistId 找到对应的 MockPlaylist
+    final playlist = recommendedPlaylists.firstWhere(
+      (p) => p.id == playlistId,
+      orElse: () => MockPlaylist(
+        id: playlistId,
+        name: playlistName,
+        subtitle: playlistSubtitle ?? '',
+      ),
+    );
+
+    // 通过 Provider 动态获取歌曲列表（使用 playlistId 作为 key）
+    final songsAsync = ref.watch(playlistSongsProvider(playlistId));
 
     return Scaffold(
       body: SafeArea(
@@ -34,7 +50,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   ),
                   const Spacer(),
                   Text(
-                    playlist?.name ?? '歌单详情',
+                    playlistName,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                   ),
                   const Spacer(),
@@ -44,14 +60,40 @@ class PlaylistDetailScreen extends ConsumerWidget {
             ),
 
             // 头部区域
-            if (playlist != null)
-              _buildHeader(theme, playlist, context, ref),
+            _buildHeader(theme, playlist, songsAsync, context, ref),
 
-            // 歌曲列表
+            // 歌曲列表（支持加载中/错误状态）
             Expanded(
-              child: playlist != null
-                  ? _buildSongList(context, ref, playlist)
-                  : _buildEmptyState(context),
+              child: songsAsync.when(
+                data: (songs) => songs.isEmpty
+                    ? _buildEmptyState(context)
+                    : _buildSongList(context, ref, songs),
+                loading: () => const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 12),
+                      Text('正在加载歌曲...', style: TextStyle(color: Colors.white70)),
+                    ],
+                  ),
+                ),
+                error: (error, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 48, color: Colors.white38),
+                      const SizedBox(height: 12),
+                      Text('加载失败: $error', style: const TextStyle(color: Colors.white70)),
+                      const SizedBox(height: 16),
+                      FilledButton.tonal(
+                        onPressed: () => ref.invalidate(playlistSongsProvider(playlistId)),
+                        child: const Text('重试'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
 
             // 迷你播放栏
@@ -62,7 +104,20 @@ class PlaylistDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(ThemeData theme, MockPlaylist playlist, BuildContext context, WidgetRef ref) {
+  Widget _buildHeader(
+    ThemeData theme,
+    MockPlaylist playlist,
+    AsyncValue<List<Song>> songsAsync,
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    // 歌曲数量：加载中显示占位，加载完成显示实际数量
+    final songCountText = songsAsync.when(
+      data: (songs) => '${songs.length} 首',
+      loading: () => '加载中...',
+      error: (_, __) => '加载失败',
+    );
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       decoration: BoxDecoration(
@@ -84,64 +139,72 @@ class PlaylistDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Via Music · 共 ${playlist.songs.length} 首',
+              'Via Music · 共 $songCountText',
               style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
             ),
-            if (playlist.songs.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
+            // 仅在加载完成后显示"播放全部"按钮
+            songsAsync.when(
+              data: (songs) {
+                if (songs.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(24),
-                      onTap: () {
-                        final audio = ref.read(audioServiceProvider);
-                        audio.stop();
-                        audio.setQueue(playlist.songs, startIndex: 0);
-                        context.push('/player', extra: playlist.songs[0]);
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
-                            SizedBox(width: 6),
-                            Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
-                          ],
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () {
+                            final audio = ref.read(audioServiceProvider);
+                            audio.stop();
+                            audio.setQueue(songs, startIndex: 0);
+                            context.push('/player', extra: songs[0]);
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
+                                SizedBox(width: 6),
+                                Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSongList(BuildContext context, WidgetRef ref, MockPlaylist playlist) {
+  Widget _buildSongList(BuildContext context, WidgetRef ref, List<Song> songs) {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: playlist.songs.length,
+      itemCount: songs.length,
       separatorBuilder: (_, __) => const Divider(height: 1, indent: 60),
       itemBuilder: (_, i) {
-        final song = playlist.songs[i];
+        final song = songs[i];
         return ListTile(
           leading: Container(
             width: 44, height: 44,
@@ -185,5 +248,4 @@ class PlaylistDetailScreen extends ConsumerWidget {
       ),
     );
   }
-
 }
