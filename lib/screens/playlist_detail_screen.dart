@@ -92,7 +92,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
                         ],
                       ),

@@ -133,8 +133,8 @@ class ProfileScreen extends StatelessWidget {
                   _MenuTile(
                     icon: Icons.info_outline_rounded,
                     label: '关于',
-                    iconBg: const Color(0xFFF0FDF4),
-                    iconColor: const Color(0xFF3B82F6),
+                    iconBg: const Color(0xFFEEF2FF),
+                    iconColor: const Color(0xFF6366F1),
                   ),
                 ],
               ),
