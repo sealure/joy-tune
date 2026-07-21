@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
@@ -24,6 +23,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String? _coverUrl;
   List<LyricLine> _lyrics = [];
   int _currentLyricIndex = -1;
+  bool _showLyrics = false;
   final ScrollController _lyricScrollCtrl = ScrollController();
 
   StreamSubscription<PlayState>? _stateSub;
@@ -172,9 +172,39 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ),
             ),
 
-            // 封面 + 歌词区域
+            // 封面 / 歌词（点击切换）
             Expanded(
-              child: _lyrics.isNotEmpty ? _buildLyricsView(theme) : _buildCoverView(theme),
+              child: GestureDetector(
+                onTap: () {
+                  if (_lyrics.isNotEmpty) {
+                    setState(() => _showLyrics = !_showLyrics);
+                  }
+                },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: _showLyrics
+                          ? _buildLyricsView(theme, key: const ValueKey('lyrics'))
+                          : _buildCoverView(theme, key: const ValueKey('cover')),
+                    ),
+                    // 切换提示
+                    Positioned(
+                      top: 16,
+                      right: 16,
+                      child: _lyrics.isNotEmpty
+                          ? Text(
+                              _showLyrics ? '显示封面' : '显示歌词',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
             // 歌名 & 歌手
@@ -254,19 +284,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   // ── 封面视图 ──
 
-  Widget _buildCoverView(ThemeData theme) {
+  Widget _buildCoverView(ThemeData theme, {Key? key}) {
     return Center(
+      key: key,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: SizedBox(
           width: 260,
           height: 260,
           child: _coverUrl != null
-              ? CachedNetworkImage(
-                  imageUrl: _coverUrl!,
+              ? Image.network(
+                  _coverUrl!,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => _coverPlaceholder(theme),
-                  errorWidget: (_, __, ___) => _coverPlaceholder(theme),
+                  loadingBuilder: (_, child, progress) {
+                    if (progress == null) return child;
+                    return _coverPlaceholder(theme);
+                  },
+                  errorBuilder: (_, __, ___) => _coverPlaceholder(theme),
                 )
               : _coverPlaceholder(theme),
         ),
@@ -285,15 +319,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   // ── 歌词视图 ──
 
-  Widget _buildLyricsView(ThemeData theme) {
+  Widget _buildLyricsView(ThemeData theme, {Key? key}) {
     return ShaderMask(
+      key: key,
       shaderCallback: (bounds) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Colors.transparent, theme.scaffoldBackgroundColor, theme.scaffoldBackgroundColor, Colors.transparent],
+        colors: [Colors.transparent, Colors.black, Colors.black, Colors.transparent],
         stops: const [0.0, 0.08, 0.92, 1.0],
       ).createShader(bounds),
-      blendMode: BlendMode.dstOut,
+      blendMode: BlendMode.dstIn,
       child: ListView.builder(
         controller: _lyricScrollCtrl,
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
