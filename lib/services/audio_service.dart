@@ -5,6 +5,7 @@ import '../models/song.dart';
 /// 音频播放服务（基于 media_kit）
 class AudioService {
   final Player _player = Player();
+  String? currentSongId;
 
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
@@ -52,12 +53,14 @@ class AudioService {
   }
 
   /// 播放 URL
-  Future<void> play(String url) async {
+  Future<void> play(String url, {String? songId}) async {
     _updateState(PlayState.loading);
+    currentSongId = songId;
     try {
       await _player.open(Media(url));
       await _player.play();
     } catch (e) {
+      currentSongId = null;
       _updateState(PlayState.stopped);
       rethrow;
     }
@@ -75,6 +78,7 @@ class AudioService {
 
   /// 停止
   void stop() {
+    currentSongId = null;
     _player.stop();
   }
 
