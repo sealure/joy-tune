@@ -23,7 +23,7 @@ class SongResolver {
 
   SongResolver(this._ref);
 
-  /// 在指定源上搜索，返回名称精确匹配的结果，无精确匹配则取第一个
+  /// 在指定源上搜索，严格按歌名精确匹配，不匹配则返回 null
   Future<Song?> _searchSource(Song song, String source) async {
     try {
       final results = await _ref.read(searchServiceProvider).search(
@@ -34,7 +34,7 @@ class SongResolver {
       for (final s in results) {
         if (s.name == song.name) return s;
       }
-      return results.first;
+      return null;
     } catch (_) {
       return null;
     }

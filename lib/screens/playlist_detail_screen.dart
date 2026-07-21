@@ -109,6 +109,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(24),
                       onTap: () {
                         final audio = ref.read(audioServiceProvider);
+                        audio.stop();
                         audio.setQueue(playlist.songs, startIndex: 0);
                         context.push('/player', extra: playlist.songs[0]);
                       },
