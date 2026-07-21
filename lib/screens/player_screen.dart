@@ -141,44 +141,53 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
 
-    // 无缓存 → 先加载元数据（封面/歌词），再重试搜索 + 播放
+    // 无缓存 → 先加载元数据，再搜索播放
     _loadSongMetadata(song);
     _checkFavorite(song);
 
     final client = ref.read(gdMusicClientProvider);
 
-    for (int attempt = 0; attempt < 3; attempt++) {
-      if (!mounted) return;
-
-      Song playable = song;
-      // 搜歌曲（无真实 ID 时）
-      if (song.id.isEmpty) {
-        final searchService = ref.read(searchServiceProvider);
+    /// 尝试在指定源上搜索并播放，成功返回 true
+    Future<bool> tryPlay(String source) async {
+      for (int attempt = 0; attempt < 3; attempt++) {
+        if (!mounted) return false;
         try {
+          final searchService = ref.read(searchServiceProvider);
           final results = await searchService.search(
             keyword: '${song.name} ${song.artist}',
-            source: 'netease',
+            source: source,
           );
-          if (results.isNotEmpty) playable = results.first;
+          if (results.isEmpty) return false;
+
+          final playable = results.first;
+          final playUrl = await client.getPlayUrl(songId: playable.id, source: source);
+          if (!mounted) return false;
+
+          // 搜索结果有真实封面/歌词 ID → 重新加载元数据
+          if (playable.picId != null || playable.lyricId != null) {
+            _loadSongMetadata(playable);
+          }
+          await audio.play(playUrl.url, songId: playable.id, song: playable);
+          return true;
         } catch (_) {
-          if (attempt < 2) continue; // 重试
+          if (attempt < 2) continue;
         }
       }
-
-      try {
-        final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
-        if (!mounted) return;
-        await audio.play(playUrl.url, songId: playable.id, song: playable);
-        return; // 成功
-      } catch (_) {
-        if (attempt < 2) continue; // 重试
-      }
+      return false;
     }
 
-    // 3 次均失败 → 自动跳下一曲（不弹错误提示）
+    // 1. 优先尝试原始源（快路径）
+    if (await tryPlay(song.source)) return;
+
+    // 2. 原始源彻底失败 → 逐个尝试其他源
+    for (final source in GdMusicClient.sources) {
+      if (source == song.source) continue;
+      if (await tryPlay(source)) return;
+    }
+
+    // 全部源均失败 → 自动跳下一曲（不弹错误提示）
     if (!mounted) return;
     audio.playNext();
-  }
   }
 
   Future<void> _checkFavorite(Song song) async {
