@@ -34,7 +34,7 @@ final songResolverProvider = Provider<SongResolver>((ref) => SongResolver(ref));
 /// key: playlist.id (String)，value: 歌曲列表
 /// 使用 autoDispose 自动释放，避免内存泄漏
 final playlistSongsProvider =
-    FutureProvider.autoDispose.family<List<Song>, String>((ref, playlistId) async {
+    FutureProvider.family<List<Song>, String>((ref, playlistId) async {
   // 根据 playlistId 查找歌单元数据
   final playlist = recommendedPlaylists.firstWhere(
     (p) => p.id == playlistId,
