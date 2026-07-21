@@ -8,14 +8,10 @@ import '../models/song.dart';
 import '../services/providers.dart';
 import '../services/audio_cache.dart';
 import '../api/gdmusic_client.dart';
+import '../theme/player_colors.dart';
+import '../utils/lyric_utils.dart';
+import '../widgets/player_seek_bar.dart';
 import 'playlist_queue_sheet.dart';
-
-const _emeraldStart = Color(0xFF064E3B);
-const _emeraldMid = Color(0xFF065F46);
-const _emeraldEnd = Color(0xFF022C22);
-const _placeholderStart = Color(0xFF065F46);
-const _placeholderMid = Color(0xFF059669);
-const _placeholderEnd = Color(0xFF10B981);
 
 class PlayerScreen extends ConsumerStatefulWidget {
   const PlayerScreen({super.key});
@@ -77,7 +73,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final audio = ref.read(audioServiceProvider);
     _initSubscriptions();
 
-    // 监听队列自动前进
     _nextSub = audio.nextSongStream.listen((song) {
       _onQueueAdvance(song);
     });
@@ -85,14 +80,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final song = GoRouterState.of(context).extra as Song?;
     if (song == null) return;
 
-    // 已在播放同一首歌 → 只加载元数据
     if (audio.currentSongId != null && audio.currentSongId == song.id) {
       _loadSongMetadata(song);
       _checkFavorite(song);
       return;
     }
 
-    // 未播放或播不同歌 → 搜索 + 播放（_onQueueAdvance 处理一切）
     _onQueueAdvance(song);
   }
 
@@ -122,16 +115,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _duration = audio.duration ?? Duration.zero;
   }
 
-  /// 队列自动前进或手动切歌时调用
+  // ── 播放流程 ──
+
   Future<void> _onQueueAdvance(Song song) async {
     final audio = ref.read(audioServiceProvider);
+    final resolver = ref.read(songResolverProvider);
     final cache = AudioCache.instance;
     final cacheKey = AudioCache.cacheKey(song.name, song.artist);
 
-    // 有缓存 → 直接本地播放，零网络
+    // 有缓存 → 直接本地播放
     final localPath = await cache.getLocalPath(cacheKey);
     if (localPath != null) {
-      // 加载缓存的封面/歌词
       final meta = await cache.loadMetadata(cacheKey);
       if (meta != null && mounted) {
         setState(() {
@@ -149,116 +143,53 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
 
-    // 无缓存 → 先加载元数据，再搜索播放
+    // 无缓存 → 搜索 + 播放
     _loadSongMetadata(song);
     _checkFavorite(song);
 
-    final client = ref.read(gdMusicClientProvider);
-
-    /// 在指定源上搜索，返回名称精确匹配的结果，无精确匹配则取第一个
-    Future<Song?> searchSource(String source) async {
-      try {
-        final results = await ref.read(searchServiceProvider).search(
-              keyword: '${song.name} ${song.artist}',
-              source: source,
-            );
-        if (results.isEmpty) return null;
-        for (final s in results) {
-          if (s.name == song.name) return s;
-        }
-        return results.first;
-      } catch (_) {
-        return null;
-      }
+    final result = await resolver.resolve(song);
+    if (result == null || !mounted) {
+      audio.playNext();
+      return;
     }
 
-    /// 并发搜索除 [skip] 外的所有源，返回第一个成功结果
-    Future<Song?> raceOtherSources(String skip) {
-      final completer = Completer<Song?>();
-      int completed = 0;
-      final others = GdMusicClient.sources.where((s) => s != skip).toList();
-      for (final source in others) {
-        searchSource(source).then((result) {
-          if (result != null && !completer.isCompleted) {
-            completer.complete(result);
-          }
-        }).whenComplete(() {
-          completed++;
-          if (completed >= others.length && !completer.isCompleted) {
-            completer.complete(null);
-          }
+    try {
+      final playUrl = await ref.read(gdMusicClientProvider).getPlayUrl(
+        songId: result.playable.id,
+        source: result.playable.source,
+      );
+      if (!mounted) return;
+      await audio.play(playUrl.url, songId: result.playable.id, song: result.playable);
+
+      if (mounted) {
+        setState(() {
+          if (result.coverUrl != null) _coverUrl = result.coverUrl;
+          if (result.lyricsText != null) _lyrics = parseLrc(result.lyricsText!);
         });
       }
-      return completer.future;
-    }
-
-    /// 获取封面 URL（无 setState，返回数据）
-    Future<String?> fetchCoverUrl(Song s) async {
-      if (s.picId == null || s.picId!.isEmpty) return null;
-      try {
-        return await client.getCoverUrl(picId: s.picId!, source: s.source);
-      } catch (_) {
-        return null;
+      if (result.coverUrl != null || result.lyricsText != null) {
+        cache.saveMetadata(cacheKey, {
+          'coverUrl': result.coverUrl,
+          'lyrics': result.lyricsText,
+        });
       }
+    } catch (_) {
+      audio.playNext();
     }
-
-    /// 获取歌词文本（无 setState，返回数据）
-    Future<String?> fetchLyricsText(Song s) async {
-      if (s.lyricId == null || s.lyricId!.isEmpty) return null;
-      try {
-        final lyric = await client.getLyric(lyricId: s.lyricId!, source: s.source);
-        return lyric?.lyric;
-      } catch (_) {
-        return null;
-      }
-    }
-
-    // 最多 3 轮搜索 + 播放
-    for (int attempt = 0; attempt < 3; attempt++) {
-      if (!mounted) return;
-
-      // 优先使用原始源（准确性最高）
-      Song? playable = await searchSource(song.source);
-      // 原始源无结果 → 并发其他源
-      playable ??= await raceOtherSources(song.source);
-      if (playable == null) continue;
-
-      try {
-        final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
-        if (!mounted) return;
-
-        // 播放在前，元数据加载在后（不阻塞播放）
-        await audio.play(playUrl.url, songId: playable.id, song: playable);
-
-        // 并发加载封面 + 歌词，保存到缓存
-        final results = await Future.wait([
-          fetchCoverUrl(playable),
-          fetchLyricsText(playable),
-        ]);
-        final coverUrl = results[0];
-        final lyricsText = results[1];
-        if (mounted) {
-          setState(() {
-            if (coverUrl != null) _coverUrl = coverUrl;
-            if (lyricsText != null) _lyrics = parseLrc(lyricsText);
-          });
-        }
-        if (coverUrl != null || lyricsText != null) {
-          cache.saveMetadata(cacheKey, {
-            'coverUrl': coverUrl,
-            'lyrics': lyricsText,
-          });
-        }
-        return;
-      } catch (_) {
-        continue;
-      }
-    }
-
-    // 全部失败 → 自动跳下一曲（不弹错误提示）
-    if (!mounted) return;
-    audio.playNext();
   }
+
+  void _onPlayToggle(Song song) {
+    final audio = ref.read(audioServiceProvider);
+    if (_playState == PlayState.playing) {
+      audio.pause();
+    } else if (_playState == PlayState.paused) {
+      audio.resume();
+    } else {
+      _onQueueAdvance(song);
+    }
+  }
+
+  // ── 收藏 ──
 
   Future<void> _checkFavorite(Song song) async {
     final repo = ref.read(favoriteRepositoryProvider);
@@ -277,6 +208,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _favCtrl.forward().then((_) => _favCtrl.reverse());
     }
   }
+
+  // ── 元数据加载 ──
 
   Future<void> _loadSongMetadata(Song song) async {
     final client = ref.read(gdMusicClientProvider);
@@ -310,6 +243,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     } catch (_) {}
   }
 
+  // ── 歌词同步 ──
+
   void _updateCurrentLyric(Duration position) {
     if (_lyrics.isEmpty) return;
     int idx = _lyrics.length - 1;
@@ -335,6 +270,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
+  // ── 播放模式 ──
+
   void _cyclePlayMode() {
     final audio = ref.read(audioServiceProvider);
     final next = switch (audio.playMode) {
@@ -352,6 +289,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     PlayMode.shuffle => Icons.shuffle_rounded,
   };
 
+  // ── UI 构建 ──
+
   @override
   Widget build(BuildContext context) {
     final audio = ref.watch(audioServiceProvider);
@@ -359,10 +298,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (song == null) {
       return const Scaffold(body: Center(child: Text('无播放内容')));
     }
-
-    final progress = _duration.inMilliseconds > 0
-        ? _position.inMilliseconds / _duration.inMilliseconds
-        : 0.0;
 
     final isDesktop = MediaQuery.sizeOf(context).width > 600;
 
@@ -382,10 +317,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         child: SizedBox(
                           width: 480,
                           height: safeHeight,
-                          child: _buildPlayerColumn(song, progress),
+                          child: _buildPlayerColumn(song),
                         ),
                       )
-                    : _buildPlayerColumn(song, progress),
+                    : _buildPlayerColumn(song),
               ),
             ],
           );
@@ -394,12 +329,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildPlayerColumn(Song song, double progress) {
+  Widget _buildPlayerColumn(Song song) {
     return Column(
       children: [
         _buildTopBar(song),
         Expanded(child: _buildMainContent()),
-        _buildProgressBar(progress),
+        PlayerSeekBar(
+          position: _position,
+          duration: _duration,
+          onSeek: (pos) => ref.read(audioServiceProvider).seek(pos),
+        ),
         const SizedBox(height: 12),
         _buildBottomRow(song),
         SizedBox(height: MediaQuery.of(context).padding.bottom + 24),
@@ -416,7 +355,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [_emeraldStart, _emeraldMid, _emeraldEnd],
+              colors: [
+                PlayerColors.backgroundTop,
+                PlayerColors.backgroundMid,
+                PlayerColors.backgroundBottom,
+              ],
             ),
           ),
         ),
@@ -562,7 +505,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_placeholderStart, _placeholderMid, _placeholderEnd],
+          colors: [
+            PlayerColors.placeholderTop,
+            PlayerColors.placeholderMid,
+            PlayerColors.placeholderBottom,
+          ],
         ),
       ),
       child: Center(
@@ -611,84 +558,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildProgressBar(double progress) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          LayoutBuilder(
-            builder: (_, constraints) {
-              return GestureDetector(
-                onTapDown: (details) {
-                  final p = details.localPosition.dx / constraints.maxWidth;
-                  final seekPos = Duration(milliseconds: (_duration.inMilliseconds * p).round());
-                  ref.read(audioServiceProvider).seek(seekPos);
-                },
-                child: Container(
-                  height: 20,
-                  alignment: Alignment.centerLeft,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        height: 3,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(2),
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: progress.clamp(0.0, 1.0),
-                        child: Container(
-                          height: 3,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: (progress.clamp(0.0, 1.0) * constraints.maxWidth) - 6,
-                        top: -4,
-                        child: Container(
-                          width: 12, height: 12,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(_formatDuration(_position), style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
-              Text(_formatDuration(_duration), style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _ctrlBtn(IconData icon, double size, VoidCallback? onTap) {
-    return SizedBox(
-      width: 44, height: 44,
-      child: IconButton(
-        icon: Icon(icon, color: onTap != null ? Colors.white.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.2), size: size),
-        onPressed: onTap,
-        splashRadius: 22,
-        padding: EdgeInsets.zero,
-      ),
-    );
-  }
+  // ── 底部控制栏 ──
 
   Widget _buildBottomRow(Song song) {
     final audio = ref.watch(audioServiceProvider);
@@ -699,77 +569,100 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 区域一：歌曲信息 + 操作按钮
+          Expanded(flex: 1, child: _buildSongInfo(song)),
           Expanded(
             flex: 1,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  song.name,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  song.artist,
-                  style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4)),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
-                    const SizedBox(width: 4),
-                    _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
-                    const SizedBox(width: 4),
-                    _bottomIcon(_playModeIcon(audio.playMode), null, _cyclePlayMode),
-                  ],
-                ),
-              ],
-            ),
+            child: _buildPlaybackControls(song, hasPrev, hasNext),
           ),
-          // 区域二：播放控制
-          Expanded(
-            flex: 1,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _ctrlBtn(Icons.skip_previous_rounded, 28, hasPrev ? () => audio.playPrevious() : null),
-                const SizedBox(width: 20),
-                GestureDetector(
-                  onTap: () => _onPlayToggle(song),
-                  child: Container(
-                    width: 56, height: 56,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
-                    ),
-                    child: Icon(
-                      _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      size: 32,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                _ctrlBtn(Icons.skip_next_rounded, 28, hasNext ? () => audio.playNext() : null),
-              ],
-            ),
-          ),
-          // 区域三：播放列表
-          Expanded(
-            flex: 1,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
-              ],
-            ),
-          ),
+          Expanded(flex: 1, child: _buildQueueButton()),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSongInfo(Song song) {
+    final audio = ref.watch(audioServiceProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          song.name,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          song.artist,
+          style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4)),
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            _bottomIcon(
+              _isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+              _isFavorited ? const Color(0xFFEF4444) : null,
+              () => _toggleFavorite(song),
+            ),
+            const SizedBox(width: 4),
+            _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
+            const SizedBox(width: 4),
+            _bottomIcon(_playModeIcon(audio.playMode), null, _cyclePlayMode),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaybackControls(Song song, bool hasPrev, bool hasNext) {
+    final audio = ref.read(audioServiceProvider);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _ctrlBtn(Icons.skip_previous_rounded, 28, hasPrev ? () => audio.playPrevious() : null),
+        const SizedBox(width: 20),
+        GestureDetector(
+          onTap: () => _onPlayToggle(song),
+          child: Container(
+            width: 56, height: 56,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
+            ),
+            child: Icon(
+              _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              size: 32,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(width: 20),
+        _ctrlBtn(Icons.skip_next_rounded, 28, hasNext ? () => audio.playNext() : null),
+      ],
+    );
+  }
+
+  Widget _buildQueueButton() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
+      ],
+    );
+  }
+
+  // ── 通用按钮 ──
+
+  Widget _ctrlBtn(IconData icon, double size, VoidCallback? onTap) {
+    return SizedBox(
+      width: 44, height: 44,
+      child: IconButton(
+        icon: Icon(icon, color: onTap != null ? Colors.white.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.2), size: size),
+        onPressed: onTap,
+        splashRadius: 22,
+        padding: EdgeInsets.zero,
       ),
     );
   }
@@ -784,22 +677,5 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         padding: EdgeInsets.zero,
       ),
     );
-  }
-
-  String _formatDuration(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
-
-  void _onPlayToggle(Song song) {
-    final audio = ref.read(audioServiceProvider);
-    if (_playState == PlayState.playing) {
-      audio.pause();
-    } else if (_playState == PlayState.paused) {
-      audio.resume();
-    } else {
-      _onQueueAdvance(song);
-    }
   }
 }

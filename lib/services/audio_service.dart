@@ -42,7 +42,6 @@ class AudioService {
   bool get isPlaying => _player.state.playing;
 
   AudioService() {
-    // 初始化音频缓存
     AudioCache.instance.init().catchError((_) {});
 
     _player.stream.error.listen((_) => _updateState(PlayState.stopped));
@@ -61,11 +60,11 @@ class AudioService {
       }
     });
 
-    // 播放完成 → 自动下一首
     _player.stream.completed.listen((_) => _advanceToNext());
   }
 
-  /// 设置队列并播放下标为 [startIndex] 的歌曲
+  // ── 队列管理 ──
+
   void setQueue(List<Song> songs, {int startIndex = 0}) {
     _queue
       ..clear()
@@ -73,7 +72,6 @@ class AudioService {
     _currentQueueIndex = startIndex.clamp(0, _queue.length - 1);
   }
 
-  /// 把歌曲插入当前歌曲之后（不触发播放）
   void insertNext(Song song) {
     if (_currentQueueIndex < 0) {
       _queue.add(song);
@@ -84,76 +82,36 @@ class AudioService {
     }
   }
 
-  /// 跳转到队列中指定位置的歌曲
+  // ── 播放控制 ──
+
   Future<void> jumpTo(int index) async {
     if (index < 0 || index >= _queue.length) return;
-    _currentQueueIndex = index;
-    final song = _queue[index];
-    currentSong = song;
-    currentSongId = song.id.isEmpty ? null : song.id;
-    _player.stop();
-    _updateState(PlayState.loading);
-    _nextSongController.add(song);
+    _applyAndPlay(index);
   }
 
-  /// 播放下⼀首（触发外部获取 URL）
-  Future<void> playNext() async {
+  void playNext() {
     if (_queue.isEmpty) return;
-
-    int nextIndex;
-    switch (_playMode) {
-      case PlayMode.sequential:
-        // 单曲循环：重播当前歌曲
-        nextIndex = _currentQueueIndex;
-        break;
-      case PlayMode.shuffle:
-        // 随机播放：随机选一首（队列只有一首时直接重播）
-        if (_queue.length == 1) {
-          nextIndex = 0;
-        } else {
-          final rng = math.Random();
-          do {
-            nextIndex = rng.nextInt(_queue.length);
-          } while (nextIndex == _currentQueueIndex);
-        }
-        break;
-      case PlayMode.loop:
-        // 列表循环：顺序播放，到末尾回到开头
-        nextIndex = (_currentQueueIndex + 1) % _queue.length;
-        break;
-    }
-
-    _currentQueueIndex = nextIndex;
-    final next = _queue[_currentQueueIndex];
-    currentSong = next;
-    currentSongId = next.id.isEmpty ? null : next.id;
-    _player.stop();
-    _updateState(PlayState.loading);
-    _nextSongController.add(next);
+    _applyAndPlay(_calculateNextIndex());
   }
 
-  /// 播放上一首
-  Future<void> playPrevious() async {
-    if (_queue.isEmpty || _currentQueueIndex <= 0) {
+  void playPrevious() {
+    if (_queue.isEmpty || _currentQueueIndex <= 0) return;
+    _applyAndPlay(_currentQueueIndex - 1);
+  }
+
+  void _advanceToNext() {
+    if (_queue.isEmpty) {
+      _updateState(PlayState.stopped);
       return;
     }
-    _currentQueueIndex--;
-    final prev = _queue[_currentQueueIndex];
-    currentSong = prev;
-    currentSongId = prev.id.isEmpty ? null : prev.id;
-    _player.stop();
-    _updateState(PlayState.loading);
-    _nextSongController.add(prev);
+    _applyAndPlay(_calculateNextIndex());
   }
 
-  /// 播放单曲（替换当前内容，不入队列）
-  /// 有缓存时从本地播放，无缓存时播放 URL 并在后台缓存
   Future<void> play(String url, {String? songId, Song? song}) async {
     _updateState(PlayState.loading);
     currentSongId = songId;
     currentSong = song;
 
-    // 用名称生成缓存 key，检查本地缓存
     String? cacheKey;
     String playSource = url;
     if (song != null) {
@@ -163,7 +121,6 @@ class AudioService {
       if (localPath != null) {
         playSource = localPath;
       } else {
-        // 无缓存，后台下载
         cache.download(url, cacheKey).then((_) {}, onError: (_) {});
       }
     }
@@ -179,39 +136,6 @@ class AudioService {
     }
   }
 
-  void _advanceToNext() {
-    if (_queue.isEmpty) {
-      _updateState(PlayState.stopped);
-      return;
-    }
-
-    int nextIndex;
-    switch (_playMode) {
-      case PlayMode.sequential:
-        nextIndex = _currentQueueIndex;
-        break;
-      case PlayMode.shuffle:
-        if (_queue.length == 1) {
-          nextIndex = 0;
-        } else {
-          final rng = math.Random();
-          do {
-            nextIndex = rng.nextInt(_queue.length);
-          } while (nextIndex == _currentQueueIndex);
-        }
-        break;
-      case PlayMode.loop:
-        nextIndex = (_currentQueueIndex + 1) % _queue.length;
-        break;
-    }
-
-    _currentQueueIndex = nextIndex;
-    final next = _queue[_currentQueueIndex];
-    currentSong = next;
-    currentSongId = next.id.isEmpty ? null : next.id;
-    _nextSongController.add(next);
-  }
-
   void pause() => _player.pause();
   void resume() => _player.play();
 
@@ -225,6 +149,37 @@ class AudioService {
 
   Future<void> seek(Duration position) => _player.seek(position);
   void setVolume(double volume) => _player.setVolume(volume.clamp(0.0, 1.0));
+
+  // ── 内部工具方法 ──
+
+  /// 根据播放模式计算下一首歌的索引
+  int _calculateNextIndex() {
+    switch (_playMode) {
+      case PlayMode.sequential:
+        return _currentQueueIndex;
+      case PlayMode.shuffle:
+        if (_queue.length == 1) return 0;
+        final rng = math.Random();
+        int next;
+        do {
+          next = rng.nextInt(_queue.length);
+        } while (next == _currentQueueIndex);
+        return next;
+      case PlayMode.loop:
+        return (_currentQueueIndex + 1) % _queue.length;
+    }
+  }
+
+  /// 跳转到指定索引并开始播放
+  void _applyAndPlay(int index) {
+    _currentQueueIndex = index;
+    final song = _queue[index];
+    currentSong = song;
+    currentSongId = song.id.isEmpty ? null : song.id;
+    _player.stop();
+    _updateState(PlayState.loading);
+    _nextSongController.add(song);
+  }
 
   void _updateState(PlayState newState) {
     _state = newState;

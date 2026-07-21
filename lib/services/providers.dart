@@ -6,6 +6,7 @@ import '../repositories/favorite_repository.dart';
 import '../services/search_service.dart';
 import '../services/favorite_service.dart';
 import '../services/audio_service.dart';
+import '../services/song_resolver.dart';
 
 // ── 单例 Provider ──
 
@@ -22,3 +23,5 @@ final favoriteServiceProvider = Provider<FavoriteService>((ref) {
 });
 
 final audioServiceProvider = Provider<AudioService>((ref) => AudioService());
+
+final songResolverProvider = Provider<SongResolver>((ref) => SongResolver(ref));
