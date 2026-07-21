@@ -134,7 +134,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // 有缓存 → 直接本地播放，零网络
     final localPath = await cache.getLocalPath(cacheKey);
     if (localPath != null) {
-      _loadSongMetadata(song);
+      // 加载缓存的封面/歌词
+      final meta = await cache.loadMetadata(cacheKey);
+      if (meta != null && mounted) {
+        setState(() {
+          _coverUrl = meta['coverUrl'] as String?;
+          if (meta['lyrics'] is String) {
+            _lyrics = parseLrc(meta['lyrics'] as String);
+          }
+        });
+      } else {
+        _loadSongMetadata(song);
+      }
       _checkFavorite(song);
       if (!mounted) return;
       await audio.play(localPath, songId: song.id, song: song);
@@ -147,14 +158,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     final client = ref.read(gdMusicClientProvider);
 
-    /// 在指定源上搜索，返回第一个结果
+    /// 在指定源上搜索，返回名称精确匹配的结果，无精确匹配则取第一个
     Future<Song?> searchSource(String source) async {
       try {
         final results = await ref.read(searchServiceProvider).search(
               keyword: '${song.name} ${song.artist}',
               source: source,
             );
-        return results.isNotEmpty ? results.first : null;
+        if (results.isEmpty) return null;
+        for (final s in results) {
+          if (s.name == song.name) return s;
+        }
+        return results.first;
       } catch (_) {
         return null;
       }
@@ -180,6 +195,27 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return completer.future;
     }
 
+    /// 获取封面 URL（无 setState，返回数据）
+    Future<String?> fetchCoverUrl(Song s) async {
+      if (s.picId == null || s.picId!.isEmpty) return null;
+      try {
+        return await client.getCoverUrl(picId: s.picId!, source: s.source);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    /// 获取歌词文本（无 setState，返回数据）
+    Future<String?> fetchLyricsText(Song s) async {
+      if (s.lyricId == null || s.lyricId!.isEmpty) return null;
+      try {
+        final lyric = await client.getLyric(lyricId: s.lyricId!, source: s.source);
+        return lyric?.lyric;
+      } catch (_) {
+        return null;
+      }
+    }
+
     // 最多 3 轮搜索 + 播放
     for (int attempt = 0; attempt < 3; attempt++) {
       if (!mounted) return;
@@ -193,13 +229,32 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       try {
         final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
         if (!mounted) return;
-        if (playable.picId != null || playable.lyricId != null) {
-          _loadSongMetadata(playable);
-        }
+
+        // 播放在前，元数据加载在后（不阻塞播放）
         await audio.play(playUrl.url, songId: playable.id, song: playable);
+
+        // 并发加载封面 + 歌词，保存到缓存
+        final results = await Future.wait([
+          fetchCoverUrl(playable),
+          fetchLyricsText(playable),
+        ]);
+        final coverUrl = results[0];
+        final lyricsText = results[1];
+        if (mounted) {
+          setState(() {
+            if (coverUrl != null) _coverUrl = coverUrl;
+            if (lyricsText != null) _lyrics = parseLrc(lyricsText);
+          });
+        }
+        if (coverUrl != null || lyricsText != null) {
+          cache.saveMetadata(cacheKey, {
+            'coverUrl': coverUrl,
+            'lyrics': lyricsText,
+          });
+        }
         return;
       } catch (_) {
-        continue; // getPlayUrl 失败，重试一轮
+        continue;
       }
     }
 

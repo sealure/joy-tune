@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -33,6 +34,7 @@ class AudioCache {
   }
 
   String _cachePath(String key) => '${_cacheDir.path}/$key.mp3';
+  String _metaPath(String key) => '${_cacheDir.path}/$key.json';
 
   /// 检查歌曲是否已缓存
   Future<bool> has(String key) async {
@@ -54,6 +56,23 @@ class AudioCache {
     final path = _cachePath(key);
     await _dio.download(url, path);
     return path;
+  }
+
+  /// 保存歌曲元数据（封面 URL、歌词等）
+  Future<void> saveMetadata(String key, Map<String, dynamic> metadata) async {
+    if (!_initialized) await init();
+    final file = File(_metaPath(key));
+    await file.writeAsString(jsonEncode(metadata));
+  }
+
+  /// 读取缓存的元数据
+  Future<Map<String, dynamic>?> loadMetadata(String key) async {
+    if (!_initialized) await init();
+    final file = File(_metaPath(key));
+    if (await file.exists()) {
+      return jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    }
+    return null;
   }
 
   /// 获取缓存大小
