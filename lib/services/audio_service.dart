@@ -6,6 +6,7 @@ import '../models/song.dart';
 class AudioService {
   final Player _player = Player();
   String? currentSongId;
+  Song? currentSong;
 
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
@@ -53,14 +54,16 @@ class AudioService {
   }
 
   /// 播放 URL
-  Future<void> play(String url, {String? songId}) async {
+  Future<void> play(String url, {String? songId, Song? song}) async {
     _updateState(PlayState.loading);
     currentSongId = songId;
+    currentSong = song;
     try {
       await _player.open(Media(url));
       await _player.play();
     } catch (e) {
       currentSongId = null;
+      currentSong = null;
       _updateState(PlayState.stopped);
       rethrow;
     }
@@ -79,6 +82,7 @@ class AudioService {
   /// 停止
   void stop() {
     currentSongId = null;
+    currentSong = null;
     _player.stop();
   }
 

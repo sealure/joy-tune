@@ -25,7 +25,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initSubscriptions());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initPlayer());
+  }
+
+  void _initPlayer() {
+    if (!mounted) return;
+    _initSubscriptions();
+    final song = GoRouterState.of(context).extra as Song?;
+    if (song == null) return;
+    final audio = ref.read(audioServiceProvider);
+    if (audio.currentSongId != song.id) {
+      _playSong(song);
+    }
   }
 
   void _initSubscriptions() {
@@ -85,7 +96,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.favorite_outline_rounded),
-                    onPressed: () => _toggleFavorite(ref, song),
+                    onPressed: () => _toggleFavorite(song),
                   ),
                 ],
               ),
@@ -166,7 +177,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         size: 36,
                         color: Colors.white,
                       ),
-                      onPressed: () => _onPlayToggle(context, ref, song, isCurrentSong),
+                      onPressed: () => _onPlayToggle(song, isCurrentSong),
                     ),
                   ),
                   const SizedBox(width: 24),
@@ -189,23 +200,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     return '$m:$s';
   }
 
-  void _onPlayToggle(BuildContext context, WidgetRef ref, Song song, bool isCurrentSong) {
+  void _onPlayToggle(Song song, bool isCurrentSong) {
     final audio = ref.read(audioServiceProvider);
     if (isCurrentSong && _playState == PlayState.playing) {
       audio.pause();
     } else if (isCurrentSong && _playState == PlayState.paused) {
       audio.resume();
     } else {
-      _playSong(context, ref, song);
+      _playSong(song);
     }
   }
 
-  Future<void> _playSong(BuildContext context, WidgetRef ref, Song song) async {
+  Future<void> _playSong(Song song) async {
     final client = ref.read(gdMusicClientProvider);
     final audioService = ref.read(audioServiceProvider);
     try {
       final playUrl = await client.getPlayUrl(songId: song.id, source: song.source);
-      await audioService.play(playUrl.url, songId: song.id);
+      await audioService.play(playUrl.url, songId: song.id, song: song);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -215,7 +226,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  Future<void> _toggleFavorite(WidgetRef ref, Song song) async {
+  Future<void> _toggleFavorite(Song song) async {
     final repo = ref.read(favoriteRepositoryProvider);
     final isFav = await repo.isFavorited(song.id);
     if (isFav) {

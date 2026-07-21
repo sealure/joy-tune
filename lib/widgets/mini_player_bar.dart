@@ -1,15 +1,53 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/song.dart';
+import '../services/providers.dart';
+
 /// 底部迷你播放栏（当无播放内容时隐藏）
-class MiniPlayerBar extends StatelessWidget {
+class MiniPlayerBar extends ConsumerStatefulWidget {
   const MiniPlayerBar({super.key});
 
   @override
+  ConsumerState<MiniPlayerBar> createState() => _MiniPlayerBarState();
+}
+
+class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
+  PlayState _playState = PlayState.stopped;
+  StreamSubscription<PlayState>? _stateSub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final audio = ref.read(audioServiceProvider);
+      _playState = audio.state;
+      _stateSub = audio.stateStream.listen((s) {
+        if (mounted) setState(() => _playState = s);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _stateSub?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final audio = ref.read(audioServiceProvider);
+    final song = audio.currentSong;
     final theme = Theme.of(context);
 
     // 无播放内容时隐藏
+    if (song == null && _playState == PlayState.stopped) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
@@ -27,7 +65,7 @@ class MiniPlayerBar extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => context.push('/player'),
+          onTap: () => context.push('/player', extra: song),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -49,14 +87,27 @@ class MiniPlayerBar extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('未在播放', style: theme.textTheme.bodyMedium),
-                      Text('点击搜索歌曲', style: theme.textTheme.bodySmall),
+                      Text(song?.name ?? '未在播放', style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(song?.artist ?? '点击搜索歌曲', style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
 
                 // 控制按钮
-                Icon(Icons.play_circle_filled_rounded, size: 36, color: theme.colorScheme.primary),
+                IconButton(
+                  icon: Icon(
+                    _playState == PlayState.playing ? Icons.pause_circle_filled_rounded : Icons.play_circle_filled_rounded,
+                    size: 36,
+                    color: theme.colorScheme.primary,
+                  ),
+                  onPressed: () {
+                    if (_playState == PlayState.playing) {
+                      audio.pause();
+                    } else {
+                      audio.resume();
+                    }
+                  },
+                ),
               ],
             ),
           ),

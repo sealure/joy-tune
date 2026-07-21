@@ -93,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Divider(height: 1),
                 _aboutTile('数据来源', 'GD Music API'),
                 const Divider(height: 1),
-                _aboutTile('技术栈', 'Flutter + Isar'),
+                _aboutTile('技术栈', 'Flutter + SharedPreferences'),
               ],
             ),
           ),
