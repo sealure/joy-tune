@@ -9,10 +9,8 @@ import '../services/providers.dart';
 import '../api/gdmusic_client.dart';
 import 'playlist_queue_sheet.dart';
 
-// ── 播放模式 ──
 enum PlayMode { listLoop, singleLoop, shuffle }
 
-// ── 配色 ──
 const _emeraldStart = Color(0xFF064E3B);
 const _emeraldMid = Color(0xFF065F46);
 const _emeraldEnd = Color(0xFF022C22);
@@ -34,23 +32,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   Duration _duration = Duration.zero;
   PlayMode _playMode = PlayMode.listLoop;
 
-  // 封面 & 歌词
   String? _coverUrl;
   List<LyricLine> _lyrics = [];
   int _currentLyricIndex = -1;
   bool _showLyrics = false;
   final ScrollController _lyricScrollCtrl = ScrollController();
 
-  // 收藏状态
   bool _isFavorited = false;
 
-  // 动画
   late AnimationController _rotationCtrl;
   late AnimationController _favCtrl;
 
   StreamSubscription<PlayState>? _stateSub;
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration?>? _durSub;
+  StreamSubscription<Song>? _nextSub;
 
   @override
   void initState() {
@@ -71,6 +67,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _stateSub?.cancel();
     _posSub?.cancel();
     _durSub?.cancel();
+    _nextSub?.cancel();
     _lyricScrollCtrl.dispose();
     _rotationCtrl.dispose();
     _favCtrl.dispose();
@@ -79,15 +76,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   void _initPlayer() {
     if (!mounted) return;
+    final audio = ref.read(audioServiceProvider);
     _initSubscriptions();
+
+    // 监听队列自动前进
+    _nextSub = audio.nextSongStream.listen((song) {
+      _onQueueAdvance(song);
+    });
+
     final song = GoRouterState.of(context).extra as Song?;
     if (song == null) return;
-    final audio = ref.read(audioServiceProvider);
-    _loadSongMetadata(song);
-    _checkFavorite(song);
-    if (audio.currentSongId != song.id) {
-      _playSong(song);
+
+    // 已在播放同一首歌 → 只加载元数据
+    if (audio.currentSongId != null && audio.currentSongId == song.id) {
+      _loadSongMetadata(song);
+      _checkFavorite(song);
+      return;
     }
+
+    // 未播放或播不同歌 → 搜索 + 播放（_onQueueAdvance 处理一切）
+    _onQueueAdvance(song);
   }
 
   void _initSubscriptions() {
@@ -116,7 +124,39 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _duration = audio.duration ?? Duration.zero;
   }
 
-  // ── 收藏状态 ──
+  /// 队列自动前进或手动切歌时调用
+  Future<void> _onQueueAdvance(Song song) async {
+    final client = ref.read(gdMusicClientProvider);
+
+    // 如果 song 没有真实 ID，先搜索获取真实歌曲
+    Song playable = song;
+    if (song.id.isEmpty) {
+      final searchService = ref.read(searchServiceProvider);
+      try {
+        final results = await searchService.search(
+          keyword: '${song.name} ${song.artist}',
+          source: 'netease',
+        );
+        if (results.isNotEmpty) playable = results.first;
+      } catch (_) {}
+    }
+
+    // 用真实歌曲加载封面/歌词
+    _loadSongMetadata(playable);
+    _checkFavorite(playable);
+
+    try {
+      final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
+      if (!mounted) return;
+      await ref.read(audioServiceProvider).play(playUrl.url, songId: playable.id, song: playable);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('播放失败: $e')),
+      );
+    }
+  }
+
   Future<void> _checkFavorite(Song song) async {
     final repo = ref.read(favoriteRepositoryProvider);
     final fav = await repo.isFavorited(song.id);
@@ -216,12 +256,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final song = GoRouterState.of(context).extra as Song?;
+    final audio = ref.watch(audioServiceProvider);
+    final song = audio.currentSong ?? GoRouterState.of(context).extra as Song?;
     if (song == null) {
       return const Scaffold(body: Center(child: Text('无播放内容')));
     }
 
-    final isCurrentSong = ref.read(audioServiceProvider).currentSongId == song.id;
     final progress = _duration.inMilliseconds > 0
         ? _position.inMilliseconds / _duration.inMilliseconds
         : 0.0;
@@ -238,17 +278,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 ? Center(
                     child: SizedBox(
                       width: 480,
-                      child: _buildPlayerColumn(song, isCurrentSong, progress),
+                      child: _buildPlayerColumn(song, progress),
                     ),
                   )
-                : _buildPlayerColumn(song, isCurrentSong, progress),
+                : _buildPlayerColumn(song, progress),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPlayerColumn(Song song, bool isCurrentSong, double progress) {
+  Widget _buildPlayerColumn(Song song, double progress) {
     return Column(
       children: [
         _buildTopBar(song),
@@ -259,16 +299,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         const SizedBox(height: 2),
         _buildPlayMode(),
         const SizedBox(height: 2),
-        _buildControls(song, isCurrentSong),
+        _buildControls(song),
         const SizedBox(height: 4),
         _buildBottomBar(song),
-        // 用 SafeArea 底部 inset 代替固定 padding
         SizedBox(height: MediaQuery.of(context).padding.bottom),
       ],
     );
   }
-
-  // ── 背景 ──
 
   Widget _buildBackground() {
     return Stack(
@@ -311,8 +348,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 顶栏 ──
-
   Widget _buildTopBar(Song song) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
@@ -340,8 +375,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _topBarBtn(IconData icon, VoidCallback onTap) {
     return SizedBox(
-      width: 36,
-      height: 36,
+      width: 36, height: 36,
       child: IconButton(
         icon: Icon(icon, color: const Color(0x99FFFFFF), size: 24),
         onPressed: onTap,
@@ -350,8 +384,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       ),
     );
   }
-
-  // ── 主内容 ──
 
   Widget _buildMainContent() {
     return GestureDetector(
@@ -382,8 +414,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               child: child,
             ),
             child: Container(
-              width: 280,
-              height: 280,
+              width: 280, height: 280,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [
@@ -449,12 +480,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       shaderCallback: (bounds) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          Colors.transparent,
-          Colors.black,
-          Colors.black,
-          Colors.transparent,
-        ],
+        colors: [Colors.transparent, Colors.black, Colors.black, Colors.transparent],
         stops: const [0.0, 0.1, 0.9, 1.0],
       ).createShader(bounds),
       blendMode: BlendMode.dstIn,
@@ -470,9 +496,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             style: TextStyle(
               fontSize: isCurrent ? 17 : 14,
               fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
-              color: isCurrent
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.3),
+              color: isCurrent ? Colors.white : Colors.white.withValues(alpha: 0.3),
               height: 1.3,
             ),
             child: Text(
@@ -487,8 +511,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 歌曲信息 ──
-
   Widget _buildSongInfo(Song song) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -496,12 +518,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         children: [
           Text(
             song.name,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              letterSpacing: 0.3,
-            ),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 0.3),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -509,10 +526,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           const SizedBox(height: 4),
           Text(
             song.artist,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.4),
-            ),
+            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.4)),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -521,8 +535,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       ),
     );
   }
-
-  // ── 进度条 ──
 
   Widget _buildProgressBar(double progress) {
     return Padding(
@@ -534,9 +546,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               return GestureDetector(
                 onTapDown: (details) {
                   final p = details.localPosition.dx / constraints.maxWidth;
-                  final seekPos = Duration(
-                    milliseconds: (_duration.inMilliseconds * p).round(),
-                  );
+                  final seekPos = Duration(milliseconds: (_duration.inMilliseconds * p).round());
                   ref.read(audioServiceProvider).seek(seekPos);
                 },
                 child: Container(
@@ -566,18 +576,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                         left: (progress.clamp(0.0, 1.0) * constraints.maxWidth) - 6,
                         top: -4,
                         child: Container(
-                          width: 12,
-                          height: 12,
+                          width: 12, height: 12,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
+                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
                           ),
                         ),
                       ),
@@ -591,28 +594,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _formatDuration(_position),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.3),
-                ),
-              ),
-              Text(
-                _formatDuration(_duration),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.3),
-                ),
-              ),
+              Text(_formatDuration(_position), style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
+              Text(_formatDuration(_duration), style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
             ],
           ),
         ],
       ),
     );
   }
-
-  // ── 播放模式 ──
 
   Widget _buildPlayMode() {
     return Center(
@@ -627,19 +616,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                _playModeIcon(_playMode),
-                size: 16,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
+              Icon(_playModeIcon(_playMode), size: 16, color: Colors.white.withValues(alpha: 0.5)),
               const SizedBox(width: 6),
-              Text(
-                _playModeLabel(_playMode),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-              ),
+              Text(_playModeLabel(_playMode), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
             ],
           ),
         ),
@@ -647,54 +626,46 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 控制栏 ──
+  Widget _buildControls(Song song) {
+    final audio = ref.read(audioServiceProvider);
+    final hasPrev = audio.currentQueueIndex > 0;
+    final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
 
-  Widget _buildControls(Song song, bool isCurrentSong) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _ctrlBtn(Icons.skip_previous_rounded, 30, () {}),
+          _ctrlBtn(Icons.skip_previous_rounded, 30, hasPrev ? () => audio.playPrevious() : null),
           const SizedBox(width: 28),
           GestureDetector(
-            onTap: () => _onPlayToggle(song, isCurrentSong),
+            onTap: () => _onPlayToggle(song),
             child: Container(
-              width: 64,
-              height: 64,
+              width: 64, height: 64,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 20,
-                    offset: Offset(0, 4),
-                  ),
-                ],
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
               ),
               child: Icon(
-                _playState == PlayState.playing
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
+                _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
                 size: 36,
                 color: Colors.black87,
               ),
             ),
           ),
           const SizedBox(width: 28),
-          _ctrlBtn(Icons.skip_next_rounded, 30, () {}),
+          _ctrlBtn(Icons.skip_next_rounded, 30, hasNext ? () => audio.playNext() : null),
         ],
       ),
     );
   }
 
-  Widget _ctrlBtn(IconData icon, double size, VoidCallback onTap) {
+  Widget _ctrlBtn(IconData icon, double size, VoidCallback? onTap) {
     return SizedBox(
-      width: 44,
-      height: 44,
+      width: 44, height: 44,
       child: IconButton(
-        icon: Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: size),
+        icon: Icon(icon, color: onTap != null ? Colors.white.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.2), size: size),
         onPressed: onTap,
         splashRadius: 22,
         padding: EdgeInsets.zero,
@@ -702,29 +673,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 底栏 ──
-
   Widget _buildBottomBar(Song song) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomIcon(
-            _isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
-            _isFavorited ? const Color(0xFFEF4444) : null,
-            () => _toggleFavorite(song),
-          ),
-          _bottomIcon(
-            Icons.chat_bubble_outline_rounded,
-            null,
-            () => context.push('/comments', extra: song),
-          ),
-          _bottomIcon(
-            Icons.playlist_play_rounded,
-            null,
-            () => PlaylistQueueSheet.show(context),
-          ),
+          _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
+          _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
+          _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
         ],
       ),
     );
@@ -732,8 +689,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _bottomIcon(IconData icon, Color? color, VoidCallback onTap) {
     return SizedBox(
-      width: 44,
-      height: 44,
+      width: 44, height: 44,
       child: IconButton(
         icon: Icon(icon, color: color ?? Colors.white.withValues(alpha: 0.6), size: 24),
         onPressed: onTap,
@@ -743,37 +699,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 工具 ──
-
   String _formatDuration(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
   }
 
-  void _onPlayToggle(Song song, bool isCurrentSong) {
+  void _onPlayToggle(Song song) {
     final audio = ref.read(audioServiceProvider);
-    if (isCurrentSong && _playState == PlayState.playing) {
+    if (_playState == PlayState.playing) {
       audio.pause();
-    } else if (isCurrentSong && _playState == PlayState.paused) {
+    } else if (_playState == PlayState.paused) {
       audio.resume();
     } else {
-      _playSong(song);
-    }
-  }
-
-  Future<void> _playSong(Song song) async {
-    final client = ref.read(gdMusicClientProvider);
-    final audioService = ref.read(audioServiceProvider);
-    try {
-      final playUrl = await client.getPlayUrl(songId: song.id, source: song.source);
-      if (!mounted) return;
-      await audioService.play(playUrl.url, songId: song.id, song: song);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('播放失败: $e')),
-      );
+      _onQueueAdvance(song);
     }
   }
 }

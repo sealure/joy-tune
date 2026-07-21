@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,7 +6,7 @@ import '../models/song.dart';
 import '../services/providers.dart';
 
 /// 播放队列底部 sheet
-class PlaylistQueueSheet extends ConsumerWidget {
+class PlaylistQueueSheet extends ConsumerStatefulWidget {
   const PlaylistQueueSheet({super.key});
 
   static Future<void> show(BuildContext context) {
@@ -18,9 +19,34 @@ class PlaylistQueueSheet extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final audio = ref.watch(audioServiceProvider);
-    final currentSong = audio.currentSong;
+  ConsumerState<PlaylistQueueSheet> createState() => _PlaylistQueueSheetState();
+}
+
+class _PlaylistQueueSheetState extends ConsumerState<PlaylistQueueSheet> {
+  StreamSubscription<PlayState>? _stateSub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _stateSub = ref.read(audioServiceProvider).stateStream.listen((_) {
+        if (mounted) setState(() {});
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _stateSub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final audio = ref.read(audioServiceProvider);
+    final queue = audio.queue;
+    final currentIndex = audio.currentQueueIndex;
     final theme = Theme.of(context);
 
     return DraggableScrollableSheet(
@@ -39,8 +65,7 @@ class PlaylistQueueSheet extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 10, bottom: 6),
                 child: Container(
-                  width: 36,
-                  height: 4,
+                  width: 36, height: 4,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.secondary.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
@@ -56,33 +81,53 @@ class PlaylistQueueSheet extends ConsumerWidget {
                     const Text('播放队列', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                     const SizedBox(width: 8),
                     Text(
-                      '(1首)',
+                      '(${queue.length}首)',
                       style: TextStyle(fontSize: 13, color: theme.colorScheme.secondary),
                     ),
                     const Spacer(),
-                    GestureDetector(
-                      onTap: () {},
-                      child: Text(
-                        '清空',
-                        style: TextStyle(fontSize: 14, color: theme.colorScheme.secondary),
+                    if (queue.isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          audio.stop();
+                          Navigator.pop(context);
+                        },
+                        child: Text(
+                          '清空',
+                          style: TextStyle(fontSize: 14, color: theme.colorScheme.secondary),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
 
               const Divider(height: 1),
 
-              // 当前播放（高亮）
-              if (currentSong != null)
-                _QueueTile(
-                  song: currentSong,
-                  isCurrent: true,
-                  onRemove: () {},
+              // 队列列表
+              if (queue.isNotEmpty)
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollCtrl,
+                    itemCount: queue.length,
+                    itemBuilder: (_, i) {
+                      final song = queue[i];
+                      final isCurrent = i == currentIndex;
+                      return _QueueTile(
+                        song: song,
+                        index: i,
+                        isCurrent: isCurrent,
+                        onTap: () {
+                          if (!isCurrent) {
+                            audio.jumpTo(i);
+                          }
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
                 ),
 
               // 空状态
-              if (currentSong == null)
+              if (queue.isEmpty)
                 Expanded(
                   child: Center(
                     child: Column(
@@ -105,13 +150,15 @@ class PlaylistQueueSheet extends ConsumerWidget {
 
 class _QueueTile extends StatelessWidget {
   final Song song;
+  final int index;
   final bool isCurrent;
-  final VoidCallback onRemove;
+  final VoidCallback onTap;
 
   const _QueueTile({
     required this.song,
+    required this.index,
     required this.isCurrent,
-    required this.onRemove,
+    required this.onTap,
   });
 
   @override
@@ -127,21 +174,27 @@ class _QueueTile extends StatelessWidget {
       ),
       child: ListTile(
         leading: Container(
-          width: 40,
-          height: 40,
+          width: 40, height: 40,
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+            color: isCurrent
+                ? const Color(0xFF6366F1)
+                : theme.colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(Icons.music_note_rounded, size: 20, color: theme.colorScheme.primary),
+          child: Center(
+            child: isCurrent
+                ? Icon(Icons.play_arrow_rounded, size: 18, color: Colors.white)
+                : Text('${index + 1}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+          ),
         ),
-        title: Text(song.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          song.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: isCurrent ? TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.primary) : null,
+        ),
         subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-        trailing: IconButton(
-          icon: Icon(Icons.close_rounded, size: 20, color: theme.colorScheme.secondary),
-          onPressed: onRemove,
-        ),
-        onTap: () {},
+        onTap: onTap,
       ),
     );
   }

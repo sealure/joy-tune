@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../models/song.dart';
+import '../models/mock_data.dart';
+import '../services/providers.dart';
 import '../widgets/mini_player_bar.dart';
 
-class PlaylistDetailScreen extends StatelessWidget {
+class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
 
   const PlaylistDetailScreen({super.key, required this.playlistId});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+
+    // 从 extra 获取歌单数据
+    final playlist = GoRouterState.of(context).extra as MockPlaylist?;
 
     return Scaffold(
       body: SafeArea(
@@ -26,7 +33,10 @@ class PlaylistDetailScreen extends StatelessWidget {
                     onPressed: () => context.pop(),
                   ),
                   const Spacer(),
-                  const Text('歌单详情', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text(
+                    playlist?.name ?? '歌单详情',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
                   const Spacer(),
                   const SizedBox(width: 48),
                 ],
@@ -34,10 +44,15 @@ class PlaylistDetailScreen extends StatelessWidget {
             ),
 
             // 头部区域
-            _buildHeader(theme),
+            if (playlist != null)
+              _buildHeader(theme, playlist, context, ref),
 
             // 歌曲列表
-            Expanded(child: _buildSongList(context)),
+            Expanded(
+              child: playlist != null
+                  ? _buildSongList(context, ref, playlist)
+                  : _buildEmptyState(context),
+            ),
 
             // 迷你播放栏
             const MiniPlayerBar(),
@@ -47,7 +62,7 @@ class PlaylistDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  Widget _buildHeader(ThemeData theme, MockPlaylist playlist, BuildContext context, WidgetRef ref) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       decoration: BoxDecoration(
@@ -63,51 +78,89 @@ class PlaylistDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('歌单 #$playlistId', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(
+              playlist.name,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
             const SizedBox(height: 6),
-            Text('Via Music · 共 0 首', style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7))),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
+            Text(
+              'Via Music · 共 ${playlist.songs.length} 首',
+              style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+            ),
+            if (playlist.songs.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    onTap: () {},
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
-                          SizedBox(width: 6),
-                          Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: () => _playAll(context, ref, playlist.songs),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
+                            SizedBox(width: 6),
+                            Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSongList(BuildContext context) {
+  Widget _buildSongList(BuildContext context, WidgetRef ref, MockPlaylist playlist) {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: playlist.songs.length,
+      separatorBuilder: (_, __) => const Divider(height: 1, indent: 60),
+      itemBuilder: (_, i) {
+        final song = playlist.songs[i];
+        return ListTile(
+          leading: Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text('${i + 1}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
+            ),
+          ),
+          title: Text(song.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+          trailing: IconButton(
+            icon: Icon(Icons.play_circle_outline_rounded, color: Theme.of(context).colorScheme.primary),
+            onPressed: () => _playSong(context, ref, playlist.songs, startIndex: i),
+          ),
+          onTap: () => _playSong(context, ref, playlist.songs, startIndex: i),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: Column(
@@ -126,5 +179,18 @@ class PlaylistDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _playSong(BuildContext context, WidgetRef ref, List<Song> mockList, {int startIndex = 0}) async {
+    final audio = ref.read(audioServiceProvider);
+
+    // 只做一件事：设队列 + 跳转播放页
+    audio.setQueue(mockList, startIndex: startIndex);
+    if (!context.mounted) return;
+    context.push('/player', extra: mockList[startIndex]);
+  }
+
+  Future<void> _playAll(BuildContext context, WidgetRef ref, List<Song> songs) async {
+    await _playSong(context, ref, songs, startIndex: 0);
   }
 }
