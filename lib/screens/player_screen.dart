@@ -147,45 +147,63 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     final client = ref.read(gdMusicClientProvider);
 
-    /// 尝试在指定源上搜索并播放，成功返回 true
-    Future<bool> tryPlay(String source) async {
-      for (int attempt = 0; attempt < 3; attempt++) {
-        if (!mounted) return false;
-        try {
-          final searchService = ref.read(searchServiceProvider);
-          final results = await searchService.search(
-            keyword: '${song.name} ${song.artist}',
-            source: source,
-          );
-          if (results.isEmpty) return false;
-
-          final playable = results.first;
-          final playUrl = await client.getPlayUrl(songId: playable.id, source: source);
-          if (!mounted) return false;
-
-          // 搜索结果有真实封面/歌词 ID → 重新加载元数据
-          if (playable.picId != null || playable.lyricId != null) {
-            _loadSongMetadata(playable);
-          }
-          await audio.play(playUrl.url, songId: playable.id, song: playable);
-          return true;
-        } catch (_) {
-          if (attempt < 2) continue;
-        }
+    /// 在指定源上搜索，返回第一个结果
+    Future<Song?> searchSource(String source) async {
+      try {
+        final results = await ref.read(searchServiceProvider).search(
+              keyword: '${song.name} ${song.artist}',
+              source: source,
+            );
+        return results.isNotEmpty ? results.first : null;
+      } catch (_) {
+        return null;
       }
-      return false;
     }
 
-    // 1. 优先尝试原始源（快路径）
-    if (await tryPlay(song.source)) return;
-
-    // 2. 原始源彻底失败 → 逐个尝试其他源
-    for (final source in GdMusicClient.sources) {
-      if (source == song.source) continue;
-      if (await tryPlay(source)) return;
+    /// 并发搜索除 [skip] 外的所有源，返回第一个成功结果
+    Future<Song?> raceOtherSources(String skip) {
+      final completer = Completer<Song?>();
+      int completed = 0;
+      final others = GdMusicClient.sources.where((s) => s != skip).toList();
+      for (final source in others) {
+        searchSource(source).then((result) {
+          if (result != null && !completer.isCompleted) {
+            completer.complete(result);
+          }
+        }).whenComplete(() {
+          completed++;
+          if (completed >= others.length && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        });
+      }
+      return completer.future;
     }
 
-    // 全部源均失败 → 自动跳下一曲（不弹错误提示）
+    // 最多 3 轮搜索 + 播放
+    for (int attempt = 0; attempt < 3; attempt++) {
+      if (!mounted) return;
+
+      // 优先使用原始源（准确性最高）
+      Song? playable = await searchSource(song.source);
+      // 原始源无结果 → 并发其他源
+      playable ??= await raceOtherSources(song.source);
+      if (playable == null) continue;
+
+      try {
+        final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
+        if (!mounted) return;
+        if (playable.picId != null || playable.lyricId != null) {
+          _loadSongMetadata(playable);
+        }
+        await audio.play(playUrl.url, songId: playable.id, song: playable);
+        return;
+      } catch (_) {
+        continue; // getPlayUrl 失败，重试一轮
+      }
+    }
+
+    // 全部失败 → 自动跳下一曲（不弹错误提示）
     if (!mounted) return;
     audio.playNext();
   }
