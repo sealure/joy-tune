@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-/// 封面子组件（带 CachedNetworkImage 占位）
+/// 封面子组件
 class CoverImage extends StatelessWidget {
   final String? url;
   final double size;
@@ -16,20 +17,27 @@ class CoverImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final placeholder = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+      child: Icon(Icons.music_note_rounded, size: size * 0.5, color: theme.colorScheme.primary),
+    );
+
+    if (url == null) return placeholder;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: Container(
+      child: CachedNetworkImage(
+        imageUrl: url!,
         width: size,
         height: size,
-        color: theme.colorScheme.primary.withValues(alpha: 0.08),
-        child: Center(
-          child: Icon(
-            Icons.music_note_rounded,
-            size: size * 0.5,
-            color: theme.colorScheme.primary,
-          ),
-        ),
+        fit: BoxFit.cover,
+        placeholder: (_, __) => placeholder,
+        errorWidget: (_, __, ___) => placeholder,
       ),
     );
   }

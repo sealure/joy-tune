@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/song.dart';
+import 'cover_image.dart';
 
 /// 歌曲列表项
 class SongTile extends StatelessWidget {
   final Song song;
   final VoidCallback? onTap;
   final Widget? trailing;
+  final String? coverUrl;
 
-  const SongTile({super.key, required this.song, this.onTap, this.trailing});
+  const SongTile({super.key, required this.song, this.onTap, this.trailing, this.coverUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -24,16 +26,8 @@ class SongTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              // 封面占位
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(Icons.music_note_rounded, size: 22, color: theme.colorScheme.primary),
-              ),
+              // 封面
+              CoverImage(url: coverUrl, size: 44, borderRadius: 8),
               const SizedBox(width: 12),
 
               // 歌名 & 歌手
