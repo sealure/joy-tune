@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
+import '../services/audio_cache.dart';
 import '../api/gdmusic_client.dart';
 import 'playlist_queue_sheet.dart';
 
@@ -126,35 +127,58 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   /// 队列自动前进或手动切歌时调用
   Future<void> _onQueueAdvance(Song song) async {
+    final audio = ref.read(audioServiceProvider);
+    final cache = AudioCache.instance;
+    final cacheKey = AudioCache.cacheKey(song.name, song.artist, songId: song.id);
+
+    // 有缓存 → 直接本地播放，零网络
+    final localPath = await cache.getLocalPath(cacheKey);
+    if (localPath != null) {
+      _loadSongMetadata(song);
+      _checkFavorite(song);
+      if (!mounted) return;
+      await audio.play(localPath, songId: song.id, song: song);
+      return;
+    }
+
+    // 无缓存 → 先加载元数据（封面/歌词），再重试搜索 + 播放
+    _loadSongMetadata(song);
+    _checkFavorite(song);
+
     final client = ref.read(gdMusicClientProvider);
 
-    // 如果 song 没有真实 ID，先搜索获取真实歌曲
-    Song playable = song;
-    if (song.id.isEmpty) {
-      final searchService = ref.read(searchServiceProvider);
+    for (int attempt = 0; attempt < 3; attempt++) {
+      if (!mounted) return;
+
+      Song playable = song;
+      // 搜歌曲（无真实 ID 时）
+      if (song.id.isEmpty) {
+        final searchService = ref.read(searchServiceProvider);
+        try {
+          final results = await searchService.search(
+            keyword: '${song.name} ${song.artist}',
+            source: 'netease',
+          );
+          if (results.isNotEmpty) playable = results.first;
+        } catch (_) {
+          if (attempt < 2) continue; // 重试
+        }
+      }
+
       try {
-        final results = await searchService.search(
-          keyword: '${song.name} ${song.artist}',
-          source: 'netease',
-        );
-        if (results.isNotEmpty) playable = results.first;
-      } catch (_) {}
+        final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
+        if (!mounted) return;
+        await audio.play(playUrl.url, songId: playable.id, song: playable);
+        return; // 成功
+      } catch (_) {
+        if (attempt < 2) continue; // 重试
+      }
     }
 
-    // 用真实歌曲加载封面/歌词
-    _loadSongMetadata(playable);
-    _checkFavorite(playable);
-
-    try {
-      final playUrl = await client.getPlayUrl(songId: playable.id, source: playable.source);
-      if (!mounted) return;
-      await ref.read(audioServiceProvider).play(playUrl.url, songId: playable.id, song: playable);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('播放失败: $e')),
-      );
-    }
+    // 3 次均失败 → 自动跳下一曲（不弹错误提示）
+    if (!mounted) return;
+    audio.playNext();
+  }
   }
 
   Future<void> _checkFavorite(Song song) async {

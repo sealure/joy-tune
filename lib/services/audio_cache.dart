@@ -16,6 +16,14 @@ class AudioCache {
     return _instance!;
   }
 
+  /// 从歌曲名+歌手生成稳定的缓存 key（无 ID 的 mock 歌曲也能用）
+  static String cacheKey(String name, String artist, {String? songId}) {
+    if (songId != null && songId.isNotEmpty) return songId;
+    // 使用名称作为 key，只保留字母数字中文和下划线
+    final raw = '$name-$artist';
+    return raw.replaceAll(RegExp(r'[^\w\u4e00-\u9fff\-]'), '_');
+  }
+
   Future<void> init() async {
     if (_initialized) return;
     final appDir = await getApplicationCacheDirectory();
@@ -26,26 +34,26 @@ class AudioCache {
     _initialized = true;
   }
 
-  String _cachePath(String songId) => '${_cacheDir.path}/$songId.mp3';
+  String _cachePath(String key) => '${_cacheDir.path}/$key.mp3';
 
   /// 检查歌曲是否已缓存
-  Future<bool> has(String songId) async {
+  Future<bool> has(String key) async {
     if (!_initialized) await init();
-    return File(_cachePath(songId)).exists();
+    return File(_cachePath(key)).exists();
   }
 
   /// 获取本地缓存路径（如果存在）
-  Future<String?> getLocalPath(String songId) async {
+  Future<String?> getLocalPath(String key) async {
     if (!_initialized) await init();
-    final path = _cachePath(songId);
+    final path = _cachePath(key);
     if (await File(path).exists()) return path;
     return null;
   }
 
-  /// 下载音频到本地缓存
-  Future<String> download(String url, String songId) async {
+  /// 下载音频到本地缓存，返回缓存 key
+  Future<String> download(String url, String key) async {
     if (!_initialized) await init();
-    final path = _cachePath(songId);
+    final path = _cachePath(key);
     await _dio.download(url, path);
     return path;
   }

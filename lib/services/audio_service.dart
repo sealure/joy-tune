@@ -115,16 +115,19 @@ class AudioService {
     currentSongId = songId;
     currentSong = song;
 
-    // 检查本地缓存
+    // 用 songId 或名称生成缓存 key
+    final cacheKey = song != null
+        ? AudioCache.cacheKey(song.name, song.artist, songId: songId)
+        : (songId ?? '');
     String playSource = url;
-    if (songId != null && songId.isNotEmpty) {
+    if (cacheKey.isNotEmpty) {
       final cache = AudioCache.instance;
-      final localPath = await cache.getLocalPath(songId);
+      final localPath = await cache.getLocalPath(cacheKey);
       if (localPath != null) {
         playSource = localPath;
       } else {
-        // 无缓存，后台下载（不阻塞播放）
-        cache.download(url, songId).then((_) {}, onError: (_) {});
+        // 无缓存，后台下载
+        cache.download(url, cacheKey).then((_) {}, onError: (_) {});
       }
     }
 
