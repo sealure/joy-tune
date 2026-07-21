@@ -79,7 +79,7 @@ class FavoritesScreen extends ConsumerWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF991B1B), Color(0xFFB91C1C), Color(0xFFDC2626), Color(0xFF7F1D1D)],
+          colors: [Color(0xFF4C1D95), Color(0xFF5B21B6), Color(0xFF6D28D9), Color(0xFF312E81)],
         ),
       ),
       child: Padding(
@@ -126,9 +126,9 @@ class FavoritesScreen extends ConsumerWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.play_arrow_rounded, color: Color(0xFFDC2626), size: 22),
+                          Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
                           SizedBox(width: 6),
-                          Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFFDC2626))),
+                          Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
                         ],
                       ),
                     ),
