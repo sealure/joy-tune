@@ -399,10 +399,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       children: [
         _buildTopBar(song),
         Expanded(child: _buildMainContent()),
-        _buildSongInfo(song),
         _buildProgressBar(progress),
         const SizedBox(height: 12),
-        _buildControlRow(song),
+        _buildBottomRow(song),
         SizedBox(height: MediaQuery.of(context).padding.bottom + 24),
       ],
     );
@@ -691,81 +690,84 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  Widget _buildSongInfo(Song song) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            song.name,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            song.artist,
-            style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4)),
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControlRow(Song song) {
+  Widget _buildBottomRow(Song song) {
     final audio = ref.read(audioServiceProvider);
     final hasPrev = audio.currentQueueIndex > 0;
     final hasNext = audio.currentQueueIndex < audio.queue.length - 1;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 左侧：操作按钮
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
-              const SizedBox(width: 4),
-              _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
-            ],
+          // 区域一：歌曲信息 + 操作按钮
+          Expanded(
+            flex: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  song.name,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  song.artist,
+                  style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.4)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    _bottomIcon(_isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded, _isFavorited ? const Color(0xFFEF4444) : null, () => _toggleFavorite(song)),
+                    const SizedBox(width: 4),
+                    _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
+                    const SizedBox(width: 4),
+                    _bottomIcon(_playModeIcon(audio.playMode), null, _cyclePlayMode),
+                  ],
+                ),
+              ],
+            ),
           ),
-          // 中间：播放控制
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _ctrlBtn(Icons.skip_previous_rounded, 28, hasPrev ? () => audio.playPrevious() : null),
-              const SizedBox(width: 20),
-              GestureDetector(
-                onTap: () => _onPlayToggle(song),
-                child: Container(
-                  width: 56, height: 56,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
-                  ),
-                  child: Icon(
-                    _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    size: 32,
-                    color: Colors.black87,
+          // 区域二：播放控制
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ctrlBtn(Icons.skip_previous_rounded, 28, hasPrev ? () => audio.playPrevious() : null),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: () => _onPlayToggle(song),
+                  child: Container(
+                    width: 56, height: 56,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20, offset: Offset(0, 4))],
+                    ),
+                    child: Icon(
+                      _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      size: 32,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 20),
-              _ctrlBtn(Icons.skip_next_rounded, 28, hasNext ? () => audio.playNext() : null),
-            ],
+                const SizedBox(width: 20),
+                _ctrlBtn(Icons.skip_next_rounded, 28, hasNext ? () => audio.playNext() : null),
+              ],
+            ),
           ),
-          // 右侧：播放模式 + 播放列表
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _bottomIcon(_playModeIcon(audio.playMode), null, _cyclePlayMode),
-              const SizedBox(width: 4),
-              _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
-            ],
+          // 区域三：播放列表
+          Expanded(
+            flex: 1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _bottomIcon(Icons.playlist_play_rounded, null, () => PlaylistQueueSheet.show(context)),
+              ],
+            ),
           ),
         ],
       ),
