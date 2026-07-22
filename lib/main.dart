@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -51,22 +52,26 @@ void main() async {
     await windowManager.focus();
   });
 
-  // 监听窗口移动/缩放，保存状态
-  windowManager.addListener(_WindowSaveListener(prefs));
+  // 初始化系统托盘（菜单栏图标）
+  await _initSystemTray();
+
+  // 监听窗口事件（保存状态）
+  windowManager.addListener(_AppWindowListener(prefs));
 
   runApp(ProviderScope(child: ViaMusicApp()));
 }
 
-/// 监听窗口事件，自动保存窗口位置和大小
-class _WindowSaveListener extends WindowListener {
+/// 窗口事件监听：保存窗口状态
+class _AppWindowListener extends WindowListener {
   final SharedPreferences _prefs;
   Timer? _saveTimer;
 
-  _WindowSaveListener(this._prefs);
+  _AppWindowListener(this._prefs);
+
+  // ── 窗口移动/缩放 → 保存状态（防抖500ms）──
 
   @override
   void onWindowResize() {
-    // 防抖：缩放过程中延迟保存
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), _saveState);
   }
@@ -89,4 +94,56 @@ class _WindowSaveListener extends WindowListener {
   void dispose() {
     _saveTimer?.cancel();
   }
+}
+
+/// 初始化系统托盘：菜单栏常驻图标 + 下拉菜单
+Future<void> _initSystemTray() async {
+  final systemTray = SystemTray();
+
+  // 设置菜单栏图标
+  await systemTray.initSystemTray(
+    title: 'Via Music',
+    iconPath: 'assets/tray_icon.png',
+    toolTip: 'Via Music',
+  );
+
+  // 构建右键菜单
+  await systemTray.setContextMenu([
+    // 显示/隐藏窗口
+    MenuItem(
+      label: '显示 Via Music',
+      onClicked: () async {
+        final isVisible = await windowManager.isVisible();
+        if (isVisible) {
+          await windowManager.focus();
+        } else {
+          await windowManager.show();
+          await windowManager.focus();
+        }
+      },
+    ),
+    MenuSeparator(),
+    // 退出应用
+    MenuItem(
+      label: '退出',
+      onClicked: () {
+        windowManager.close();
+      },
+    ),
+  ]);
+
+  // 点击菜单栏图标：左键显示/隐藏，右键弹出菜单
+  systemTray.registerSystemTrayEventHandler((eventName) async {
+    if (eventName == 'click') {
+      final isVisible = await windowManager.isVisible();
+      if (isVisible) {
+        await windowManager.hide();
+      } else {
+        await windowManager.show();
+        await windowManager.focus();
+      }
+    } else if (eventName == 'right-click') {
+      await systemTray.popUpContextMenu();
+    }
+  });
 }
