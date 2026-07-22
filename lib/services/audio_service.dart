@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:media_kit/media_kit.dart';
 import '../models/song.dart';
 import 'audio_cache.dart';
@@ -17,10 +16,9 @@ class AudioService {
   List<Song> get queue => List.unmodifiable(_queue);
   int get currentQueueIndex => _currentQueueIndex;
 
-  /// 当队列自动前进到下一首时触发，外部负责获取 URL 并调用 play
-  final StreamController<Song> _nextSongController =
-      StreamController<Song>.broadcast();
-  Stream<Song> get nextSongStream => _nextSongController.stream;
+  /// 歌曲切换回调（自动前进或手动切歌时触发）
+  /// 外部（PlayerScreen）设置此回调来处理解析和播放
+  void Function(Song song)? onSongAdvance;
 
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
@@ -37,10 +35,6 @@ class AudioService {
   PlayMode _playMode = PlayMode.loop;
   PlayMode get playMode => _playMode;
   set playMode(PlayMode mode) => _playMode = mode;
-
-  /// 停止播放时的回调（用于取消旧 PlayerScreen 的 nextSongStream 监听）
-  VoidCallback? onStopCallback;
-  set stopCallback(VoidCallback? cb) => onStopCallback = cb;
 
   Duration? get position => _player.state.position;
   Duration? get duration => _player.state.duration;
@@ -105,6 +99,7 @@ class AudioService {
   }
 
   void _advanceToNext() {
+    print('[AudioService] _advanceToNext: queueLen=${_queue.length}');
     if (_queue.isEmpty) {
       _updateState(PlayState.stopped);
       return;
@@ -145,13 +140,15 @@ class AudioService {
   void resume() => _player.play();
 
   void stop() {
-    // 取消旧 PlayerScreen 的 nextSongStream 监听，防止干扰新 PlayerScreen
-    onStopCallback?.call();
+    print('[AudioService] stop: onSongAdvance=${onSongAdvance != null ? "有" : "null"}');
+    // 清空回调，防止旧 PlayerScreen 的 onSongAdvance 在 insertNext 时触发
+    onSongAdvance = null;
     _queue.clear();
     _currentQueueIndex = -1;
     currentSongId = null;
     currentSong = null;
     _player.stop();
+    print('[AudioService] stop完成: currentSongId=$currentSongId');
   }
 
   Future<void> seek(Duration position) => _player.seek(position);
@@ -179,13 +176,17 @@ class AudioService {
 
   /// 跳转到指定索引并开始播放
   void _applyAndPlay(int index) {
+    // 没有回调时直接返回（防止 stop() 触发的 completed 事件干扰新 PlayerScreen）
+    if (onSongAdvance == null) return;
+    print('[AudioService] _applyAndPlay: index=$index');
     _currentQueueIndex = index;
     final song = _queue[index];
     currentSong = song;
     currentSongId = song.id.isEmpty ? null : song.id;
     _player.stop();
     _updateState(PlayState.loading);
-    _nextSongController.add(song);
+    // 通过回调通知外部（PlayerScreen）处理解析和播放
+    onSongAdvance?.call(song);
   }
 
   void _updateState(PlayState newState) {
@@ -194,8 +195,8 @@ class AudioService {
   }
 
   void dispose() {
+    onSongAdvance = null;
     _player.dispose();
     _stateController.close();
-    _nextSongController.close();
   }
 }

@@ -40,7 +40,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   StreamSubscription<PlayState>? _stateSub;
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration?>? _durSub;
-  StreamSubscription<Song>? _nextSub;
 
   @override
   void initState() {
@@ -53,23 +52,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    // 注册 stop 回调：stop() 时取消旧监听器，防止干扰新 PlayerScreen
-    ref.read(audioServiceProvider).stopCallback = () => _nextSub?.cancel();
-    // 提前创建 nextSongStream 监听器
-    _nextSub = ref.read(audioServiceProvider).nextSongStream.listen((song) {
-      _onQueueAdvance(song);
-    });
+    // 注册歌曲切换回调（用于自动前进和手动切歌）
+    // 回调模式不存在 stream 时序问题，stop() 后 insertNext() 不会触发任何事件
+    ref.read(audioServiceProvider).onSongAdvance = (song) => _onQueueAdvance(song);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initPlayer());
   }
 
   @override
   void dispose() {
-    // 注销 stop 回调
-    ref.read(audioServiceProvider).stopCallback = null;
+    // 注销回调，防止旧 PlayerScreen 干扰新 PlayerScreen
+    ref.read(audioServiceProvider).onSongAdvance = null;
     _stateSub?.cancel();
     _posSub?.cancel();
     _durSub?.cancel();
-    _nextSub?.cancel();
     _lyricScrollCtrl.dispose();
     _rotationCtrl.dispose();
     _favCtrl.dispose();
@@ -82,15 +77,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _initSubscriptions();
 
     final song = GoRouterState.of(context).extra as Song?;
+    print('[Player] _initPlayer: song=${song?.name}, id=${song?.id}, currentSongId=${audio.currentSongId}, queueLen=${audio.queue.length}');
     if (song == null) return;
 
-    // 如果歌曲已在播放（如从迷你播放栏进入），只加载元数据
     if (audio.currentSongId != null && audio.currentSongId == song.id) {
+      print('[Player] 跳过: 已在播放');
       _loadSongMetadata(song);
       _checkFavorite(song);
       return;
     }
 
+    print('[Player] 调用 _onQueueAdvance');
     _onQueueAdvance(song);
   }
 
@@ -123,6 +120,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // ── 播放流程 ──
 
   Future<void> _onQueueAdvance(Song song) async {
+    print('[Player] _onQueueAdvance: ${song.name}');
     final audio = ref.read(audioServiceProvider);
     final resolver = ref.read(songResolverProvider);
     final cache = AudioCache.instance;
@@ -130,6 +128,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     // 有缓存 → 直接本地播放
     final localPath = await cache.getLocalPath(cacheKey);
+    print('[Player] 缓存: ${localPath ?? "无"}');
     if (localPath != null) {
       final meta = await cache.loadMetadata(cacheKey);
       if (meta != null && mounted) {
@@ -153,7 +152,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _checkFavorite(song);
 
     final result = await resolver.resolve(song);
+    print('[Player] resolve: ${result != null ? "OK" : "NULL"}');
     if (result == null || !mounted) {
+      print('[Player] resolve失败或未挂载');
       audio.playNext();
       return;
     }
@@ -163,9 +164,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         songId: result.playable.id,
         source: result.playable.source,
       );
+      print('[Player] url: ${playUrl.url.isNotEmpty ? "有" : "空"}, mounted=$mounted');
       if (!mounted) return;
+      print('[Player] 调用audio.play');
       await audio.play(playUrl.url, songId: result.playable.id, song: result.playable);
-
+      print('[Player] 播放成功');
       if (mounted) {
         setState(() {
           if (result.coverUrl != null) _coverUrl = result.coverUrl;
@@ -178,7 +181,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           'lyrics': result.lyricsText,
         });
       }
-    } catch (_) {
+    } catch (e) {
+      print('[Player] 播放异常: $e');
       audio.playNext();
     }
   }
