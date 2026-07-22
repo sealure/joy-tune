@@ -108,18 +108,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
     // widget 创建时恢复搜索框文字（provider 状态在 tab 切换时保留）
-    // 延迟到下一帧执行，确保 provider 已准备好
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        final keyword = ref.read(_searchProvider).keyword;
-        if (keyword.isNotEmpty && _controller.text.isEmpty) {
-          _controller.text = keyword;
-          _controller.selection = TextSelection.fromPosition(
-            TextPosition(offset: keyword.length),
-          );
-        }
-      }
-    });
+    final keyword = ref.read(_searchProvider).keyword;
+    if (keyword.isNotEmpty) {
+      // 同步设置 controller 文字，TextField 会自动显示
+      _controller.text = keyword;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: keyword.length),
+      );
+    }
   }
 
   @override
