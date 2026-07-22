@@ -17,6 +17,9 @@ dependencies:
   # 本地存储
   shared_preferences: ^2.3.0
 
+  # 窗口管理
+  window_manager: ^0.4.3
+
   # 状态管理
   flutter_riverpod: ^2.6.1
 
