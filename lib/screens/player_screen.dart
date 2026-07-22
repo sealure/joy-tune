@@ -40,6 +40,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   StreamSubscription<PlayState>? _stateSub;
   StreamSubscription<Duration>? _posSub;
   StreamSubscription<Duration?>? _durSub;
+  StreamSubscription<Song>? _nextSub;
 
   @override
   void initState() {
@@ -52,19 +53,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    // 注册歌曲切换回调（用于自动前进和手动切歌）
-    // 回调模式不存在 stream 时序问题，stop() 后 insertNext() 不会触发任何事件
-    ref.read(audioServiceProvider).onSongAdvance = (song) => _onQueueAdvance(song);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initPlayer());
   }
 
   @override
   void dispose() {
-    // 注销回调，防止旧 PlayerScreen 干扰新 PlayerScreen
-    ref.read(audioServiceProvider).onSongAdvance = null;
     _stateSub?.cancel();
     _posSub?.cancel();
     _durSub?.cancel();
+    _nextSub?.cancel();
     _lyricScrollCtrl.dispose();
     _rotationCtrl.dispose();
     _favCtrl.dispose();
@@ -77,9 +74,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     _initSubscriptions();
 
     final song = GoRouterState.of(context).extra as Song?;
-    print('[Player] _initPlayer: song=${song?.name}, id=${song?.id}, currentSongId=${audio.currentSongId}, queueLen=${audio.queue.length}');
+    print('[Player] _initPlayer: song=${song?.name}, id=${song?.id}, currentSongId=${audio.currentSongId}');
     if (song == null) return;
 
+    // 清除 stop() 设置的标志，允许 stream 事件正常触发
+    audio.clearStopped();
+
+    // 设置 nextSongStream 监听器
+    _nextSub?.cancel();
+    _nextSub = audio.nextSongStream.listen((song) {
+      _onQueueAdvance(song);
+    });
+
+    // 如果歌曲已在播放（如从迷你播放栏进入），只加载元数据
     if (audio.currentSongId != null && audio.currentSongId == song.id) {
       print('[Player] 跳过: 已在播放');
       _loadSongMetadata(song);
@@ -87,6 +94,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
 
+    // 直接触发播放（不依赖 stream 事件，因为事件可能已被 _stopped 过滤）
     print('[Player] 调用 _onQueueAdvance');
     _onQueueAdvance(song);
   }

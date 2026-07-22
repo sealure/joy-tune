@@ -16,9 +16,14 @@ class AudioService {
   List<Song> get queue => List.unmodifiable(_queue);
   int get currentQueueIndex => _currentQueueIndex;
 
-  /// 歌曲切换回调（自动前进或手动切歌时触发）
-  /// 外部（PlayerScreen）设置此回调来处理解析和播放
-  void Function(Song song)? onSongAdvance;
+  /// 当队列自动前进到下一首时触发，外部负责获取 URL 并调用 play
+  final StreamController<Song> _nextSongController =
+      StreamController<Song>.broadcast();
+  Stream<Song> get nextSongStream => _nextSongController.stream;
+
+  /// 停止标志：stop() 后置 true，防止 _player.stop() 触发的 completed 事件干扰新 PlayerScreen
+  /// 新 PlayerScreen 的 _initPlayer 中置 false 并重新触发事件
+  bool _stopped = false;
 
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
@@ -140,15 +145,18 @@ class AudioService {
   void resume() => _player.play();
 
   void stop() {
-    print('[AudioService] stop: onSongAdvance=${onSongAdvance != null ? "有" : "null"}');
-    // 清空回调，防止旧 PlayerScreen 的 onSongAdvance 在 insertNext 时触发
-    onSongAdvance = null;
+    print('[AudioService] stop');
+    _stopped = true;
     _queue.clear();
     _currentQueueIndex = -1;
     currentSongId = null;
     currentSong = null;
     _player.stop();
-    print('[AudioService] stop完成: currentSongId=$currentSongId');
+  }
+
+  /// 清除停止标志，允许 stream 事件正常触发
+  void clearStopped() {
+    _stopped = false;
   }
 
   Future<void> seek(Duration position) => _player.seek(position);
@@ -176,17 +184,16 @@ class AudioService {
 
   /// 跳转到指定索引并开始播放
   void _applyAndPlay(int index) {
-    // 没有回调时直接返回（防止 stop() 触发的 completed 事件干扰新 PlayerScreen）
-    if (onSongAdvance == null) return;
-    print('[AudioService] _applyAndPlay: index=$index');
+    print('[AudioService] _applyAndPlay: index=$index, stopped=$_stopped');
+    // stop() 后的 completed 事件触发的 _applyAndPlay 直接返回，不干扰新 PlayerScreen
+    if (_stopped) return;
     _currentQueueIndex = index;
     final song = _queue[index];
     currentSong = song;
     currentSongId = song.id.isEmpty ? null : song.id;
     _player.stop();
     _updateState(PlayState.loading);
-    // 通过回调通知外部（PlayerScreen）处理解析和播放
-    onSongAdvance?.call(song);
+    _nextSongController.add(song);
   }
 
   void _updateState(PlayState newState) {
@@ -195,8 +202,8 @@ class AudioService {
   }
 
   void dispose() {
-    onSongAdvance = null;
     _player.dispose();
     _stateController.close();
+    _nextSongController.close();
   }
 }
