@@ -6,6 +6,7 @@ const _favoritesKey = 'favorites';
 const _userNicknameKey = 'user_nickname';
 const _userUuidKey = 'user_uuid';
 const _searchHistoryKey = 'search_history';
+const _playSessionKey = 'play_session'; // 播放会话（队列+进度+模式）
 const _maxSearchHistory = 20;
 
 /// 数据库工具（SharedPreferences 实现，零代码生成）
@@ -67,5 +68,49 @@ class AppDatabase {
   /// 清空搜索历史
   static Future<void> clearSearchHistory() async {
     await _prefs.remove(_searchHistoryKey);
+  }
+
+  // ── 播放会话持久化 ──
+
+  /// 保存播放会话（队列、当前索引、播放进度、播放模式）
+  static Future<void> savePlaySession({
+    required List<Song> queue,
+    required int currentIndex,
+    required int positionMs,
+    required String playMode,
+  }) async {
+    final data = {
+      'queue': queue.map((s) => s.toJson()).toList(),
+      'index': currentIndex,
+      'position': positionMs,
+      'mode': playMode,
+    };
+    await _prefs.setString(_playSessionKey, jsonEncode(data));
+  }
+
+  /// 读取播放会话，返回 null 表示无保存的会话
+  static Future<Map<String, dynamic>?> getPlaySession() async {
+    final json = _prefs.getString(_playSessionKey);
+    if (json == null || json.isEmpty) return null;
+    try {
+      final data = jsonDecode(json) as Map<String, dynamic>;
+      // 反序列化歌曲列表
+      final queue = (data['queue'] as List<dynamic>)
+          .map((e) => Song.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return {
+        'queue': queue,
+        'index': data['index'] as int? ?? 0,
+        'position': data['position'] as int? ?? 0,
+        'mode': data['mode'] as String? ?? 'loop',
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 清除播放会话
+  static Future<void> clearPlaySession() async {
+    await _prefs.remove(_playSessionKey);
   }
 }

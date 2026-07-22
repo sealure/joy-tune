@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'db/app_database.dart';
+import 'services/providers.dart';
 
 /// 是否正在退出（Cmd+Q 时设为 true，阻止 onWindowClose 最小化）
 bool _isQuitting = false;
@@ -71,7 +72,15 @@ void main() async {
   // 监听窗口事件（保存状态 + 关闭时最小化到 Dock）
   windowManager.addListener(_AppWindowListener(prefs));
 
-  runApp(ProviderScope(child: ViaMusicApp()));
+  // 恢复上次播放会话（队列、当前歌曲、播放模式）
+  final container = ProviderContainer();
+  final audio = container.read(audioServiceProvider);
+  await audio.restoreSession();
+
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: ViaMusicApp(),
+  ));
 }
 
 /// Cmd+Q 键盘监听：设置退出标志，允许窗口关闭

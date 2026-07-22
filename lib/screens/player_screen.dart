@@ -33,6 +33,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   final ScrollController _lyricScrollCtrl = ScrollController();
 
   bool _isFavorited = false;
+  bool _isRestoringSession = false; // 是否正在恢复播放会话
 
   late AnimationController _rotationCtrl;
   late AnimationController _favCtrl;
@@ -73,9 +74,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final audio = ref.read(audioServiceProvider);
     _initSubscriptions();
 
-    final song = GoRouterState.of(context).extra as Song?;
-    print('[Player] _initPlayer: song=${song?.name}, id=${song?.id}, currentSongId=${audio.currentSongId}');
-    if (song == null) return;
+    final routeSong = GoRouterState.of(context).extra as Song?;
+    print('[Player] _initPlayer: routeSong=${routeSong?.name}, '
+        'currentSongId=${audio.currentSongId}, queueLen=${audio.queue.length}');
 
     // 清除 stop() 设置的标志，允许 stream 事件正常触发
     audio.clearStopped();
@@ -86,16 +87,33 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _onQueueAdvance(song);
     });
 
-    // 如果歌曲已在播放（如从迷你播放栏进入），只加载元数据
-    if (audio.currentSongId != null && audio.currentSongId == song.id) {
+    // 情况1：有恢复的会话且当前歌曲匹配，只加载元数据（不播放）
+    if (audio.currentSongId != null && routeSong != null &&
+        audio.currentSongId == routeSong.id) {
       print('[Player] 跳过: 已在播放');
+      _loadSongMetadata(routeSong);
+      _checkFavorite(routeSong);
+      return;
+    }
+
+    // 情况2：有恢复的会话但用户打开了不同歌曲，使用当前会话的歌曲
+    if (audio.currentSong != null && audio.queue.isNotEmpty && routeSong == null) {
+      final song = audio.currentSong!;
+      print('[Player] 使用恢复的歌曲: ${song.name}');
       _loadSongMetadata(song);
       _checkFavorite(song);
       return;
     }
 
-    // 直接触发播放（不依赖 stream 事件，因为事件可能已被 _stopped 过滤）
-    print('[Player] 调用 _onQueueAdvance');
+    // 情况3：无恢复会话或打开了新歌曲，开始播放
+    final song = routeSong ?? audio.currentSong;
+    if (song == null) return;
+    // 如果有恢复的会话，标记需要恢复播放位置
+    if (audio.queue.isNotEmpty && routeSong != null &&
+        audio.currentSongId != routeSong.id) {
+      _isRestoringSession = true;
+    }
+    print('[Player] 调用 _onQueueAdvance: ${song.name}');
     _onQueueAdvance(song);
   }
 
@@ -134,6 +152,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final cache = AudioCache.instance;
     final cacheKey = AudioCache.cacheKey(song.name, song.artist);
 
+    // 保存播放前的位置，用于恢复时 seek
+    final savedPos = _isRestoringSession ? await audio.getSavedPosition() : 0;
+    _isRestoringSession = false;
+
     // 有缓存 → 直接本地播放
     final localPath = await cache.getLocalPath(cacheKey);
     print('[Player] 缓存: ${localPath ?? "无"}');
@@ -152,6 +174,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _checkFavorite(song);
       if (!mounted) return;
       await audio.play(localPath, songId: song.id, song: song);
+      // 恢复播放位置
+      if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
       return;
     }
 
@@ -176,6 +200,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       if (!mounted) return;
       print('[Player] 调用audio.play');
       await audio.play(playUrl.url, songId: result.playable.id, song: result.playable);
+      // 恢复播放位置
+      if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
       print('[Player] 播放成功');
       if (mounted) {
         setState(() {

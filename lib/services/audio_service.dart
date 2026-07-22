@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:media_kit/media_kit.dart';
 import '../models/song.dart';
+import '../db/app_database.dart';
 import 'audio_cache.dart';
 
 /// 音频播放服务（基于 media_kit）
@@ -39,7 +40,13 @@ class AudioService {
   /// 当前播放模式
   PlayMode _playMode = PlayMode.loop;
   PlayMode get playMode => _playMode;
-  set playMode(PlayMode mode) => _playMode = mode;
+  set playMode(PlayMode mode) {
+    _playMode = mode;
+    _saveSession(); // 播放模式变化时保存
+  }
+
+  /// 定时保存播放进度（每5秒）
+  Timer? _saveTimer;
 
   Duration? get position => _player.state.position;
   Duration? get duration => _player.state.duration;
@@ -47,6 +54,9 @@ class AudioService {
 
   AudioService() {
     AudioCache.instance.init().catchError((_) {});
+
+    // 每5秒自动保存播放进度
+    _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) => _saveSession());
 
     _player.stream.error.listen((_) => _updateState(PlayState.stopped));
 
@@ -74,6 +84,7 @@ class AudioService {
       ..clear()
       ..addAll(songs);
     _currentQueueIndex = startIndex.clamp(0, _queue.length - 1);
+    _saveSession(); // 队列变化时保存
   }
 
   void insertNext(Song song) {
@@ -152,6 +163,7 @@ class AudioService {
     currentSongId = null;
     currentSong = null;
     _player.stop();
+    AppDatabase.clearPlaySession(); // 停止时清除保存的会话
   }
 
   /// 清除停止标志，允许 stream 事件正常触发
@@ -201,7 +213,67 @@ class AudioService {
     _stateController.add(newState);
   }
 
+  // ── 播放会话持久化 ──
+
+  /// 保存当前播放会话到本地存储
+  void _saveSession() {
+    if (_queue.isEmpty) return;
+    final posMs = _player.state.position.inMilliseconds;
+    AppDatabase.savePlaySession(
+      queue: _queue,
+      currentIndex: _currentQueueIndex,
+      positionMs: posMs,
+      playMode: _playMode.name,
+    );
+  }
+
+  /// 从本地存储恢复播放会话（队列+索引+模式），不自动播放
+  /// 返回 true 表示有可恢复的会话
+  Future<bool> restoreSession() async {
+    final session = await AppDatabase.getPlaySession();
+    if (session == null) return false;
+
+    final queue = session['queue'] as List<Song>;
+    if (queue.isEmpty) return false;
+
+    // 恢复队列和索引
+    _queue
+      ..clear()
+      ..addAll(queue);
+    _currentQueueIndex = (session['index'] as int).clamp(0, _queue.length - 1);
+
+    // 恢复当前歌曲信息
+    final song = _queue[_currentQueueIndex];
+    currentSong = song;
+    currentSongId = song.id.isEmpty ? null : song.id;
+
+    // 恢复播放模式
+    final modeStr = session['mode'] as String;
+    _playMode = PlayMode.values.firstWhere(
+      (m) => m.name == modeStr,
+      orElse: () => PlayMode.loop,
+    );
+
+    // 恢复播放位置（毫秒）
+    final positionMs = session['position'] as int;
+
+    print('[AudioService] 恢复会话: ${song.name}, 索引=$_currentQueueIndex, '
+        '位置=${positionMs}ms, 模式=$_playMode');
+
+    // 通知监听者（MiniPlayerBar 等）状态已更新
+    _updateState(PlayState.stopped);
+
+    return true;
+  }
+
+  /// 获取上次保存的播放位置（毫秒），用于恢复时 seek
+  Future<int> getSavedPosition() async {
+    final session = await AppDatabase.getPlaySession();
+    return session?['position'] as int? ?? 0;
+  }
+
   void dispose() {
+    _saveTimer?.cancel();
     _player.dispose();
     _stateController.close();
     _nextSongController.close();
