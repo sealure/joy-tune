@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../db/app_database.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../widgets/song_tile.dart';
@@ -12,12 +13,15 @@ class _SearchState {
   final bool isLoading;
   final bool hasMore;
   final int page;
+  /// 当前搜索关键词（非空表示已执行搜索）
+  final String keyword;
 
   const _SearchState({
     this.songs = const [],
     this.isLoading = false,
     this.hasMore = true,
     this.page = 0,
+    this.keyword = '',
   });
 
   _SearchState copyWith({
@@ -25,36 +29,38 @@ class _SearchState {
     bool? isLoading,
     bool? hasMore,
     int? page,
+    String? keyword,
   }) {
     return _SearchState(
       songs: songs ?? this.songs,
       isLoading: isLoading ?? this.isLoading,
       hasMore: hasMore ?? this.hasMore,
       page: page ?? this.page,
+      keyword: keyword ?? this.keyword,
     );
   }
 }
 
 class _SearchNotifier extends StateNotifier<_SearchState> {
   final Ref _ref;
-  String _keyword = '';
 
   _SearchNotifier(this._ref) : super(const _SearchState());
 
   /// 新搜索（重置分页）
   Future<void> search(String keyword) async {
-    _keyword = keyword;
     if (keyword.trim().isEmpty) {
       state = const _SearchState();
       return;
     }
-    state = state.copyWith(isLoading: true, songs: [], page: 0, hasMore: true);
+    // 保存搜索历史
+    await AppDatabase.addSearchHistory(keyword.trim());
+    state = state.copyWith(isLoading: true, songs: [], page: 0, hasMore: true, keyword: keyword.trim());
     await _fetchPage(1);
   }
 
   /// 加载下一页
   Future<void> loadMore() async {
-    if (state.isLoading || !state.hasMore || _keyword.trim().isEmpty) return;
+    if (state.isLoading || !state.hasMore || state.keyword.isEmpty) return;
     state = state.copyWith(isLoading: true);
     await _fetchPage(state.page + 1);
   }
@@ -63,7 +69,7 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     try {
       final client = _ref.read(gdMusicClientProvider);
       final results = await client.search(
-        keyword: _keyword,
+        keyword: state.keyword,
         source: 'netease',
         count: 20,
         page: page,
@@ -101,6 +107,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    // widget 创建时恢复搜索框文字（provider 状态在 tab 切换时保留）
+    // 延迟到下一帧执行，确保 provider 已准备好
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final keyword = ref.read(_searchProvider).keyword;
+        if (keyword.isNotEmpty && _controller.text.isEmpty) {
+          _controller.text = keyword;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: keyword.length),
+          );
+        }
+      }
+    });
   }
 
   @override
@@ -116,15 +135,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
+  /// 执行搜索
+  void _doSearch(String keyword) {
+    ref.read(_searchProvider.notifier).search(keyword);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(_searchProvider);
+    // 是否显示搜索历史：搜索框为空且无搜索结果时显示
+    final showHistory = _controller.text.isEmpty && searchState.songs.isEmpty;
+    // 每次 build 时直接读取最新历史记录
+    final history = AppDatabase.getSearchHistory();
 
     return Scaffold(
       appBar: AppBar(title: const Text('搜索')),
       body: Column(
         children: [
-          // 搜索栏
+          // 搜索栏（固定）
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
@@ -144,17 +173,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     : null,
               ),
               onChanged: (v) => setState(() {}),
-              onSubmitted: (v) => ref.read(_searchProvider.notifier).search(v),
+              onSubmitted: (v) => _doSearch(v),
               textInputAction: TextInputAction.search,
             ),
           ),
 
-          // 结果列表
+          // 搜索历史（固定，搜索框为空且无搜索结果时显示）
+          if (showHistory && history.isNotEmpty)
+            _buildHistorySection(history),
+
+          // 结果列表（可滚动，填充剩余空间）
           Expanded(
             child: searchState.songs.isEmpty && !searchState.isLoading
                 ? Center(
                     child: Text(
-                      _controller.text.isEmpty ? '输入关键词开始搜索' : '未找到结果',
+                      searchState.keyword.isEmpty ? '输入关键词开始搜索' : '未找到结果',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   )
@@ -176,6 +209,55 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       );
                     },
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建搜索历史区域
+  Widget _buildHistorySection(List<String> history) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题行：历史搜索 + 清空按钮
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('历史搜索', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              GestureDetector(
+                onTap: () async {
+                  await AppDatabase.clearSearchHistory();
+                  setState(() {});
+                },
+                child: Text('清空', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 历史关键词标签
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: history.map((keyword) {
+              return GestureDetector(
+                onTap: () {
+                  _controller.text = keyword;
+                  _doSearch(keyword);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(keyword, style: theme.textTheme.bodySmall),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
