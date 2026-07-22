@@ -17,28 +17,6 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // 快捷入口
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  _QuickCard(
-                    icon: Icons.favorite_outline_rounded,
-                    label: '我的收藏',
-                    color: const Color(0xFFEF4444),
-                    onTap: () => context.push('/favorites'),
-                  ),
-                  const SizedBox(width: 12),
-                  _QuickCard(
-                    icon: Icons.search_rounded,
-                    label: '搜索歌曲',
-                    color: theme.colorScheme.primary,
-                    onTap: () => context.push('/search'),
-                  ),
-                ],
-              ),
-            ),
-
             // 推荐歌单
             Expanded(
               child: ListView(
