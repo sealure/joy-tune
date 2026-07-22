@@ -327,7 +327,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 child: isDesktop
                     ? Center(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 480),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.sizeOf(context).width * 0.85,
+                          ),
                           child: _buildPlayerColumn(song),
                         ),
                       )
@@ -589,11 +591,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Expanded(flex: 1, child: _buildSongInfo(song)),
-          Expanded(
-            flex: 1,
-            child: _buildPlaybackControls(song, hasPrev, hasNext),
-          ),
+          // 左：歌曲信息，占 3/7
+          Expanded(flex: 3, child: _buildSongInfo(song)),
+          // 中：播放控制，占 3/7
+          Expanded(flex: 3, child: _buildPlaybackControls(song, hasPrev, hasNext)),
+          // 右：队列按钮，占 1/7
           Expanded(flex: 1, child: _buildQueueButton()),
         ],
       ),
@@ -637,15 +639,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _buildPlaybackControls(Song song, bool hasPrev, bool hasNext) {
     final audio = ref.read(audioServiceProvider);
+    // 按钮总宽：36+12+48+12+36 = 144px，适配 3/7 分配空间
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _ctrlBtn(Icons.skip_previous_rounded, 28, hasPrev ? () => audio.playPrevious() : null),
-        const SizedBox(width: 20),
+        _ctrlBtn(Icons.skip_previous_rounded, 26, hasPrev ? () => audio.playPrevious() : null),
+        const SizedBox(width: 12),
         GestureDetector(
           onTap: () => _onPlayToggle(song),
           child: Container(
-            width: 56, height: 56,
+            width: 48, height: 48,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
@@ -653,13 +656,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
             ),
             child: Icon(
               _playState == PlayState.playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 32,
+              size: 28,
               color: Colors.black87,
             ),
           ),
         ),
-        const SizedBox(width: 20),
-        _ctrlBtn(Icons.skip_next_rounded, 28, hasNext ? () => audio.playNext() : null),
+        const SizedBox(width: 12),
+        _ctrlBtn(Icons.skip_next_rounded, 26, hasNext ? () => audio.playNext() : null),
       ],
     );
   }
@@ -677,11 +680,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Widget _ctrlBtn(IconData icon, double size, VoidCallback? onTap) {
     return SizedBox(
-      width: 44, height: 44,
+      width: 36, height: 36,
       child: IconButton(
         icon: Icon(icon, color: onTap != null ? Colors.white.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.2), size: size),
         onPressed: onTap,
-        splashRadius: 22,
+        splashRadius: 18,
         padding: EdgeInsets.zero,
       ),
     );
