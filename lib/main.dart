@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'db/app_database.dart';
+
+/// 是否正在退出（Cmd+Q 时设为 true，阻止 onWindowClose 最小化）
+bool _isQuitting = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,25 +51,54 @@ void main() async {
       await windowManager.center();
     }
 
+    // 关闭窗口时最小化到 Dock，而不是退出应用
+    await windowManager.setPreventClose(true);
+
     await windowManager.show();
     await windowManager.focus();
   });
 
-  // 初始化系统托盘（菜单栏图标）
-  await _initSystemTray();
+  // 监听 Cmd+Q 退出
+  HardwareKeyboard.instance.addHandler(_handleKeyQuit);
 
-  // 监听窗口事件（保存状态）
+  // 监听窗口事件（保存状态 + 关闭时最小化到 Dock）
   windowManager.addListener(_AppWindowListener(prefs));
 
   runApp(ProviderScope(child: ViaMusicApp()));
 }
 
-/// 窗口事件监听：保存窗口状态
+/// Cmd+Q 键盘监听：设置退出标志，允许窗口关闭
+bool _handleKeyQuit(KeyEvent event) {
+  if (event is KeyDownEvent || event is KeyRepeatEvent) {
+    final isCmd = HardwareKeyboard.instance.isMetaPressed ||
+        HardwareKeyboard.instance.isControlPressed;
+    if (isCmd && event.logicalKey == LogicalKeyboardKey.keyQ) {
+      _isQuitting = true;
+    }
+  }
+  return false; // 不阻止其他处理器
+}
+
+/// 窗口事件监听：保存窗口状态 + 关闭时最小化到 Dock
 class _AppWindowListener extends WindowListener {
   final SharedPreferences _prefs;
   Timer? _saveTimer;
 
   _AppWindowListener(this._prefs);
+
+  // ── 关闭窗口 → 最小化到 Dock（而非退出）──
+
+  @override
+  void onWindowClose() {
+    if (_isQuitting) {
+      // Cmd+Q 触发的关闭，允许退出
+      windowManager.setPreventClose(false);
+      windowManager.close();
+    } else {
+      // 点击关闭按钮，最小化到 Dock
+      windowManager.minimize();
+    }
+  }
 
   // ── 窗口移动/缩放 → 保存状态（防抖500ms）──
 
@@ -94,56 +126,4 @@ class _AppWindowListener extends WindowListener {
   void dispose() {
     _saveTimer?.cancel();
   }
-}
-
-/// 初始化系统托盘：菜单栏常驻图标 + 下拉菜单
-Future<void> _initSystemTray() async {
-  final systemTray = SystemTray();
-
-  // 设置菜单栏图标
-  await systemTray.initSystemTray(
-    title: 'Via Music',
-    iconPath: 'assets/tray_icon.png',
-    toolTip: 'Via Music',
-  );
-
-  // 构建右键菜单
-  await systemTray.setContextMenu([
-    // 显示/隐藏窗口
-    MenuItem(
-      label: '显示 Via Music',
-      onClicked: () async {
-        final isVisible = await windowManager.isVisible();
-        if (isVisible) {
-          await windowManager.focus();
-        } else {
-          await windowManager.show();
-          await windowManager.focus();
-        }
-      },
-    ),
-    MenuSeparator(),
-    // 退出应用
-    MenuItem(
-      label: '退出',
-      onClicked: () {
-        windowManager.close();
-      },
-    ),
-  ]);
-
-  // 点击菜单栏图标：左键显示/隐藏，右键弹出菜单
-  systemTray.registerSystemTrayEventHandler((eventName) async {
-    if (eventName == 'click') {
-      final isVisible = await windowManager.isVisible();
-      if (isVisible) {
-        await windowManager.hide();
-      } else {
-        await windowManager.show();
-        await windowManager.focus();
-      }
-    } else if (eventName == 'right-click') {
-      await systemTray.popUpContextMenu();
-    }
-  });
 }
