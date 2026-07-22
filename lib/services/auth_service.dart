@@ -70,9 +70,18 @@ class AuthService {
       // 存储 Token
       await _saveToken(token);
 
+      // 登录成功后获取用户完整信息（包含 authProvider）
+      User finalUser;
+      try {
+        finalUser = await getProfile();
+      } catch (_) {
+        // 获取 Profile 失败时使用登录返回的基础信息
+        finalUser = user;
+      }
+
       return LoginResult(
         token: token,
-        user: user,
+        user: finalUser,
         isNewUser: isNewUser,
       );
     } on DioException catch (e) {

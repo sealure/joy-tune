@@ -142,7 +142,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     : (_user?.nickname ?? '点击登录'),
                                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
                               ),
-                              if (_isLoggedIn && _user != null)
+                              if (_isLoggedIn && _user != null && _user!.authProvider.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Row(
@@ -150,7 +150,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       Icon(Icons.check_circle_rounded, size: 14, color: Colors.white.withValues(alpha: 0.6)),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '已绑定 Google',
+                                        '已绑定 ${_formatProvider(_user!.authProvider)}',
                                         style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6)),
                                       ),
                                     ],
@@ -233,6 +233,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
+}
+
+/// 格式化 Provider 名称
+String _formatProvider(String provider) {
+  const names = {
+    'google': 'Google',
+    'github': 'GitHub',
+    'qq': 'QQ',
+    'wechat': '微信',
+  };
+  return provider.split(',').map((p) => names[p.trim()] ?? p.trim()).join('、');
 }
 
 class _StatItem extends StatelessWidget {

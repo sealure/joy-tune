@@ -6,12 +6,14 @@ class User {
   final String email;
   final String nickname;
   final String avatarUrl;
+  final String authProvider; // 登录方式（google / github / qq / wechat，多个用逗号分隔）
 
   const User({
     required this.id,
     required this.email,
     required this.nickname,
     required this.avatarUrl,
+    this.authProvider = '',
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -24,13 +26,18 @@ class User {
       email: json['email'] as String? ?? '',
       nickname: json['nickname'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String? ?? '',
+      authProvider: json['authProvider'] as String? ?? '',
     );
   }
+
+  /// 是否通过指定的 Provider 登录过
+  bool hasProvider(String provider) => authProvider.contains(provider);
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'email': email,
         'nickname': nickname,
         'avatarUrl': avatarUrl,
+        'authProvider': authProvider,
       };
 }
