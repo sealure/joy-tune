@@ -53,11 +53,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    // 注册 stop 回调：stop() 时取消旧监听器，防止干扰新 PlayerScreen
+    ref.read(audioServiceProvider).stopCallback = () => _nextSub?.cancel();
+    // 提前创建 nextSongStream 监听器
+    _nextSub = ref.read(audioServiceProvider).nextSongStream.listen((song) {
+      _onQueueAdvance(song);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _initPlayer());
   }
 
   @override
   void dispose() {
+    // 注销 stop 回调
+    ref.read(audioServiceProvider).stopCallback = null;
     _stateSub?.cancel();
     _posSub?.cancel();
     _durSub?.cancel();
@@ -73,13 +81,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final audio = ref.read(audioServiceProvider);
     _initSubscriptions();
 
-    _nextSub = audio.nextSongStream.listen((song) {
-      _onQueueAdvance(song);
-    });
-
     final song = GoRouterState.of(context).extra as Song?;
     if (song == null) return;
 
+    // 如果歌曲已在播放（如从迷你播放栏进入），只加载元数据
     if (audio.currentSongId != null && audio.currentSongId == song.id) {
       _loadSongMetadata(song);
       _checkFavorite(song);

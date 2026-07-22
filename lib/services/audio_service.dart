@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:media_kit/media_kit.dart';
 import '../models/song.dart';
 import 'audio_cache.dart';
@@ -36,6 +37,10 @@ class AudioService {
   PlayMode _playMode = PlayMode.loop;
   PlayMode get playMode => _playMode;
   set playMode(PlayMode mode) => _playMode = mode;
+
+  /// 停止播放时的回调（用于取消旧 PlayerScreen 的 nextSongStream 监听）
+  VoidCallback? onStopCallback;
+  set stopCallback(VoidCallback? cb) => onStopCallback = cb;
 
   Duration? get position => _player.state.position;
   Duration? get duration => _player.state.duration;
@@ -140,6 +145,8 @@ class AudioService {
   void resume() => _player.play();
 
   void stop() {
+    // 取消旧 PlayerScreen 的 nextSongStream 监听，防止干扰新 PlayerScreen
+    onStopCallback?.call();
     _queue.clear();
     _currentQueueIndex = -1;
     currentSongId = null;
