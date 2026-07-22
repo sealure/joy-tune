@@ -20,6 +20,9 @@ dependencies:
   # 窗口管理
   window_manager: ^0.4.3
 
+  # 系统托盘/菜单栏图标
+  system_tray: ^0.1.1
+
   # 状态管理
   flutter_riverpod: ^2.6.1
 

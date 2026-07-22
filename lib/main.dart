@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -11,6 +12,9 @@ import 'db/app_database.dart';
 
 /// 是否正在退出（Cmd+Q 时设为 true，阻止 onWindowClose 最小化）
 bool _isQuitting = false;
+
+/// 窗口是否正在显示
+bool _windowVisible = true;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +62,9 @@ void main() async {
     await windowManager.focus();
   });
 
+  // 初始化系统托盘（菜单栏图标）
+  await _initSystemTray();
+
   // 监听 Cmd+Q 退出
   HardwareKeyboard.instance.addHandler(_handleKeyQuit);
 
@@ -79,6 +86,56 @@ bool _handleKeyQuit(KeyEvent event) {
   return false; // 不阻止其他处理器
 }
 
+/// 初始化系统托盘：菜单栏常驻图标
+Future<void> _initSystemTray() async {
+  final systemTray = SystemTray();
+
+  // 设置菜单栏图标（仅图标，无文字）
+  await systemTray.initSystemTray(
+    title: '',
+    iconPath: 'assets/tray_icon.png',
+    toolTip: 'Via Music',
+  );
+
+  // 构建右键菜单
+  await systemTray.setContextMenu([
+    MenuItem(
+      label: '显示 Via Music',
+      onClicked: () async {
+        await windowManager.show();
+        await windowManager.focus();
+        _windowVisible = true;
+      },
+    ),
+    MenuSeparator(),
+    MenuItem(
+      label: '退出',
+      onClicked: () async {
+        _isQuitting = true;
+        await windowManager.setPreventClose(false);
+        await windowManager.close();
+      },
+    ),
+  ]);
+
+  // 点击菜单栏图标：左键显示/隐藏，右键弹出菜单
+  systemTray.registerSystemTrayEventHandler((eventName) async {
+    if (eventName == 'leftMouseUp') {
+      if (_windowVisible) {
+        // 隐藏窗口（触发 onWindowClose → 最小化到 Dock）
+        await windowManager.close();
+        _windowVisible = false;
+      } else {
+        await windowManager.show();
+        await windowManager.focus();
+        _windowVisible = true;
+      }
+    } else if (eventName == 'rightMouseUp') {
+      await systemTray.popUpContextMenu();
+    }
+  });
+}
+
 /// 窗口事件监听：保存窗口状态 + 关闭时最小化到 Dock
 class _AppWindowListener extends WindowListener {
   final SharedPreferences _prefs;
@@ -91,12 +148,13 @@ class _AppWindowListener extends WindowListener {
   @override
   void onWindowClose() {
     if (_isQuitting) {
-      // Cmd+Q 触发的关闭，允许退出
+      // Cmd+Q 或菜单退出，允许退出
       windowManager.setPreventClose(false);
       windowManager.close();
     } else {
-      // 点击关闭按钮，最小化到 Dock
+      // 关闭按钮或状态栏隐藏，最小化到 Dock
       windowManager.minimize();
+      _windowVisible = false;
     }
   }
 
