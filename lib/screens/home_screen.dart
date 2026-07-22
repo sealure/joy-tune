@@ -49,6 +49,22 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  // 分享歌单
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                    child: Text('分享歌单', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  ),
+                  SizedBox(
+                    height: 190,
+                    child: Center(
+                      child: Text(
+                        '敬请期待',
+                        style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
