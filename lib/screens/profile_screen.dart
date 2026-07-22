@@ -1,14 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfileScreen extends StatelessWidget {
+import '../models/user.dart';
+import '../services/providers.dart';
+
+/// 个人中心页 — 显示真实用户信息，支持退出登录
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: 接入认证后替换为真实登录状态
-    final isLoggedIn = _checkLoginStatus();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
 
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _isLoggedIn = false;
+  User? _user;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  /// 检查登录状态并加载用户信息
+  Future<void> _checkLoginStatus() async {
+    final authService = ref.read(authServiceProvider);
+    final hasToken = await authService.isLoggedIn;
+
+    if (!mounted) return;
+
+    if (hasToken) {
+      try {
+        final user = await authService.getProfile();
+        if (!mounted) return;
+        setState(() {
+          _isLoggedIn = true;
+          _user = user;
+          _isLoading = false;
+        });
+      } catch (e) {
+        // Token 可能已过期
+        setState(() {
+          _isLoggedIn = false;
+          _isLoading = false;
+        });
+      }
+    } else {
+      setState(() {
+        _isLoggedIn = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// 退出登录
+  Future<void> _handleLogout() async {
+    final authService = ref.read(authServiceProvider);
+    await authService.logout();
+    if (!mounted) return;
+    setState(() {
+      _isLoggedIn = false;
+      _user = null;
+    });
+    context.go('/login');
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -45,28 +105,44 @@ class ProfileScreen extends StatelessWidget {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: isLoggedIn ? () => context.push('/profile/edit') : () => context.push('/login'),
+                          onTap: _isLoggedIn ? () => context.push('/profile/edit') : () => context.push('/login'),
                           child: CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.white.withValues(alpha: 0.2),
-                            child: Icon(
-                              isLoggedIn ? Icons.person_rounded : Icons.person_outline_rounded,
-                              size: 30,
-                              color: Colors.white.withValues(alpha: 0.6),
-                            ),
+                            child: _user?.avatarUrl != null && _user!.avatarUrl.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      _user!.avatarUrl,
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Icon(
+                                        Icons.person_rounded,
+                                        size: 30,
+                                        color: Colors.white.withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  )
+                                : Icon(
+                                    _isLoggedIn ? Icons.person_rounded : Icons.person_outline_rounded,
+                                    size: 30,
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                  ),
                           ),
                         ),
                         const SizedBox(width: 16),
                         GestureDetector(
-                          onTap: isLoggedIn ? null : () => context.push('/login'),
+                          onTap: _isLoggedIn ? null : () => context.push('/login'),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isLoggedIn ? 'SimpleCreator' : '点击登录',
+                                _isLoading
+                                    ? '加载中...'
+                                    : (_user?.nickname ?? '点击登录'),
                                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
                               ),
-                              if (isLoggedIn)
+                              if (_isLoggedIn && _user != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Row(
@@ -74,7 +150,7 @@ class ProfileScreen extends StatelessWidget {
                                       Icon(Icons.check_circle_rounded, size: 14, color: Colors.white.withValues(alpha: 0.6)),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '已绑定 GitHub',
+                                        '已绑定 Google',
                                         style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6)),
                                       ),
                                     ],
@@ -95,9 +171,9 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
                 children: [
-                  _StatItem(label: '收藏歌曲', value: isLoggedIn ? '28' : '---'),
-                  _StatItem(label: '创建歌单', value: isLoggedIn ? '3' : '---'),
-                  _StatItem(label: '听歌总数', value: isLoggedIn ? '156' : '---'),
+                  _StatItem(label: '收藏歌曲', value: _isLoggedIn ? '28' : '---'),
+                  _StatItem(label: '创建歌单', value: _isLoggedIn ? '3' : '---'),
+                  _StatItem(label: '听歌总数', value: _isLoggedIn ? '156' : '---'),
                 ],
               ),
             ),
@@ -121,7 +197,7 @@ class ProfileScreen extends StatelessWidget {
                     label: '播放历史',
                     iconBg: const Color(0xFFEEF2FF),
                     iconColor: const Color(0xFF6366F1),
-                    enabled: isLoggedIn,
+                    enabled: _isLoggedIn,
                   ),
                   _MenuTile(
                     icon: Icons.settings_outlined,
@@ -135,13 +211,13 @@ class ProfileScreen extends StatelessWidget {
             ),
 
             // 退出登录
-            if (isLoggedIn)
+            if (_isLoggedIn)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: _handleLogout,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Color(0xFFFEE2E2)),
@@ -157,8 +233,6 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
-
-  static bool _checkLoginStatus() => false;
 }
 
 class _StatItem extends StatelessWidget {

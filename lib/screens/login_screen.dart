@@ -1,9 +1,67 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+import '../services/providers.dart';
 
 /// 登录页 — 深色背景 + 靛蓝/紫色光晕动画，GitHub / Google OAuth
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  bool _isLoading = false;
+
+  /// Google OAuth 登录
+  Future<void> _handleGoogleLogin() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      // 1. 调用 Google Sign-In SDK
+      final googleUser = await GoogleSignIn(
+        scopes: ['email', 'profile'],
+      ).signIn();
+
+      if (googleUser == null) {
+        // 用户取消了登录
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 2. 获取 Google 认证信息
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null) {
+        throw Exception('获取 Google Token 失败');
+      }
+
+      // 3. 发送到后端验证，获取自定义 JWT
+      final authService = ref.read(authServiceProvider);
+      final result = await authService.googleLogin(idToken);
+
+      if (!mounted) return;
+
+      // 4. 登录成功，跳转首页
+      if (result.isNewUser) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('欢迎注册 Via Music！')),
+        );
+      }
+      context.go('/home');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('登录失败: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,15 +165,11 @@ class LoginScreen extends StatelessWidget {
                         const SizedBox(height: 14),
                         _SocialButton(
                           icon: Icons.g_mobiledata_rounded,
-                          label: 'Google 账号登录',
+                          label: _isLoading ? '登录中...' : 'Google 账号登录',
                           backgroundColor: Colors.white,
                           textColor: const Color(0xFF1A1A1A),
                           iconColor: const Color(0xFF4285F4),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Google OAuth 接入中...')),
-                            );
-                          },
+                          onTap: _isLoading ? () {} : _handleGoogleLogin,
                         ),
                         const SizedBox(height: 12),
                         Text(

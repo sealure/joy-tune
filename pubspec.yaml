@@ -16,6 +16,10 @@ dependencies:
   # 音频
   # 本地存储
   shared_preferences: ^2.3.0
+  flutter_secure_storage: ^9.2.4
+
+  # Google OAuth 登录
+  google_sign_in: ^6.2.1
 
   # 窗口管理
   window_manager: ^0.4.3

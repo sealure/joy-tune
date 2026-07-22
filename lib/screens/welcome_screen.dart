@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/providers.dart';
+
 /// 启动/欢迎页 — 深色靛蓝主题，Logo 呼吸动画，自动检测登录状态
-class WelcomeScreen extends StatefulWidget {
+class WelcomeScreen extends ConsumerStatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen>
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _breathCtrl;
   late Animation<double> _breathAnim;
@@ -30,9 +33,26 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     Future.delayed(const Duration(milliseconds: 1800), _navigate);
   }
 
-  void _navigate() {
+  /// 检测登录状态，决定跳转目标
+  void _navigate() async {
     if (!mounted) return;
-    context.go('/login');
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final hasToken = await authService.isLoggedIn;
+      if (!mounted) return;
+
+      if (hasToken) {
+        // 已登录，直接跳转首页
+        context.go('/home');
+      } else {
+        // 未登录，跳转登录页
+        context.go('/login');
+      }
+    } catch (_) {
+      // 检测失败，跳转登录页
+      if (mounted) context.go('/login');
+    }
   }
 
   @override

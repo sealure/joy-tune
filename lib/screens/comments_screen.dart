@@ -1,18 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/song.dart';
+import '../services/providers.dart';
 
 /// 评论页
-class CommentsScreen extends StatelessWidget {
+class CommentsScreen extends ConsumerWidget {
   final Song? song;
 
   const CommentsScreen({super.key, this.song});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isLoggedIn = false; // TODO: 接入认证后替换
+    // 从 AuthService 获取真实登录状态
+    final authService = ref.read(authServiceProvider);
+
+    return _CommentsBody(
+      song: song,
+      theme: theme,
+      authService: authService,
+    );
+  }
+}
+
+class _CommentsBody extends StatefulWidget {
+  final Song? song;
+  final ThemeData theme;
+  final dynamic authService;
+
+  const _CommentsBody({
+    required this.song,
+    required this.theme,
+    required this.authService,
+  });
+
+  @override
+  State<_CommentsBody> createState() => _CommentsBodyState();
+}
+
+class _CommentsBodyState extends State<_CommentsBody> {
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLogin();
+  }
+
+  Future<void> _checkLogin() async {
+    final hasToken = await widget.authService.isLoggedIn;
+    if (mounted) setState(() => _isLoggedIn = hasToken);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
 
     return Scaffold(
       appBar: AppBar(
@@ -32,7 +76,7 @@ class CommentsScreen extends StatelessWidget {
       body: Column(
         children: [
           // 歌曲信息小横条
-          if (song != null)
+          if (widget.song != null)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
@@ -55,8 +99,8 @@ class CommentsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(song!.name, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(song!.artist, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(widget.song!.name, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(widget.song!.artist, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
@@ -65,16 +109,16 @@ class CommentsScreen extends StatelessWidget {
             ),
 
           // 评论区
-          Expanded(child: _buildCommentList(context, theme, isLoggedIn)),
+          Expanded(child: _buildCommentList(context, theme)),
 
           // 输入区
-          _buildInputBar(context, theme, isLoggedIn),
+          _buildInputBar(context, theme),
         ],
       ),
     );
   }
 
-  Widget _buildCommentList(BuildContext context, ThemeData theme, bool isLoggedIn) {
+  Widget _buildCommentList(BuildContext context, ThemeData theme) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -82,7 +126,7 @@ class CommentsScreen extends StatelessWidget {
           Icon(Icons.chat_bubble_outline_rounded, size: 48, color: theme.colorScheme.secondary),
           const SizedBox(height: 12),
           Text('暂无评论，快来抢沙发吧', style: theme.textTheme.bodySmall),
-          if (!isLoggedIn) ...[
+          if (!_isLoggedIn) ...[
             const SizedBox(height: 16),
             FilledButton.tonal(
               onPressed: () => context.push('/login'),
@@ -94,14 +138,14 @@ class CommentsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInputBar(BuildContext context, ThemeData theme, bool isLoggedIn) {
+  Widget _buildInputBar(BuildContext context, ThemeData theme) {
     return Container(
       padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).padding.bottom + 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(top: BorderSide(color: Colors.grey.shade200, width: 0.5)),
       ),
-      child: isLoggedIn
+      child: _isLoggedIn
           ? Row(
               children: [
                 Expanded(
