@@ -319,30 +319,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final isDesktop = MediaQuery.sizeOf(context).width > 600;
 
     return Scaffold(
-      body: Builder(
-        builder: (context) {
-          final safeHeight = MediaQuery.sizeOf(context).height -
-              MediaQuery.of(context).padding.top -
-              MediaQuery.of(context).padding.bottom;
-          return Stack(
+      body: Stack(
             fit: StackFit.expand,
             children: [
               _buildBackground(),
               SafeArea(
                 child: isDesktop
                     ? Center(
-                        child: SizedBox(
-                          width: 480,
-                          height: safeHeight,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 480),
                           child: _buildPlayerColumn(song),
                         ),
                       )
                     : _buildPlayerColumn(song),
               ),
             ],
-          );
-        },
-      ),
+          ),
     );
   }
 
@@ -446,22 +438,32 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   Widget _buildMainContent() {
-    return GestureDetector(
-      onTap: () {
-        if (_lyrics.isNotEmpty) {
-          setState(() => _showLyrics = !_showLyrics);
-        }
+    // 封面页需要根据可用空间动态计算尺寸，避免窗口缩小时溢出
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 封面页：封面 + 上下间距(各20) + 提示文字(约20)
+        final maxCoverSize = (constraints.maxHeight - 60).clamp(120.0, 280.0);
+        return GestureDetector(
+          onTap: () {
+            if (_lyrics.isNotEmpty) {
+              setState(() => _showLyrics = !_showLyrics);
+            }
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: _showLyrics
+                ? _buildLyricsPage()
+                : _buildCoverPage(coverSize: maxCoverSize),
+          ),
+        );
       },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        child: _showLyrics ? _buildLyricsPage() : _buildCoverPage(),
-      ),
     );
   }
 
-  Widget _buildCoverPage() {
+  Widget _buildCoverPage({required double coverSize}) {
+    final borderRadius = coverSize / 2;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -474,7 +476,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               child: child,
             ),
             child: Container(
-              width: 280, height: 280,
+              width: coverSize, height: coverSize,
+              clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 boxShadow: [
@@ -486,7 +489,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(140),
+                borderRadius: BorderRadius.circular(borderRadius),
                 child: _coverUrl != null
                     ? Image.network(
                         _coverUrl!,
