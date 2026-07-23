@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "705656192509-a3ceunolua39fnheg4nompjjjih2pvi3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rh.viamusic",
+            "certificate_hash": "6b736b045bf4ed960d58fe7390e9491987435585"
+          }
+        },
+        {
           "client_id": "705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com",
           "client_type": 3
         }
