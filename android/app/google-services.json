@@ -12,7 +12,12 @@
           "package_name": "com.rh.viamusic"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC6QgEcWAWbLWNAZQRO8iokgOUOEPB36c8"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
