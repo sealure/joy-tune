@@ -22,9 +22,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. 调用 Google Sign-In SDK
+      // 1. 调用 Google Sign-In SDK（使用 Web Client ID，全平台兼容）
       final googleUser = await GoogleSignIn(
         scopes: ['email', 'profile'],
+        serverClientId: '935635104003-vve8jdel8tuql6qbpnoba30k48njf2pp.apps.googleusercontent.com',
       ).signIn();
 
       if (googleUser == null) {

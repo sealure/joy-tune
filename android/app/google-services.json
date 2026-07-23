@@ -1,0 +1,34 @@
+{
+  "project_info": {
+    "project_number": "705656192509",
+    "project_id": "via-music-d4c27",
+    "storage_bucket": "via-music-d4c27.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:705656192509:android:8e05b57f72c277e6b02d94",
+        "android_client_info": {
+          "package_name": "com.rh.viamusic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "935635104003-vve8jdel8tuql6qbpnoba30k48njf2pp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6QgEcWAWbLWNAZQRO8iokgOUOEPB36c8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

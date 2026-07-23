@@ -1,4 +1,4 @@
-package com.example.via_music
+package com.rh.viamusic
 
 import io.flutter.embedding.android.FlutterActivity
 
