@@ -66,18 +66,28 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     await _fetchPage(state.page + 1);
   }
 
-  /// 首次搜索：并发搜索所有音源，汇总去重
+  /// 首次搜索：并发搜索所有音源，汇总去重并过滤
   Future<void> _fetchAllSourceResults() async {
     try {
       final client = _ref.read(gdMusicClientProvider);
+      final keyword = state.keyword.toLowerCase();
       // 并发搜索所有源
       final futures = GdMusicClient.sources.map((source) async {
         try {
-          return await client.search(
+          final results = await client.search(
             keyword: state.keyword,
             source: source,
             count: 20,
           );
+          // 非主源（joox）的结果做精确过滤：歌名/歌手/专辑需包含关键词
+          if (source != 'joox') {
+            return results.where((s) {
+              return s.name.toLowerCase().contains(keyword) ||
+                  s.artist.toLowerCase().contains(keyword) ||
+                  s.album.toLowerCase().contains(keyword);
+            }).toList();
+          }
+          return results;
         } catch (_) {
           return <Song>[];
         }
@@ -96,7 +106,7 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
       state = state.copyWith(
         songs: unique,
         isLoading: false,
-        hasMore: false, // 多源搜索已获取全部结果，无需分页
+        hasMore: true, // 允许继续加载更多（从主源分页）
         page: 1,
       );
     } catch (e) {
@@ -105,7 +115,7 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     }
   }
 
-  /// 分页加载（单源，用于后续翻页）
+  /// 分页加载（单源，用于后续翻页，跳过已有歌曲）
   Future<void> _fetchPage(int page) async {
     try {
       final client = _ref.read(gdMusicClientProvider);
@@ -116,8 +126,13 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
         page: page,
       );
       if (!mounted) return;
+      // 跳过已存在的歌曲（歌名+歌手去重）
+      final seen = <String>{
+        for (final s in state.songs) '${s.name}_${s.artist}'.toLowerCase(),
+      };
+      final fresh = results.where((s) => !seen.contains('${s.name}_${s.artist}'.toLowerCase())).toList();
       state = state.copyWith(
-        songs: [...state.songs, ...results],
+        songs: [...state.songs, ...fresh],
         isLoading: false,
         hasMore: results.length >= 20,
         page: page,
