@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// 歌曲搜索结果
 class Song {
   final String id;
@@ -92,3 +94,24 @@ enum PlayState { stopped, playing, paused, loading }
 
 /// 播放模式
 enum PlayMode { sequential, loop, shuffle }
+
+/// 播放模式扩展：计算下一首歌的索引
+extension PlayModeCalc on PlayMode {
+  /// 根据播放模式计算下一首歌的索引
+  int nextIndex(int currentIndex, int queueLength) {
+    switch (this) {
+      case PlayMode.loop:
+        return (currentIndex + 1) % queueLength;
+      case PlayMode.sequential:
+        return currentIndex;
+      case PlayMode.shuffle:
+        if (queueLength <= 1) return 0;
+        final rng = math.Random();
+        int next;
+        do {
+          next = rng.nextInt(queueLength);
+        } while (next == currentIndex);
+        return next;
+    }
+  }
+}

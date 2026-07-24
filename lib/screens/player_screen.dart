@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../services/audio_cache.dart';
+import '../services/audio_service.dart';
+import '../services/prefetch_service.dart';
 import '../api/gdmusic_client.dart';
 import '../theme/player_colors.dart';
 import '../utils/lyric_utils.dart';
@@ -176,6 +178,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       await audio.play(localPath, songId: song.id, song: song);
       // 恢复播放位置
       if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
+      // 播放成功后预缓存下一首
+      _fetchPrefetchNext(audio);
       return;
     }
 
@@ -202,6 +206,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       await audio.play(playUrl.url, songId: result.playable.id, song: result.playable);
       // 恢复播放位置
       if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
+      // 播放成功后预缓存下一首
+      _fetchPrefetchNext(audio);
       print('[Player] 播放成功');
       if (mounted) {
         setState(() {
@@ -230,6 +236,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     } else {
       _onQueueAdvance(song);
     }
+  }
+
+  /// 预缓存下一首歌的音频和元数据（异步，不阻塞播放）
+  void _fetchPrefetchNext(AudioService audio) {
+    if (!mounted) return;
+    final queue = audio.queue;
+    final currentIndex = audio.currentQueueIndex;
+    if (queue.isEmpty || currentIndex < 0) return;
+
+    // 计算下一首索引，仅一首歌时跳过
+    final nextIdx = audio.playMode.nextIndex(currentIndex, queue.length);
+    if (nextIdx == currentIndex) return;
+
+    final resolver = ref.read(songResolverProvider);
+    final client = ref.read(gdMusicClientProvider);
+    PrefetchService.instance.prefetchNext(
+      resolver: resolver,
+      client: client,
+      queue: queue,
+      currentIndex: currentIndex,
+      playMode: audio.playMode,
+    );
   }
 
   // ── 收藏 ──

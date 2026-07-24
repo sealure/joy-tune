@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:media_kit/media_kit.dart';
 import '../models/song.dart';
 import '../db/app_database.dart';
@@ -178,20 +177,7 @@ class AudioService {
 
   /// 根据播放模式计算下一首歌的索引
   int _calculateNextIndex() {
-    switch (_playMode) {
-      case PlayMode.sequential:
-        return _currentQueueIndex;
-      case PlayMode.shuffle:
-        if (_queue.length == 1) return 0;
-        final rng = math.Random();
-        int next;
-        do {
-          next = rng.nextInt(_queue.length);
-        } while (next == _currentQueueIndex);
-        return next;
-      case PlayMode.loop:
-        return (_currentQueueIndex + 1) % _queue.length;
-    }
+    return _playMode.nextIndex(_currentQueueIndex, _queue.length);
   }
 
   /// 跳转到指定索引并开始播放
