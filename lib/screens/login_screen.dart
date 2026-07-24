@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,9 +24,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       debugPrint('>>> [STEP 1] 调用 GoogleSignIn().signIn()');
-      // 1. 调用 Google Sign-In SDK（使用 google-services.json 中的配置）
+      // 1. 调用 Google Sign-In SDK
+      // Android: 使用 google-services.json 中的 Android 客户端
+      // iOS/macOS: 使用 iOS 客户端 ID
       final googleUser = await GoogleSignIn(
         scopes: ['email', 'profile'],
+        clientId: Platform.isAndroid
+            ? null  // Android 使用 google-services.json 自动配置
+            : '935635104003-gsk3jje3ge9nt3vsbcvv8a842m921v2u.apps.googleusercontent.com', // iOS/macOS 使用 iOS 客户端 ID
       ).signIn();
 
       if (googleUser == null) {
