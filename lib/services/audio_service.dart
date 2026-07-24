@@ -25,6 +25,10 @@ class AudioService {
   /// 新 PlayerScreen 的 _initPlayer 中置 false 并重新触发事件
   bool _stopped = false;
 
+  /// 防重入标志：_applyAndPlay 执行期间置 true，防止 _player.stop() 触发的 completed
+  /// 事件连锁调用 _advanceToNext() 导致跳歌（A→B→C→D 连跳）
+  bool _transitioning = false;
+
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
       StreamController<PlayState>.broadcast();
@@ -73,7 +77,11 @@ class AudioService {
       }
     });
 
-    _player.stream.completed.listen((_) => _advanceToNext());
+    _player.stream.completed.listen((_) {
+      // 防重入：_applyAndPlay 中 _player.stop() 触发的 completed 事件直接忽略
+      if (_transitioning) return;
+      _advanceToNext();
+    });
   }
 
   // ── 队列管理 ──
@@ -157,6 +165,7 @@ class AudioService {
   void stop() {
     print('[AudioService] stop');
     _stopped = true;
+    _transitioning = false;
     _queue.clear();
     _currentQueueIndex = -1;
     currentSongId = null;
@@ -185,6 +194,8 @@ class AudioService {
     print('[AudioService] _applyAndPlay: index=$index, stopped=$_stopped');
     // stop() 后的 completed 事件触发的 _applyAndPlay 直接返回，不干扰新 PlayerScreen
     if (_stopped) return;
+    // 设置防重入标志，防止 _player.stop() 触发的 completed 事件连锁调用
+    _transitioning = true;
     _currentQueueIndex = index;
     final song = _queue[index];
     currentSong = song;
@@ -192,6 +203,10 @@ class AudioService {
     _player.stop();
     _updateState(PlayState.loading);
     _nextSongController.add(song);
+    // 延迟清除防重入标志，等待 PlayerScreen 接收事件并启动播放
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _transitioning = false;
+    });
   }
 
   void _updateState(PlayState newState) {
