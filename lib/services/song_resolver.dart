@@ -23,7 +23,24 @@ class SongResolver {
 
   SongResolver(this._ref);
 
-  /// 在指定源上搜索，严格按歌名精确匹配，不匹配则返回 null
+  /// 判断搜索结果是否与目标歌曲匹配（歌名+歌手）
+  bool _isMatch(Song original, Song candidate) {
+    // 歌名必须完全一致
+    if (candidate.name != original.name) return false;
+    // 歌手匹配：处理 "周杰伦 / 温岚" 这类拼接格式
+    // 将候选人歌手按 / 拆分，检查是否包含目标歌手
+    final candidateArtists = candidate.artist
+        .split(RegExp(r'\s*/\s*'))
+        .map((a) => a.trim().toLowerCase())
+        .where((a) => a.isNotEmpty)
+        .toList();
+    final targetArtist = original.artist.trim().toLowerCase();
+    // 目标歌手可能也是拼接的，取第一部分作为主歌手
+    final targetMainArtist = targetArtist.split(RegExp(r'\s*/\s*')).first.trim();
+    return candidateArtists.any((a) => a.contains(targetMainArtist) || targetMainArtist.contains(a));
+  }
+
+  /// 在指定源上搜索，优先精确匹配（歌名+歌手），其次歌名匹配
   Future<Song?> _searchSource(Song song, String source) async {
     try {
       final results = await _ref.read(searchServiceProvider).search(
@@ -31,12 +48,42 @@ class SongResolver {
             source: source,
           );
       if (results.isEmpty) return null;
+      // 优先精确匹配（歌名+歌手）
+      for (final s in results) {
+        if (_isMatch(song, s)) return s;
+      }
+      // 退而求其次：只匹配歌名
       for (final s in results) {
         if (s.name == song.name) return s;
       }
       return null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// 直接用已有的 songId + source 获取播放 URL（不重新搜索）
+  /// 适用于搜索结果、歌单等已有正确 ID 的场景
+  Future<SongResolveResult?> resolveDirectly(Song song) async {
+    final client = _ref.read(gdMusicClientProvider);
+    try {
+      await client.getPlayUrl(
+        songId: song.id,
+        source: song.source,
+      );
+      // 并发加载封面 + 歌词
+      final results = await Future.wait([
+        fetchCoverUrl(song),
+        fetchLyricsText(song),
+      ]);
+      return SongResolveResult(
+        playable: song,
+        coverUrl: results[0],
+        lyricsText: results[1],
+      );
+    } catch (_) {
+      // 直接解析失败，回退到搜索解析
+      return resolve(song);
     }
   }
 

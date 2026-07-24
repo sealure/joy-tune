@@ -179,11 +179,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
 
-    // 无缓存 → 搜索 + 播放
+    // 无缓存 → 直接用已有 ID 解析（不重新搜索，避免匹配到翻唱/Live版本）
     _loadSongMetadata(song);
     _checkFavorite(song);
 
-    final result = await resolver.resolve(song);
+    final result = await resolver.resolveDirectly(song);
     print('[Player] resolve: ${result != null ? "OK" : "NULL"}');
     if (result == null || !mounted) {
       print('[Player] resolve失败或未挂载');
