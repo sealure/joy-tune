@@ -22,28 +22,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. 调用 Google Sign-In SDK（使用 Web Client ID，全平台兼容）
+      debugPrint('>>> [STEP 1] 调用 GoogleSignIn().signIn()');
+      // 1. 调用 Google Sign-In SDK（使用 google-services.json 中的配置）
       final googleUser = await GoogleSignIn(
         scopes: ['email', 'profile'],
-        serverClientId: '935635104003-vve8jdel8tuql6qbpnoba30k48njf2pp.apps.googleusercontent.com',
       ).signIn();
 
       if (googleUser == null) {
-        // 用户取消了登录
+        debugPrint('>>> [STEP 1] 用户取消了登录');
         setState(() => _isLoading = false);
         return;
       }
 
+      debugPrint('>>> [STEP 1] 登录成功, email=${googleUser.email}, displayName=${googleUser.displayName}');
+
       // 2. 获取 Google 认证信息
+      debugPrint('>>> [STEP 2] 获取 authentication');
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+      debugPrint('>>> [STEP 2] idToken=${idToken != null ? "有(${idToken.length}字符)" : "null"}, accessToken=${accessToken != null ? "有(${accessToken.length}字符)" : "null"}');
+
       if (idToken == null) {
+        debugPrint('>>> [STEP 2] 错误: idToken 为 null');
         throw Exception('获取 Google Token 失败');
       }
 
-      // 3. 发送到后端验证，获取自定义 JWT
+      // 3. 发送到后端验证
+      debugPrint('>>> [STEP 3] 发送 id_token 到后端 http://192.168.123.106:8080/api/v1/auth/google');
       final authService = ref.read(authServiceProvider);
       final result = await authService.googleLogin(idToken);
+      debugPrint('>>> [STEP 3] 后端返回成功, isNewUser=${result.isNewUser}, token长度=${result.token.length}');
 
       if (!mounted) return;
 
@@ -53,8 +62,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SnackBar(content: Text('欢迎注册 Via Music！')),
         );
       }
+      debugPrint('>>> [STEP 4] 跳转到首页');
       context.go('/home');
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('>>> [ERROR] 登录失败: $e');
+      debugPrint('>>> [ERROR] 堆栈: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('登录失败: $e')),
