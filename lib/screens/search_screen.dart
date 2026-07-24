@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/gdmusic_client.dart';
 import '../db/app_database.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
@@ -46,7 +47,7 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
 
   _SearchNotifier(this._ref) : super(const _SearchState());
 
-  /// 新搜索（重置分页）
+  /// 新搜索（重置分页，首次并发所有源）
   Future<void> search(String keyword) async {
     if (keyword.trim().isEmpty) {
       state = const _SearchState();
@@ -55,16 +56,56 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     // 保存搜索历史
     await AppDatabase.addSearchHistory(keyword.trim());
     state = state.copyWith(isLoading: true, songs: [], page: 0, hasMore: true, keyword: keyword.trim());
-    await _fetchPage(1);
+    await _fetchAllSourceResults();
   }
 
-  /// 加载下一页
+  /// 加载下一页（使用主源分页，避免超出 API 频率限制）
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore || state.keyword.isEmpty) return;
     state = state.copyWith(isLoading: true);
     await _fetchPage(state.page + 1);
   }
 
+  /// 首次搜索：并发搜索所有音源，汇总去重
+  Future<void> _fetchAllSourceResults() async {
+    try {
+      final client = _ref.read(gdMusicClientProvider);
+      // 并发搜索所有源
+      final futures = GdMusicClient.sources.map((source) async {
+        try {
+          return await client.search(
+            keyword: state.keyword,
+            source: source,
+            count: 20,
+          );
+        } catch (_) {
+          return <Song>[];
+        }
+      });
+      final results = await Future.wait(futures);
+      // 汇总所有结果
+      final allSongs = results.expand((list) => list).toList();
+      // 去重（歌名+歌手相同视为同一首歌，保留第一个出现的）
+      final seen = <String>{};
+      final unique = <Song>[];
+      for (final song in allSongs) {
+        final key = '${song.name}_${song.artist}'.toLowerCase();
+        if (seen.add(key)) unique.add(song);
+      }
+      if (!mounted) return;
+      state = state.copyWith(
+        songs: unique,
+        isLoading: false,
+        hasMore: false, // 多源搜索已获取全部结果，无需分页
+        page: 1,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  /// 分页加载（单源，用于后续翻页）
   Future<void> _fetchPage(int page) async {
     try {
       final client = _ref.read(gdMusicClientProvider);

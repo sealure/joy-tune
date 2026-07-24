@@ -23,29 +23,6 @@ class SongResolver {
 
   SongResolver(this._ref);
 
-  /// 判断搜索结果是否与目标歌曲匹配（歌名+歌手）
-  /// 支持繁简中文匹配（如 "周杰倫" 匹配 "周杰伦"）
-  bool _isMatch(Song original, Song candidate) {
-    // 歌名必须完全一致
-    if (candidate.name != original.name) return false;
-    // 歌手匹配：处理 "周杰伦 / 温岚" 这类拼接格式
-    final candidateArtists = candidate.artist
-        .split(RegExp(r'\s*/\s*'))
-        .map((a) => a.trim().toLowerCase())
-        .where((a) => a.isNotEmpty)
-        .toList();
-    final targetArtist = original.artist.trim().toLowerCase();
-    // 目标歌手可能也是拼接的，取第一部分作为主歌手
-    final targetMainArtist = targetArtist.split(RegExp(r'\s*/\s*')).first.trim();
-    // 繁简归一化：将繁体中文映射为简体进行比较
-    final normalizedTarget = _normalizeChinese(targetMainArtist);
-    return candidateArtists.any((a) {
-      final normalizedCandidate = _normalizeChinese(a);
-      return normalizedCandidate.contains(normalizedTarget) ||
-          normalizedTarget.contains(normalizedCandidate);
-    });
-  }
-
   /// 繁体中文 → 简体中文 归一化（常用字映射）
   String _normalizeChinese(String text) {
     return text
@@ -62,27 +39,55 @@ class SongResolver {
         .replaceAll('馬', '马').replaceAll('龍', '龙').replaceAll('雲', '云')
         .replaceAll('霧', '雾').replaceAll('頭', '头').replaceAll('頁', '页')
         .replaceAll('項', '项').replaceAll('順', '顺').replaceAll('須', '须')
-        .replaceAll('體', '体').replaceAll('魚', '鱼');
+        .replaceAll('體', '体');
   }
 
-  /// 在指定源上搜索，优先精确匹配（歌名+歌手），不匹配则返回 null 让其他源兜底
-  Future<Song?> _searchSource(Song song, String source) async {
-    try {
-      final results = await _ref.read(searchServiceProvider).search(
-            keyword: '${song.name} ${song.artist}',
-            source: source,
-          );
-      if (results.isEmpty) return null;
-      // 优先精确匹配（歌名+歌手）
-      for (final s in results) {
-        if (_isMatch(song, s)) return s;
+  /// 判断搜索结果是否与目标歌曲精确匹配（歌名+歌手，支持繁简）
+  bool _isMatch(Song original, Song candidate) {
+    if (candidate.name != original.name) return false;
+    // 歌手匹配：处理 "周杰伦 / 温岚" 这类拼接格式
+    final candidateArtists = candidate.artist
+        .split(RegExp(r'\s*/\s*'))
+        .map((a) => a.trim().toLowerCase())
+        .where((a) => a.isNotEmpty)
+        .toList();
+    final targetArtist = original.artist.trim().toLowerCase();
+    // 目标歌手取主歌手（拼接格式取第一部分）
+    final targetMainArtist = targetArtist.split(RegExp(r'\s*/\s*')).first.trim();
+    final normalizedTarget = _normalizeChinese(targetMainArtist);
+    return candidateArtists.any((a) {
+      final normalizedCandidate = _normalizeChinese(a);
+      return normalizedCandidate.contains(normalizedTarget) ||
+          normalizedTarget.contains(normalizedCandidate);
+    });
+  }
+
+  /// 并发搜索所有音源，返回所有结果
+  Future<List<Song>> _searchAllSources(Song song) async {
+    final keyword = '${song.name} ${song.artist}';
+    // 并发搜索所有源
+    final futures = GdMusicClient.sources.map((source) async {
+      try {
+        return await _ref.read(searchServiceProvider).search(
+              keyword: keyword,
+              source: source,
+            );
+      } catch (_) {
+        return <Song>[];
       }
-      // 歌手不匹配 → 返回 null，让 resolver 尝试其他音源
-      // 避免在网易云拿到翻唱后直接使用
-      return null;
-    } catch (_) {
-      return null;
+    });
+    final results = await Future.wait(futures);
+    // 汇总所有结果
+    return results.expand((list) => list).toList();
+  }
+
+  /// 从汇总结果中精确匹配，返回最佳候选
+  Song? _findBestMatch(Song original, List<Song> allResults) {
+    // 优先：歌名+歌手都匹配
+    for (final s in allResults) {
+      if (_isMatch(original, s)) return s;
     }
+    return null;
   }
 
   /// 直接用已有的 songId + source 获取播放 URL（不重新搜索）
@@ -105,29 +110,9 @@ class SongResolver {
         lyricsText: results[1],
       );
     } catch (_) {
-      // 直接解析失败，回退到搜索解析
+      // 直接解析失败，回退到多源搜索解析
       return resolve(song);
     }
-  }
-
-  /// 并发搜索除 [skip] 外的所有源，返回第一个成功结果
-  Future<Song?> _raceOtherSources(Song song, String skip) async {
-    final completer = Completer<Song?>();
-    int completed = 0;
-    final others = GdMusicClient.sources.where((s) => s != skip).toList();
-    for (final source in others) {
-      _searchSource(song, source).then((result) {
-        if (result != null && !completer.isCompleted) {
-          completer.complete(result);
-        }
-      }).whenComplete(() {
-        completed++;
-        if (completed >= others.length && !completer.isCompleted) {
-          completer.complete(null);
-        }
-      });
-    }
-    return completer.future;
   }
 
   /// 获取封面 URL
@@ -153,31 +138,35 @@ class SongResolver {
     }
   }
 
-  /// 多源搜索 + 重试，返回可播放的歌曲及元数据
+  /// 多源并发搜索 + 精确匹配，返回可播放的歌曲及元数据
   Future<SongResolveResult?> resolve(Song song, {int maxAttempts = 3}) async {
     final client = _ref.read(gdMusicClientProvider);
 
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
-      // 优先使用原始源
-      Song? playable = await _searchSource(song, song.source);
-      // 原始源无结果 → 并发其他源
-      playable ??= await _raceOtherSources(song, song.source);
-      if (playable == null) continue;
+      // 并发搜索所有音源，汇总结果
+      final allResults = await _searchAllSources(song);
+      // 从汇总中精确匹配
+      final matched = _findBestMatch(song, allResults);
+      if (matched == null) {
+        // 无精确匹配，等待后重试
+        if (attempt < maxAttempts - 1) {
+          await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+        }
+        continue;
+      }
 
       try {
         await client.getPlayUrl(
-          songId: playable.id,
-          source: playable.source,
+          songId: matched.id,
+          source: matched.source,
         );
-
         // 并发加载封面 + 歌词
         final results = await Future.wait([
-          fetchCoverUrl(playable),
-          fetchLyricsText(playable),
+          fetchCoverUrl(matched),
+          fetchLyricsText(matched),
         ]);
-
         return SongResolveResult(
-          playable: playable,
+          playable: matched,
           coverUrl: results[0],
           lyricsText: results[1],
         );
