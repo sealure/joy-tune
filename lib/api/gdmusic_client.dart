@@ -43,6 +43,7 @@ class GdMusicClient {
     });
 
     final list = response.data as List<dynamic>;
+    print('[GdMusicClient] search: keyword=$keyword, source=$source, count=$count, resultCount=${list.length}');
     return list.map((e) => Song.fromJson(e as Map<String, dynamic>, source: source)).toList();
   }
 
