@@ -26,14 +26,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   /// 检查登录状态并加载用户信息
   Future<void> _checkLoginStatus() async {
+    debugPrint('>>> [PROFILE] 检查登录状态...');
     final authService = ref.read(authServiceProvider);
     final hasToken = await authService.isLoggedIn;
+    debugPrint('>>> [PROFILE] hasToken=$hasToken');
 
     if (!mounted) return;
 
     if (hasToken) {
       try {
+        debugPrint('>>> [PROFILE] 调用 getProfile()...');
         final user = await authService.getProfile();
+        debugPrint('>>> [PROFILE] 获取成功: nickname=${user.nickname}, avatar=${user.avatarUrl}, authProvider=${user.authProvider}');
         if (!mounted) return;
         setState(() {
           _isLoggedIn = true;
@@ -41,6 +45,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _isLoading = false;
         });
       } catch (e) {
+        debugPrint('>>> [PROFILE] getProfile 失败: $e');
         // Token 可能已过期
         setState(() {
           _isLoggedIn = false;
@@ -48,6 +53,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         });
       }
     } else {
+      debugPrint('>>> [PROFILE] 未登录');
       setState(() {
         _isLoggedIn = false;
         _isLoading = false;

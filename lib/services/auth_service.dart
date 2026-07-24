@@ -2,6 +2,7 @@
 // 封装与后端 API 的交互：Google 登录、Token 管理、用户信息获取
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user.dart';
 
@@ -129,13 +130,15 @@ class AuthService {
     final authedDio = await this.authedDio;
     try {
       final response = await authedDio.get('/user/profile');
+      debugPrint('>>> [AUTH] getProfile 成功: ${response.statusCode} ${response.data}');
       return User.fromJson(response.data['profile'] as Map<String, dynamic>);
     } on DioException catch (e) {
+      debugPrint('>>> [AUTH] getProfile DioException: status=${e.response?.statusCode}, data=${e.response?.data}, message=${e.message}');
       if (e.response?.statusCode == 401) {
         await clearToken();
         throw Exception('登录已过期，请重新登录');
       }
-      throw Exception('获取用户信息失败');
+      throw Exception('获取用户信息失败: ${e.response?.statusCode} ${e.response?.data}');
     }
   }
 
