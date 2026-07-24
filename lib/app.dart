@@ -31,15 +31,16 @@ class ViaMusicApp extends StatelessWidget {
           GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
           GoRoute(path: '/favorites', builder: (_, __) => const FavoritesScreen()),
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
+          // 歌单详情页放在 ShellRoute 内部，避免 context.push 产生重复页面 Key
+          GoRoute(
+            path: '/playlist/:id',
+            builder: (_, state) => PlaylistDetailScreen(playlistId: state.pathParameters['id']!),
+          ),
         ],
       ),
 
       // ── 独立页面 ──
       GoRoute(path: '/player', builder: (_, __) => const PlayerScreen()),
-      GoRoute(
-        path: '/playlist/:id',
-        builder: (_, state) => PlaylistDetailScreen(playlistId: state.pathParameters['id']!),
-      ),
       GoRoute(
         path: '/comments',
         builder: (_, state) => CommentsScreen(song: state.extra as dynamic),

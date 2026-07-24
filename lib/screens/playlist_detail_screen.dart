@@ -238,12 +238,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           Text('歌单暂无歌曲', style: theme.textTheme.bodySmall),
           const SizedBox(height: 4),
-          Text('去搜索页面发现音乐吧', style: TextStyle(fontSize: 12, color: theme.colorScheme.secondary)),
-          const SizedBox(height: 20),
-          FilledButton.tonal(
-            onPressed: () => context.push('/search'),
-            child: const Text('去搜索'),
-          ),
+          Text('请稍后再试', style: TextStyle(fontSize: 12, color: theme.colorScheme.secondary)),
         ],
       ),
     );
