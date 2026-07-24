@@ -7,7 +7,7 @@ class MockPlaylist {
   final String subtitle;
   /// 用于搜索接口的关键词，为空时使用 name 搜索
   final String? searchKeyword;
-  /// 音源，默认 netease
+  /// 音源，默认 joox（Joox 原版歌曲齐全且播放 URL 可用）
   final String source;
 
   const MockPlaylist({
@@ -15,7 +15,7 @@ class MockPlaylist {
     required this.name,
     required this.subtitle,
     this.searchKeyword,
-    this.source = 'netease',
+    this.source = 'joox',
   });
 }
 
@@ -25,37 +25,37 @@ final List<MockPlaylist> recommendedPlaylists = [
     id: 'today',
     name: '今日推荐',
     subtitle: '为你精选的好音乐',
-    source: 'netease',
+    source: 'joox',
   ),
   MockPlaylist(
     id: 'hot',
     name: '热歌榜',
     subtitle: '热门歌曲推荐',
-    source: 'netease',
+    source: 'joox',
   ),
   MockPlaylist(
     id: 'chinese',
     name: '华语金曲',
     subtitle: '经典华语歌曲',
-    source: 'netease',
+    source: 'joox',
   ),
   MockPlaylist(
     id: 'relax',
     name: '午后轻音乐',
     subtitle: '放松心情的旋律',
-    source: 'netease',
+    source: 'joox',
   ),
   MockPlaylist(
     id: 'hiphop',
     name: '嘻哈说唱',
     subtitle: '节奏与押韵',
-    source: 'netease',
+    source: 'joox',
   ),
   MockPlaylist(
     id: 'electronic',
     name: '电子节奏',
     subtitle: '电子音乐精选',
-    source: 'netease',
+    source: 'joox',
   ),
 ];
 

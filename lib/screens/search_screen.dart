@@ -70,7 +70,7 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
       final client = _ref.read(gdMusicClientProvider);
       final results = await client.search(
         keyword: state.keyword,
-        source: 'netease',
+        source: 'joox',
         count: 20,
         page: page,
       );

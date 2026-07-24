@@ -24,11 +24,11 @@ class SongResolver {
   SongResolver(this._ref);
 
   /// 判断搜索结果是否与目标歌曲匹配（歌名+歌手）
+  /// 支持繁简中文匹配（如 "周杰倫" 匹配 "周杰伦"）
   bool _isMatch(Song original, Song candidate) {
     // 歌名必须完全一致
     if (candidate.name != original.name) return false;
     // 歌手匹配：处理 "周杰伦 / 温岚" 这类拼接格式
-    // 将候选人歌手按 / 拆分，检查是否包含目标歌手
     final candidateArtists = candidate.artist
         .split(RegExp(r'\s*/\s*'))
         .map((a) => a.trim().toLowerCase())
@@ -37,10 +37,35 @@ class SongResolver {
     final targetArtist = original.artist.trim().toLowerCase();
     // 目标歌手可能也是拼接的，取第一部分作为主歌手
     final targetMainArtist = targetArtist.split(RegExp(r'\s*/\s*')).first.trim();
-    return candidateArtists.any((a) => a.contains(targetMainArtist) || targetMainArtist.contains(a));
+    // 繁简归一化：将繁体中文映射为简体进行比较
+    final normalizedTarget = _normalizeChinese(targetMainArtist);
+    return candidateArtists.any((a) {
+      final normalizedCandidate = _normalizeChinese(a);
+      return normalizedCandidate.contains(normalizedTarget) ||
+          normalizedTarget.contains(normalizedCandidate);
+    });
   }
 
-  /// 在指定源上搜索，优先精确匹配（歌名+歌手），其次歌名匹配
+  /// 繁体中文 → 简体中文 归一化（常用字映射）
+  String _normalizeChinese(String text) {
+    return text
+        .replaceAll('傑', '杰').replaceAll('倫', '伦').replaceAll('週', '周')
+        .replaceAll('風', '风').replaceAll('東', '东').replaceAll('華', '华')
+        .replaceAll('國', '国').replaceAll('學', '学').replaceAll('對', '对')
+        .replaceAll('說', '说').replaceAll('記', '记').replaceAll('開', '开')
+        .replaceAll('關', '关').replaceAll('點', '点').replaceAll('機', '机')
+        .replaceAll('電', '电').replaceAll('車', '车').replaceAll('門', '门')
+        .replaceAll('問', '问').replaceAll('間', '间').replaceAll('見', '见')
+        .replaceAll('話', '话').replaceAll('實', '实').replaceAll('書', '书')
+        .replaceAll('長', '长').replaceAll('認', '认').replaceAll('識', '识')
+        .replaceAll('飛', '飞').replaceAll('魚', '鱼').replaceAll('鳥', '鸟')
+        .replaceAll('馬', '马').replaceAll('龍', '龙').replaceAll('雲', '云')
+        .replaceAll('霧', '雾').replaceAll('頭', '头').replaceAll('頁', '页')
+        .replaceAll('項', '项').replaceAll('順', '顺').replaceAll('須', '须')
+        .replaceAll('體', '体').replaceAll('魚', '鱼');
+  }
+
+  /// 在指定源上搜索，优先精确匹配（歌名+歌手），不匹配则返回 null 让其他源兜底
   Future<Song?> _searchSource(Song song, String source) async {
     try {
       final results = await _ref.read(searchServiceProvider).search(
@@ -52,10 +77,8 @@ class SongResolver {
       for (final s in results) {
         if (_isMatch(song, s)) return s;
       }
-      // 退而求其次：只匹配歌名
-      for (final s in results) {
-        if (s.name == song.name) return s;
-      }
+      // 歌手不匹配 → 返回 null，让 resolver 尝试其他音源
+      // 避免在网易云拿到翻唱后直接使用
       return null;
     } catch (_) {
       return null;
