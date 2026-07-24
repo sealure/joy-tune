@@ -18,7 +18,15 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.rh.viamusic",
-            "certificate_hash": "6B736B045BF4ED960D58FE7390E9491987435585"
+            "certificate_hash": "6b736b045bf4ed960d58fe7390e9491987435585"
+          }
+        },
+        {
+          "client_id": "705656192509-bq0mcr38v0b3mv23ip1o9a9ahpdvhbb4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rh.viamusic",
+            "certificate_hash": "aa5ab1e0d94dcf5bcce02bb50b78965ad825c317"
           }
         },
         {
