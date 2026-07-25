@@ -260,9 +260,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     );
   }
 
-  // ── 收藏 ──
+  // ── 收藏（本地 + 后端同步）──
 
   Future<void> _checkFavorite(Song song) async {
+    // 同时检查本地和后端
     final repo = ref.read(favoriteRepositoryProvider);
     final fav = await repo.isFavorited(song.id);
     if (mounted) setState(() => _isFavorited = fav);
@@ -270,11 +271,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Future<void> _toggleFavorite(Song song) async {
     final repo = ref.read(favoriteRepositoryProvider);
+    final backend = ref.read(backendClientProvider);
+
     if (_isFavorited) {
+      // 取消收藏：本地 + 后端
       await repo.remove(song.id);
+      await backend.unlikeSong(song.id);
       setState(() => _isFavorited = false);
     } else {
+      // 收藏：本地 + 后端
       await repo.add(song);
+      await backend.likeSong(
+        song.id,
+        songName: song.name,
+        artist: song.artist,
+        source: song.source,
+      );
       setState(() => _isFavorited = true);
       _favCtrl.forward().then((_) => _favCtrl.reverse());
     }

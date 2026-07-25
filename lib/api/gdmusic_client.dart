@@ -1,19 +1,33 @@
+// GD Music API 封装
+// 支持从后端配置动态获取 API URL
+
 import 'package:dio/dio.dart';
 import '../models/song.dart';
 
 /// GD Music API 封装
 class GdMusicClient {
-  static const _baseUrl = 'https://music-api.gdstudio.xyz/api.php';
+  static const _defaultBaseUrl = 'https://music-api.gdstudio.xyz/api.php';
   final Dio _dio;
+  String _baseUrl;
 
-  GdMusicClient()
-      : _dio = Dio(BaseOptions(
-          baseUrl: _baseUrl,
+  GdMusicClient({String? baseUrl})
+      : _baseUrl = baseUrl ?? _defaultBaseUrl,
+        _dio = Dio(BaseOptions(
+          baseUrl: baseUrl ?? _defaultBaseUrl,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 15),
         ));
 
-  /// 支持的音源列表
+  /// 更新 API 地址（从后端配置获取后调用）
+  void updateBaseUrl(String url) {
+    _baseUrl = url;
+    _dio.options.baseUrl = url;
+  }
+
+  /// 获取当前 API 地址
+  String get baseUrl => _baseUrl;
+
+  /// 支持的音源列表（可从后端配置覆盖）
   static const sources = [
     'netease',
     'tencent',

@@ -1,6 +1,10 @@
+// Riverpod Provider 定义
+// 注册所有全局服务和状态
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/gdmusic_client.dart';
+import '../api/backend_client.dart';
 import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../repositories/local_favorite_repository.dart';
@@ -13,7 +17,11 @@ import '../services/song_resolver.dart';
 
 // ── 单例 Provider ──
 
+/// 音乐 API 客户端（GD Music）
 final gdMusicClientProvider = Provider<GdMusicClient>((ref) => GdMusicClient());
+
+/// 后端 API 客户端
+final backendClientProvider = Provider<BackendClient>((ref) => BackendClient());
 
 final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) => LocalFavoriteRepository());
 
@@ -32,11 +40,38 @@ final songResolverProvider = Provider<SongResolver>((ref) => SongResolver(ref));
 /// 认证服务 Provider（单例）
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
-// ── 歌单歌曲 Provider ──
+// ── 推荐歌单 Provider ──
+
+/// 从后端获取推荐歌单列表
+final recommendPlaylistsProvider = FutureProvider<List<RecommendPlaylist>>((ref) async {
+  final client = ref.watch(backendClientProvider);
+  final result = await client.getRecommendPlaylists(page: 1, size: 20);
+  return result.playlists;
+});
+
+/// 从后端获取推荐歌单歌曲列表
+final recommendPlaylistSongsProvider =
+    FutureProvider.family<List<Song>, int>((ref, playlistId) async {
+  final client = ref.watch(backendClientProvider);
+  final detail = await client.getRecommendPlaylistDetail(playlistId);
+  if (detail == null) return [];
+
+  // 将后端歌曲信息转换为前端 Song 模型
+  return detail.songs.map((s) => Song(
+    id: s.songId,
+    name: s.songName,
+    artist: s.artist,
+    album: s.album,
+    source: s.source,
+    picId: null,
+    lyricId: null,
+  )).toList();
+});
+
+// ── 歌单歌曲 Provider（兼容旧的 mock 数据方式）──
 
 /// 根据歌单元数据中的搜索关键词，通过搜索接口动态获取歌曲列表
 /// key: playlist.id (String)，value: 歌曲列表
-/// 使用 autoDispose 自动释放，避免内存泄漏
 /// 失败时自动重试最多3次
 final playlistSongsProvider =
     FutureProvider.family<List<Song>, String>((ref, playlistId) async {
