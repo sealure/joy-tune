@@ -29,6 +29,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     debugPrint('>>> [PROFILE] 检查登录状态...');
     final authService = ref.read(authServiceProvider);
     final hasToken = await authService.isLoggedIn;
+    ref.read(isLoggedInProvider.notifier).state = hasToken;
     debugPrint('>>> [PROFILE] hasToken=$hasToken');
 
     if (!mounted) return;
@@ -66,6 +67,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final authService = ref.read(authServiceProvider);
     await authService.logout();
     if (!mounted) return;
+    ref.read(isLoggedInProvider.notifier).state = false;
     setState(() {
       _isLoggedIn = false;
       _user = null;

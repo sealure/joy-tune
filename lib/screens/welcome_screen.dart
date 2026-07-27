@@ -43,7 +43,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
       if (!mounted) return;
 
       if (hasToken) {
-        // 已登录，直接跳转首页
+        // 已登录，更新登录状态并跳转首页
+        ref.read(isLoggedInProvider.notifier).state = true;
         context.go('/home');
       } else {
         // 未登录，跳转登录页

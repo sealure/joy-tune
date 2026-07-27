@@ -5,6 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../models/song.dart';
+
 /// 后端 API 客户端
 class BackendClient {
   // 开发阶段使用 Mac 局域网 IP，生产环境改为服务器域名
@@ -315,6 +317,19 @@ class BackendClient {
     } on DioException catch (e) {
       debugPrint('>>> [LIKE] 批量查询失败: ${e.message}');
       return {};
+    }
+  }
+
+  /// 获取用户收藏的所有歌曲
+  Future<List<Song>> getUserLikedSongs() async {
+    try {
+      final dio = await _authedDio;
+      final response = await dio.get('/songs/liked');
+      final songs = response.data['songs'] as List<dynamic>? ?? [];
+      return songs.map((s) => Song.fromJson(s as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      debugPrint('>>> [LIKE] 获取收藏列表失败: ${e.message}');
+      return [];
     }
   }
 

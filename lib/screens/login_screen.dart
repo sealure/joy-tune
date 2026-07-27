@@ -69,6 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
       debugPrint('>>> [STEP 4] 跳转到首页');
+      ref.read(isLoggedInProvider.notifier).state = true;
       context.go('/home');
     } catch (e, stackTrace) {
       debugPrint('>>> [ERROR] 登录失败: $e');

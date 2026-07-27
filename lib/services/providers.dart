@@ -8,6 +8,7 @@ import '../api/backend_client.dart';
 import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../repositories/local_favorite_repository.dart';
+import '../repositories/api_favorite_repository.dart';
 import '../repositories/favorite_repository.dart';
 import '../services/search_service.dart';
 import '../services/favorite_service.dart';
@@ -23,7 +24,17 @@ final gdMusicClientProvider = Provider<GdMusicClient>((ref) => GdMusicClient());
 /// 后端 API 客户端
 final backendClientProvider = Provider<BackendClient>((ref) => BackendClient());
 
-final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) => LocalFavoriteRepository());
+/// 登录状态（供收藏数据源切换使用）
+final isLoggedInProvider = StateProvider<bool>((ref) => false);
+
+/// 收藏数据仓库：登录用户使用后端 API，游客使用本地存储
+final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
+  final isLoggedIn = ref.watch(isLoggedInProvider);
+  if (isLoggedIn) {
+    return ApiFavoriteRepository(ref.watch(backendClientProvider));
+  }
+  return LocalFavoriteRepository();
+});
 
 final searchServiceProvider = Provider<SearchService>((ref) {
   return SearchService(ref.watch(gdMusicClientProvider));
