@@ -239,6 +239,13 @@ class BackendClient {
     }
   }
 
+  /// 安全解析 proto uint64 字段（JSON 中可能为数字或字符串）
+  static int _parseUint64(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
   // ══════════════════════════════════════════
   // 喜欢（收藏）
   // ══════════════════════════════════════════
@@ -250,49 +257,56 @@ class BackendClient {
     String? coverUrl,
     String? source,
   }) async {
+    debugPrint('[BACKEND] likeSong: songId=$songId, songName=$songName');
     try {
       final dio = await _authedDio;
+      debugPrint('[BACKEND] likeSong: 发送 POST /songs/$songId/like');
       final response = await dio.post('/songs/$songId/like', data: {
         if (songName != null) 'songName': songName,
         if (artist != null) 'artist': artist,
         if (coverUrl != null) 'coverUrl': coverUrl,
         if (source != null) 'source': source,
       });
+      debugPrint('[BACKEND] likeSong 响应: status=${response.statusCode}, data=${response.data}');
       return LikeResult(
-        success: response.data['success'] as bool? ?? false,
-        likeCount: response.data['likeCount'] as int? ?? 0,
+        success: response.data['success'] == true,
+        likeCount: _parseUint64(response.data['likeCount']),
       );
     } on DioException catch (e) {
-      debugPrint('>>> [LIKE] 喜欢失败: ${e.message}');
+      debugPrint('>>> [BACKEND] likeSong Dio异常: ${e.message}, type=${e.type}, response=${e.response?.statusCode}');
       return null;
     }
   }
 
   /// 取消喜欢
   Future<LikeResult?> unlikeSong(String songId) async {
+    debugPrint('[BACKEND] unlikeSong: songId=$songId');
     try {
       final dio = await _authedDio;
       final response = await dio.delete('/songs/$songId/like');
       return LikeResult(
-        success: response.data['success'] as bool? ?? false,
-        likeCount: response.data['likeCount'] as int? ?? 0,
+        success: response.data['success'] == true,
+        likeCount: _parseUint64(response.data['likeCount']),
       );
     } on DioException catch (e) {
-      debugPrint('>>> [LIKE] 取消喜欢失败: ${e.message}');
+      debugPrint('[BACKEND] unlikeSong Dio异常: ${e.message}');
       return null;
     }
   }
 
   /// 查询是否已喜欢
   Future<LikeStatusResult> getLikeStatus(String songId) async {
+    debugPrint('[BACKEND] getLikeStatus: songId=$songId');
     try {
-      final response = await _dio.get('/songs/$songId/like-status');
+      final dio = await _authedDio;
+      final response = await dio.get('/songs/$songId/like-status');
+      debugPrint('[BACKEND] getLikeStatus 响应: ${response.data}');
       return LikeStatusResult(
-        isLiked: response.data['isLiked'] as bool? ?? false,
-        likeCount: response.data['likeCount'] as int? ?? 0,
+        isLiked: response.data['isLiked'] == true,
+        likeCount: _parseUint64(response.data['likeCount']),
       );
     } on DioException catch (e) {
-      debugPrint('>>> [LIKE] 查询状态失败: ${e.message}');
+      debugPrint('[BACKEND] getLikeStatus Dio异常: ${e.message}, response=${e.response?.statusCode}');
       return LikeStatusResult(isLiked: false, likeCount: 0);
     }
   }
@@ -300,7 +314,8 @@ class BackendClient {
   /// 批量查询喜欢状态
   Future<Map<String, LikeStatusResult>> batchGetLikeStatus(List<String> songIds) async {
     try {
-      final response = await _dio.get('/songs/like-counts', queryParameters: {
+      final dio = await _authedDio;
+      final response = await dio.get('/songs/like-counts', queryParameters: {
         'songIds': songIds.join(','),
       });
 
@@ -309,8 +324,8 @@ class BackendClient {
       for (final entry in counts.entries) {
         final info = entry.value as Map<String, dynamic>;
         result[entry.key] = LikeStatusResult(
-          isLiked: info['isLiked'] as bool? ?? false,
-          likeCount: info['likeCount'] as int? ?? 0,
+          isLiked: info['isLiked'] == true,
+          likeCount: _parseUint64(info['likeCount']),
         );
       }
       return result;
@@ -322,13 +337,28 @@ class BackendClient {
 
   /// 获取用户收藏的所有歌曲
   Future<List<Song>> getUserLikedSongs() async {
+    debugPrint('[BACKEND] getUserLikedSongs');
     try {
       final dio = await _authedDio;
       final response = await dio.get('/songs/liked');
       final songs = response.data['songs'] as List<dynamic>? ?? [];
-      return songs.map((s) => Song.fromJson(s as Map<String, dynamic>)).toList();
+      debugPrint('[BACKEND] getUserLikedSongs 原始数据: ${response.data}');
+      final result = songs.map((s) {
+        final json = s as Map<String, dynamic>;
+        final song = Song(
+          id: json['song_id']?.toString() ?? json['songId']?.toString() ?? '',
+          name: json['song_name']?.toString() ?? json['songName']?.toString() ?? '',
+          artist: json['artist']?.toString() ?? '',
+          source: json['source']?.toString() ?? 'netease',
+          album: json['album']?.toString() ?? '',
+        );
+        debugPrint('[BACKEND] 解析后: id=${song.id}, name=${song.name}');
+        return song;
+      }).toList();
+      debugPrint('[BACKEND] getUserLikedSongs 返回 ${result.length} 首');
+      return result;
     } on DioException catch (e) {
-      debugPrint('>>> [LIKE] 获取收藏列表失败: ${e.message}');
+      debugPrint('[BACKEND] getUserLikedSongs Dio异常: ${e.message}, response=${e.response?.statusCode}');
       return [];
     }
   }

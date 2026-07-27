@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../db/app_database.dart';
 import '../models/song.dart';
 import 'favorite_repository.dart';
@@ -6,28 +7,40 @@ import 'favorite_repository.dart';
 class LocalFavoriteRepository implements FavoriteRepository {
   @override
   Future<List<Song>> getAll() async {
-    return AppDatabase.getFavorites();
+    debugPrint('[LocalFavoriteRepo] getAll()');
+    final songs = await AppDatabase.getFavorites();
+    debugPrint('[LocalFavoriteRepo] getAll() 返回 ${songs.length} 首');
+    return songs;
   }
 
   @override
   Future<void> add(Song song) async {
+    debugPrint('[LocalFavoriteRepo] add: id=${song.id}, name=${song.name}');
     final list = await AppDatabase.getFavorites();
-    if (list.any((s) => s.id == song.id)) return; // 已存在
+    if (list.any((s) => s.id == song.id)) {
+      debugPrint('[LocalFavoriteRepo] add: 已存在，跳过');
+      return;
+    }
     list.add(song);
     await AppDatabase.saveFavorites(list);
+    debugPrint('[LocalFavoriteRepo] add: 保存成功，共 ${list.length} 首');
   }
 
   @override
   Future<void> remove(String songId) async {
+    debugPrint('[LocalFavoriteRepo] remove: id=$songId');
     final list = await AppDatabase.getFavorites();
     list.removeWhere((s) => s.id == songId);
     await AppDatabase.saveFavorites(list);
+    debugPrint('[LocalFavoriteRepo] remove: 完成，剩余 ${list.length} 首');
   }
 
   @override
   Future<bool> isFavorited(String songId) async {
     final list = await AppDatabase.getFavorites();
-    return list.any((s) => s.id == songId);
+    final fav = list.any((s) => s.id == songId);
+    debugPrint('[LocalFavoriteRepo] isFavorited: id=$songId, result=$fav');
+    return fav;
   }
 
   @override

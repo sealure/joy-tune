@@ -1,6 +1,8 @@
 // 后端 API 收藏仓库实现
 // 登录用户使用此实现，通过后端 Like API 管理收藏数据
 
+import 'package:flutter/foundation.dart';
+
 import '../api/backend_client.dart';
 import '../models/song.dart';
 import 'favorite_repository.dart';
@@ -13,25 +15,34 @@ class ApiFavoriteRepository implements FavoriteRepository {
 
   @override
   Future<List<Song>> getAll() async {
-    return _client.getUserLikedSongs();
+    debugPrint('[ApiFavoriteRepo] getAll()');
+    final songs = await _client.getUserLikedSongs();
+    debugPrint('[ApiFavoriteRepo] getAll() 返回 ${songs.length} 首');
+    return songs;
   }
 
   @override
   Future<void> add(Song song) async {
-    await _client.likeSong(song.id,
+    debugPrint('[ApiFavoriteRepo] add: id=${song.id}, name=${song.name}');
+    final result = await _client.likeSong(song.id,
         songName: song.name,
         artist: song.artist,
         source: song.source);
+    debugPrint('[ApiFavoriteRepo] add 结果: ${result?.success}, likeCount=${result?.likeCount}');
   }
 
   @override
   Future<void> remove(String songId) async {
-    await _client.unlikeSong(songId);
+    debugPrint('[ApiFavoriteRepo] remove: id=$songId');
+    final result = await _client.unlikeSong(songId);
+    debugPrint('[ApiFavoriteRepo] remove 结果: ${result?.success}');
   }
 
   @override
   Future<bool> isFavorited(String songId) async {
+    debugPrint('[ApiFavoriteRepo] isFavorited: id=$songId');
     final status = await _client.getLikeStatus(songId);
+    debugPrint('[ApiFavoriteRepo] isFavorited 结果: isLiked=${status.isLiked}');
     return status.isLiked;
   }
 

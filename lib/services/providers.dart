@@ -2,6 +2,7 @@
 // 注册所有全局服务和状态
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 import '../api/gdmusic_client.dart';
 import '../api/backend_client.dart';
@@ -30,9 +31,13 @@ final isLoggedInProvider = StateProvider<bool>((ref) => false);
 /// 收藏数据仓库：登录用户使用后端 API，游客使用本地存储
 final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
   final isLoggedIn = ref.watch(isLoggedInProvider);
+  debugPrint('[PROVIDER] favoriteRepositoryProvider: isLoggedIn=$isLoggedIn');
   if (isLoggedIn) {
-    return ApiFavoriteRepository(ref.watch(backendClientProvider));
+    final repo = ApiFavoriteRepository(ref.watch(backendClientProvider));
+    debugPrint('[PROVIDER] 使用 ApiFavoriteRepository');
+    return repo;
   }
+  debugPrint('[PROVIDER] 使用 LocalFavoriteRepository');
   return LocalFavoriteRepository();
 });
 

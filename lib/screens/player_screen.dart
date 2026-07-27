@@ -13,6 +13,7 @@ import '../api/gdmusic_client.dart';
 import '../theme/player_colors.dart';
 import '../utils/lyric_utils.dart';
 import '../widgets/player_seek_bar.dart';
+import '../widgets/favorite_button.dart';
 import 'playlist_queue_sheet.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
@@ -691,11 +692,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // 收藏
-          _bottomIcon(
-            _isFavorited ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
-            _isFavorited ? const Color(0xFFEF4444) : null,
-            () => _toggleFavorite(song),
-          ),
+          FavoriteButton(song: song),
           // 评论
           _bottomIcon(Icons.chat_bubble_outline_rounded, null, () => context.push('/comments', extra: song)),
           // 播放控制（上一步 / 播放暂停 / 下一步）
