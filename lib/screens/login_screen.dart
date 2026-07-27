@@ -55,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
 
       // 3. 发送到后端验证
-      debugPrint('>>> [STEP 3] 发送 id_token 到后端 http://192.168.123.106:8080/api/v1/auth/google');
+      debugPrint('>>> [STEP 3] 发送 id_token 到后端 http://192.168.1.5:8080/api/v1/auth/google');
       final authService = ref.read(authServiceProvider);
       final result = await authService.googleLogin(idToken);
       debugPrint('>>> [STEP 3] 后端返回成功, isNewUser=${result.isNewUser}, token长度=${result.token.length}');

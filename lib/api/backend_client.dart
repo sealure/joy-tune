@@ -10,7 +10,7 @@ import '../models/song.dart';
 /// 后端 API 客户端
 class BackendClient {
   // 开发阶段使用 Mac 局域网 IP，生产环境改为服务器域名
-  static const _defaultBaseUrl = 'http://192.168.123.106:8080/api/v1';
+  static const _defaultBaseUrl = 'http://192.168.1.5:8080/api/v1';
   static const _tokenKey = 'auth_jwt_token';
 
   final Dio _dio;
