@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
@@ -188,19 +189,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
       print('[Player] 使用后端 audioUrl: ${song.audioUrl}');
 
-      // 直接使用后端返回的 coverUrl / lyricsUrl，无需再调外部 API 解析
+      // 直接使用后端返回的封面 URL，无需再调外部 API 解析
       if (mounted) {
-        if (song.coverUrl != null || song.lyricsUrl != null) {
-          setState(() {
-            if (song.coverUrl != null) _coverUrl = song.coverUrl;
-            if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
-              _lyrics = parseLrc(song.lyricsUrl!);
-            }
-          });
-          cache.saveMetadata(cacheKey, {
-            'coverUrl': song.coverUrl,
-            'lyrics': song.lyricsUrl,
-          });
+        if (song.coverUrl != null) {
+          setState(() => _coverUrl = song.coverUrl);
+          cache.saveMetadata(cacheKey, {'coverUrl': song.coverUrl});
+        }
+        // 歌词 URL 需异步获取后解析（非阻塞）
+        if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
+          _loadLyricsFromUrl(song.lyricsUrl!, cache, cacheKey);
         } else {
           _loadSongMetadata(song);
         }
@@ -332,6 +329,23 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         setState(() => _lyrics = parseLrc(lyric.lyric!));
       }
     } catch (_) {}
+  }
+
+  /// 从歌词 API URL 获取歌词文本并解析、缓存
+  Future<void> _loadLyricsFromUrl(String url, AudioCache cache, String cacheKey) async {
+    try {
+      print('[Player] 从 lyricsUrl 获取歌词: $url');
+      final response = await Dio().get(url);
+      final data = response.data;
+      if (data is Map && data['lyric'] is String && mounted) {
+        final text = data['lyric'] as String;
+        print('[Player] 歌词从 lyricsUrl 获取成功: ${text.length}字');
+        setState(() => _lyrics = parseLrc(text));
+        cache.saveMetadata(cacheKey, {'lyrics': text});
+      }
+    } catch (_) {
+      debugPrint('[Player] 从 lyricsUrl 获取歌词失败');
+    }
   }
 
   // ── 歌词同步 ──

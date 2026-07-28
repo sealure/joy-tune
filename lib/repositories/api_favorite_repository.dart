@@ -98,14 +98,14 @@ class ApiFavoriteRepository implements FavoriteRepository {
     }
   }
 
-  /// 解析歌词文本
+  /// 解析歌词 API URL
   Future<String?> _resolveLyrics(Song song) async {
     if (song.lyricId == null || song.lyricId!.isEmpty) return null;
     try {
-      final lyric = await _gdMusic.getLyric(lyricId: song.lyricId!, source: song.source);
-      return lyric?.lyric;
+      // 构造歌词 API URL（不调 API，纯拼接，后续播放时按需获取歌词文本）
+      return '${_gdMusic.baseUrl}?types=lyric&source=${song.source}&id=${song.lyricId}';
     } catch (e) {
-      debugPrint('[ApiFavoriteRepo] 解析歌词失败: $e');
+      debugPrint('[ApiFavoriteRepo] 构造歌词 URL 失败: $e');
       return null;
     }
   }
