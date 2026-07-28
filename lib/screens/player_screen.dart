@@ -184,7 +184,37 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
 
-    // 无缓存 → 直接用已有 ID 解析（不重新搜索，避免匹配到翻唱/Live版本）
+    // 无缓存 → 优先使用后端返回的 audioUrl（收藏页歌曲已被 songs 表填充此字段）
+    if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
+      print('[Player] 使用后端 audioUrl: ${song.audioUrl}');
+
+      // 直接使用后端返回的 coverUrl / lyricsUrl，无需再调外部 API 解析
+      if (mounted) {
+        if (song.coverUrl != null || song.lyricsUrl != null) {
+          setState(() {
+            if (song.coverUrl != null) _coverUrl = song.coverUrl;
+            if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
+              _lyrics = parseLrc(song.lyricsUrl!);
+            }
+          });
+          cache.saveMetadata(cacheKey, {
+            'coverUrl': song.coverUrl,
+            'lyrics': song.lyricsUrl,
+          });
+        } else {
+          _loadSongMetadata(song);
+        }
+      }
+
+      _checkFavorite(song);
+      if (!mounted) return;
+      await audio.play(song.audioUrl!, songId: song.id, song: song);
+      if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
+      _fetchPrefetchNext(audio);
+      return;
+    }
+
+    // 无 audioUrl → 用已有 ID 解析（不重新搜索，避免匹配到翻唱/Live版本）
     _loadSongMetadata(song);
     _checkFavorite(song);
 

@@ -9,6 +9,9 @@ class Song {
   final String album;
   final String? picId;
   final String? lyricId;
+  final String? audioUrl;
+  final String? coverUrl;
+  final String? lyricsUrl;
 
   const Song({
     required this.id,
@@ -18,6 +21,9 @@ class Song {
     required this.album,
     this.picId,
     this.lyricId,
+    this.audioUrl,
+    this.coverUrl,
+    this.lyricsUrl,
   });
 
   factory Song.fromJson(Map<String, dynamic> json, {String? source}) {
@@ -35,6 +41,9 @@ class Song {
       album: json['album']?.toString() ?? '',
       picId: json['pic_id']?.toString(),
       lyricId: json['lyric_id']?.toString(),
+      audioUrl: json['audio_url']?.toString(),
+      coverUrl: json['cover_url']?.toString(),
+      lyricsUrl: json['lyrics_url']?.toString(),
     );
   }
 
@@ -46,6 +55,9 @@ class Song {
         'album': album,
         'pic_id': picId,
         'lyric_id': lyricId,
+        'audio_url': audioUrl,
+        'cover_url': coverUrl,
+        'lyrics_url': lyricsUrl,
       };
 }
 

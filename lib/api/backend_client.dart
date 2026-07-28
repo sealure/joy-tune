@@ -351,12 +351,17 @@ class BackendClient {
       debugPrint('[BACKEND] getUserLikedSongs 原始数据: ${response.data}');
       final result = songs.map((s) {
         final json = s as Map<String, dynamic>;
+        final audioUrl = json['audio_url']?.toString() ?? json['audioUrl']?.toString();
+        debugPrint('[BACKEND] 解析收藏歌曲: id=${json['song_id']}, name=${json['song_name']}, audioUrl=$audioUrl');
         final song = Song(
           id: json['song_id']?.toString() ?? json['songId']?.toString() ?? '',
           name: json['song_name']?.toString() ?? json['songName']?.toString() ?? '',
           artist: json['artist']?.toString() ?? '',
           source: json['source']?.toString() ?? 'netease',
           album: json['album']?.toString() ?? '',
+          audioUrl: audioUrl,
+          coverUrl: json['cover_url']?.toString() ?? json['coverUrl']?.toString(),
+          lyricsUrl: json['lyrics_url']?.toString() ?? json['lyricsUrl']?.toString(),
         );
         debugPrint('[BACKEND] 解析后: id=${song.id}, name=${song.name}');
         return song;
