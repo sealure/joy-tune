@@ -179,8 +179,8 @@ class BackendClient {
       final response = await dio.post('/playlists', data: {
         'name': name,
         if (description != null) 'description': description,
-        if (coverUrl != null) 'coverUrl': coverUrl,
-        'isPublic': isPublic,
+        if (coverUrl != null) 'cover_url': coverUrl,
+        'is_public': isPublic,
       });
       return UserPlaylist.fromJson(response.data['playlist'] as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -201,11 +201,11 @@ class BackendClient {
     try {
       final dio = await _authedDio;
       await dio.post('/playlists/$playlistId/songs', data: {
-        'songId': songId,
-        'songName': songName,
+        'song_id': songId,
+        'song_name': songName,
         'artist': artist,
         if (album != null) 'album': album,
-        if (coverUrl != null) 'coverUrl': coverUrl,
+        if (coverUrl != null) 'cover_url': coverUrl,
         if (source != null) 'source': source,
       });
       return true;
@@ -265,12 +265,12 @@ class BackendClient {
       final dio = await _authedDio;
       debugPrint('[BACKEND] likeSong: 发送 POST /songs/$songId/like');
       final response = await dio.post('/songs/$songId/like', data: {
-        if (songName != null) 'songName': songName,
+        if (songName != null) 'song_name': songName,
         if (artist != null) 'artist': artist,
-        if (coverUrl != null) 'coverUrl': coverUrl,
+        if (coverUrl != null) 'cover_url': coverUrl,
         if (source != null) 'source': source,
-        if (audioUrl != null) 'audioUrl': audioUrl,
-        if (lyricsUrl != null) 'lyricsUrl': lyricsUrl,
+        if (audioUrl != null) 'audio_url': audioUrl,
+        if (lyricsUrl != null) 'lyrics_url': lyricsUrl,
         if (album != null) 'album': album,
       });
       debugPrint('[BACKEND] likeSong 响应: status=${response.statusCode}, data=${response.data}');
@@ -322,7 +322,7 @@ class BackendClient {
     try {
       final dio = await _authedDio;
       final response = await dio.get('/songs/like-counts', queryParameters: {
-        'songIds': songIds.join(','),
+        'song_ids': songIds.join(','),
       });
 
       final counts = response.data['counts'] as Map<String, dynamic>? ?? {};
