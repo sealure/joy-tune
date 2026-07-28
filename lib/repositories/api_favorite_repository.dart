@@ -29,14 +29,21 @@ class ApiFavoriteRepository implements FavoriteRepository {
   @override
   Future<void> add(Song song) async {
     debugPrint('[ApiFavoriteRepo] add: id=${song.id}, name=${song.name}');
-    // 清除之前的取消标记（用户可能重新收藏同一首歌）
     _canceledUploads.remove(song.id);
-    // 异步后台上传元信息，不阻塞 UI
-    _uploadMetadata(song);
+
+    // 1. 先同步收藏（不带元信息，一次 API 调用，很快）
+    await _client.likeSong(song.id,
+      songName: song.name,
+      artist: song.artist,
+      source: song.source,
+    );
+
+    // 2. 再异步上传完整元信息（不阻塞 UI）
+    _uploadFullMetadata(song);
   }
 
-  /// 异步后台上传歌曲元信息到后端
-  Future<void> _uploadMetadata(Song song) async {
+  /// 异步后台上传完整元信息（封面、音频 URL、歌词、专辑）
+  Future<void> _uploadFullMetadata(Song song) async {
     try {
       // 并发解析封面 URL、音频 URL 和歌词
       final results = await Future.wait([
@@ -48,12 +55,13 @@ class ApiFavoriteRepository implements FavoriteRepository {
       final audioUrl = results[1];
       final lyricsText = results[2];
 
-      // 上传前检查是否已被取消收藏，避免异步竞争导致 re-like
+      // 上传前检查是否已被取消收藏，避免竞争
       if (_canceledUploads.contains(song.id)) {
         debugPrint('[ApiFavoriteRepo] 跳过已取消收藏的歌曲: ${song.id}');
         return;
       }
 
+      // 再次调用 likeSong，后端已收藏则只更新元信息
       await _client.likeSong(song.id,
           songName: song.name,
           artist: song.artist,

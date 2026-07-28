@@ -45,9 +45,12 @@ class _FavoriteButtonState extends ConsumerState<FavoriteButton> {
       final repo = ref.read(favoriteRepositoryProvider);
       if (_isFavorited) {
         await repo.remove(widget.song.id);
+        ref.invalidate(favoritesProvider);
         if (mounted) setState(() => _isFavorited = false);
+        debugPrint('[FavBtn] 取消收藏完成');
       } else {
         await repo.add(widget.song);
+        ref.invalidate(favoritesProvider);
         debugPrint('[FavBtn] 收藏成功');
         if (mounted) setState(() => _isFavorited = true);
       }

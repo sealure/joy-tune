@@ -270,23 +270,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (mounted) setState(() => _isFavorited = fav);
   }
 
-  Future<void> _toggleFavorite(Song song) async {
-    final repo = ref.read(favoriteRepositoryProvider);
-
-    if (_isFavorited) {
-      // 取消收藏
-      await repo.remove(song.id);
-      ref.invalidate(favoritesProvider);
-      setState(() => _isFavorited = false);
-    } else {
-      // 收藏（repo.add 内部会同步调用后端 likeSong）
-      await repo.add(song);
-      ref.invalidate(favoritesProvider);
-      setState(() => _isFavorited = true);
-      _favCtrl.forward().then((_) => _favCtrl.reverse());
-    }
-  }
-
   // ── 元数据加载 ──
 
   Future<void> _loadSongMetadata(Song song) async {
