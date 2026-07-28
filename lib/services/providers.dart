@@ -56,6 +56,12 @@ final songResolverProvider = Provider<SongResolver>((ref) => SongResolver(ref));
 /// 认证服务 Provider（单例）
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
+/// 收藏列表（登录用户从后端获取，游客从本地获取）
+final favoritesProvider = FutureProvider<List<Song>>((ref) async {
+  final repo = ref.watch(favoriteRepositoryProvider);
+  return repo.getAll();
+});
+
 // ── 推荐歌单 Provider ──
 
 /// 从后端获取推荐歌单列表

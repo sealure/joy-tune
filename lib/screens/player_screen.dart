@@ -272,24 +272,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   Future<void> _toggleFavorite(Song song) async {
     final repo = ref.read(favoriteRepositoryProvider);
-    final backend = ref.read(backendClientProvider);
 
     if (_isFavorited) {
-      // 取消收藏：本地 + 后端
+      // 取消收藏
       await repo.remove(song.id);
-      await backend.unlikeSong(song.id);
+      ref.invalidate(favoritesProvider);
       setState(() => _isFavorited = false);
     } else {
-      // 收藏：本地 + 后端
+      // 收藏（repo.add 内部会同步调用后端 likeSong）
       await repo.add(song);
-      await backend.likeSong(
-        song.id,
-        songName: song.name,
-        artist: song.artist,
-        coverUrl: _coverUrl,
-        source: song.source,
-        album: song.album.isNotEmpty ? song.album : null,
-      );
+      ref.invalidate(favoritesProvider);
       setState(() => _isFavorited = true);
       _favCtrl.forward().then((_) => _favCtrl.reverse());
     }

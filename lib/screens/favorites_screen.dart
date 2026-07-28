@@ -8,17 +8,12 @@ import '../widgets/song_tile.dart';
 import '../widgets/mini_player_bar.dart';
 import '../utils/player_utils.dart';
 
-final _favoritesProvider = FutureProvider<List<Song>>((ref) async {
-  final repo = ref.watch(favoriteRepositoryProvider);
-  return repo.getAll();
-});
-
 class FavoritesScreen extends ConsumerWidget {
   const FavoritesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final favorites = ref.watch(_favoritesProvider);
+    final favorites = ref.watch(favoritesProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -56,7 +51,7 @@ class FavoritesScreen extends ConsumerWidget {
                       icon: const Icon(Icons.favorite_rounded, color: Colors.red, size: 20),
                       onPressed: () async {
                         await ref.read(favoriteRepositoryProvider).remove(songs[i].id);
-                        ref.invalidate(_favoritesProvider);
+                        ref.invalidate(favoritesProvider);
                       },
                     ),
                   ),

@@ -13,6 +13,9 @@ class ApiFavoriteRepository implements FavoriteRepository {
   final BackendClient _client;
   final GdMusicClient _gdMusic;
 
+  /// 已取消收藏的歌曲 ID 集合，用于阻止后台 _uploadMetadata 的 re-like 竞争
+  final Set<String> _canceledUploads = {};
+
   ApiFavoriteRepository(this._client, this._gdMusic);
 
   @override
@@ -26,6 +29,8 @@ class ApiFavoriteRepository implements FavoriteRepository {
   @override
   Future<void> add(Song song) async {
     debugPrint('[ApiFavoriteRepo] add: id=${song.id}, name=${song.name}');
+    // 清除之前的取消标记（用户可能重新收藏同一首歌）
+    _canceledUploads.remove(song.id);
     // 异步后台上传元信息，不阻塞 UI
     _uploadMetadata(song);
   }
@@ -42,6 +47,12 @@ class ApiFavoriteRepository implements FavoriteRepository {
       final coverUrl = results[0];
       final audioUrl = results[1];
       final lyricsText = results[2];
+
+      // 上传前检查是否已被取消收藏，避免异步竞争导致 re-like
+      if (_canceledUploads.contains(song.id)) {
+        debugPrint('[ApiFavoriteRepo] 跳过已取消收藏的歌曲: ${song.id}');
+        return;
+      }
 
       await _client.likeSong(song.id,
           songName: song.name,
@@ -94,6 +105,8 @@ class ApiFavoriteRepository implements FavoriteRepository {
   @override
   Future<void> remove(String songId) async {
     debugPrint('[ApiFavoriteRepo] remove: id=$songId');
+    // 标记取消，阻止后台 _uploadMetadata 重新收藏
+    _canceledUploads.add(songId);
     final result = await _client.unlikeSong(songId);
     debugPrint('[ApiFavoriteRepo] remove 结果: ${result?.success}');
   }
