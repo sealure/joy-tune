@@ -276,7 +276,7 @@ class BackendClient {
       debugPrint('[BACKEND] likeSong 响应: status=${response.statusCode}, data=${response.data}');
       return LikeResult(
         success: response.data['success'] == true,
-        likeCount: _parseUint64(response.data['likeCount']),
+        likeCount: _parseUint64(response.data['like_count']),
       );
     } on DioException catch (e) {
       debugPrint('>>> [BACKEND] likeSong Dio异常: ${e.message}, type=${e.type}, response=${e.response?.statusCode}');
@@ -292,7 +292,7 @@ class BackendClient {
       final response = await dio.delete('/songs/$songId/like');
       return LikeResult(
         success: response.data['success'] == true,
-        likeCount: _parseUint64(response.data['likeCount']),
+        likeCount: _parseUint64(response.data['like_count']),
       );
     } on DioException catch (e) {
       debugPrint('[BACKEND] unlikeSong Dio异常: ${e.message}');
@@ -308,8 +308,8 @@ class BackendClient {
       final response = await dio.get('/songs/$songId/like-status');
       debugPrint('[BACKEND] getLikeStatus 响应: ${response.data}');
       return LikeStatusResult(
-        isLiked: response.data['isLiked'] == true,
-        likeCount: _parseUint64(response.data['likeCount']),
+        isLiked: response.data['is_liked'] == true,
+        likeCount: _parseUint64(response.data['like_count']),
       );
     } on DioException catch (e) {
       debugPrint('[BACKEND] getLikeStatus Dio异常: ${e.message}, response=${e.response?.statusCode}');
@@ -330,8 +330,8 @@ class BackendClient {
       for (final entry in counts.entries) {
         final info = entry.value as Map<String, dynamic>;
         result[entry.key] = LikeStatusResult(
-          isLiked: info['isLiked'] == true,
-          likeCount: _parseUint64(info['likeCount']),
+          isLiked: info['is_liked'] == true,
+          likeCount: _parseUint64(info['like_count']),
         );
       }
       return result;
@@ -351,17 +351,17 @@ class BackendClient {
       debugPrint('[BACKEND] getUserLikedSongs 原始数据: ${response.data}');
       final result = songs.map((s) {
         final json = s as Map<String, dynamic>;
-        final audioUrl = json['audio_url']?.toString() ?? json['audioUrl']?.toString();
+        final audioUrl = json['audio_url']?.toString();
         debugPrint('[BACKEND] 解析收藏歌曲: id=${json['song_id']}, name=${json['song_name']}, audioUrl=$audioUrl');
         final song = Song(
-          id: json['song_id']?.toString() ?? json['songId']?.toString() ?? '',
-          name: json['song_name']?.toString() ?? json['songName']?.toString() ?? '',
+          id: json['song_id']?.toString() ?? '',
+          name: json['song_name']?.toString() ?? '',
           artist: json['artist']?.toString() ?? '',
           source: json['source']?.toString() ?? 'netease',
           album: json['album']?.toString() ?? '',
           audioUrl: audioUrl,
-          coverUrl: json['cover_url']?.toString() ?? json['coverUrl']?.toString(),
-          lyricsUrl: json['lyrics_url']?.toString() ?? json['lyricsUrl']?.toString(),
+          coverUrl: json['cover_url']?.toString(),
+          lyricsUrl: json['lyrics_url']?.toString(),
         );
         debugPrint('[BACKEND] 解析后: id=${song.id}, name=${song.name}');
         return song;
@@ -410,7 +410,7 @@ class BackendClient {
       final dio = await _authedDio;
       final response = await dio.post('/songs/$songId/comments', data: {
         'content': content,
-        if (parentId != null) 'parentId': parentId,
+        if (parentId != null) 'parent_id': parentId,
       });
       return CommentInfo.fromJson(response.data['comment'] as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -518,12 +518,12 @@ class RecommendPlaylist {
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      coverUrl: json['coverUrl'] as String? ?? '',
+      coverUrl: json['cover_url'] as String? ?? '',
       type: json['type'] as String? ?? 'system',
-      songCount: json['songCount'] as int? ?? 0,
-      playCount: json['playCount'] as int? ?? 0,
+      songCount: json['song_count'] as int? ?? 0,
+      playCount: json['play_count'] as int? ?? 0,
       userName: user?['nickname'] as String?,
-      userAvatar: user?['avatarUrl'] as String?,
+      userAvatar: user?['avatar_url'] as String?,
     );
   }
 }
@@ -558,11 +558,11 @@ class PlaylistSongInfo {
   factory PlaylistSongInfo.fromJson(Map<String, dynamic> json) {
     return PlaylistSongInfo(
       id: json['id'] as int? ?? 0,
-      songId: json['songId'] as String? ?? '',
-      songName: json['songName'] as String? ?? '',
+      songId: json['song_id'] as String? ?? '',
+      songName: json['song_name'] as String? ?? '',
       artist: json['artist'] as String? ?? '',
       album: json['album'] as String? ?? '',
-      coverUrl: json['coverUrl'] as String? ?? '',
+      coverUrl: json['cover_url'] as String? ?? '',
       source: json['source'] as String? ?? '',
     );
   }
@@ -602,11 +602,11 @@ class UserPlaylist {
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
-      coverUrl: json['coverUrl'] as String? ?? '',
+      coverUrl: json['cover_url'] as String? ?? '',
       type: json['type'] as String? ?? 'user',
-      isPublic: json['isPublic'] as bool? ?? false,
-      songCount: json['songCount'] as int? ?? 0,
-      playCount: json['playCount'] as int? ?? 0,
+      isPublic: json['is_public'] as bool? ?? false,
+      songCount: json['song_count'] as int? ?? 0,
+      playCount: json['play_count'] as int? ?? 0,
     );
   }
 }
@@ -664,13 +664,13 @@ class CommentInfo {
 
     return CommentInfo(
       id: json['id'] as int? ?? 0,
-      userId: json['userId'] as int? ?? 0,
+      userId: json['user_id'] as int? ?? 0,
       content: json['content'] as String? ?? '',
-      likeCount: json['likeCount'] as int? ?? 0,
-      isLiked: json['isLiked'] as bool? ?? false,
-      parentId: json['parentId'] as int?,
+      likeCount: json['like_count'] as int? ?? 0,
+      isLiked: json['is_liked'] as bool? ?? false,
+      parentId: json['parent_id'] as int?,
       userName: user?['nickname'] as String?,
-      userAvatar: user?['avatarUrl'] as String?,
+      userAvatar: user?['avatar_url'] as String?,
       replies: repliesList,
     );
   }
