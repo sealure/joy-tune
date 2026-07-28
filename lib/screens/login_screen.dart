@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../config/api_config.dart';
 import '../services/providers.dart';
 
 /// 登录页 — 深色背景 + 靛蓝/紫色光晕动画，GitHub / Google OAuth
@@ -55,7 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
 
       // 3. 发送到后端验证
-      debugPrint('>>> [STEP 3] 发送 id_token 到后端 http://192.168.1.5:8080/api/v1/auth/google');
+      debugPrint('>>> [STEP 3] 发送 id_token 到后端 $apiBaseUrl/auth/google');
       final authService = ref.read(authServiceProvider);
       final result = await authService.googleLogin(idToken);
       debugPrint('>>> [STEP 3] 后端返回成功, isNewUser=${result.isNewUser}, token长度=${result.token.length}');

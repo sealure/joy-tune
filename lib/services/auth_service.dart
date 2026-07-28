@@ -4,13 +4,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/api_config.dart';
 import '../models/user.dart';
 
 /// 认证服务
 class AuthService {
   static const _tokenKey = 'auth_jwt_token';
-  // 开发阶段使用 Mac 局域网 IP，生产环境改为服务器域名
-  static const _baseUrl = 'http://192.168.1.5:8080/api/v1';
+  // 后端地址从 api_config.dart 中获取
+  static const _baseUrl = apiBaseUrl;
 
   final Dio _dio;
   final FlutterSecureStorage _storage;
