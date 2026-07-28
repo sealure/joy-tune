@@ -33,7 +33,7 @@ final favoriteRepositoryProvider = Provider<FavoriteRepository>((ref) {
   final isLoggedIn = ref.watch(isLoggedInProvider);
   debugPrint('[PROVIDER] favoriteRepositoryProvider: isLoggedIn=$isLoggedIn');
   if (isLoggedIn) {
-    final repo = ApiFavoriteRepository(ref.watch(backendClientProvider));
+    final repo = ApiFavoriteRepository(ref.watch(backendClientProvider), ref.watch(gdMusicClientProvider));
     debugPrint('[PROVIDER] 使用 ApiFavoriteRepository');
     return repo;
   }

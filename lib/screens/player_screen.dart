@@ -286,7 +286,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         song.id,
         songName: song.name,
         artist: song.artist,
+        coverUrl: _coverUrl,
         source: song.source,
+        album: song.album.isNotEmpty ? song.album : null,
       );
       setState(() => _isFavorited = true);
       _favCtrl.forward().then((_) => _favCtrl.reverse());

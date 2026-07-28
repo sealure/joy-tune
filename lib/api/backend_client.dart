@@ -256,6 +256,9 @@ class BackendClient {
     String? artist,
     String? coverUrl,
     String? source,
+    String? audioUrl,
+    String? lyricsUrl,
+    String? album,
   }) async {
     debugPrint('[BACKEND] likeSong: songId=$songId, songName=$songName');
     try {
@@ -266,6 +269,9 @@ class BackendClient {
         if (artist != null) 'artist': artist,
         if (coverUrl != null) 'coverUrl': coverUrl,
         if (source != null) 'source': source,
+        if (audioUrl != null) 'audioUrl': audioUrl,
+        if (lyricsUrl != null) 'lyricsUrl': lyricsUrl,
+        if (album != null) 'album': album,
       });
       debugPrint('[BACKEND] likeSong 响应: status=${response.statusCode}, data=${response.data}');
       return LikeResult(
