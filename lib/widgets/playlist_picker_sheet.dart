@@ -3,12 +3,14 @@
 // 入口：播放页 ⋮ 更多菜单「加入歌单」；后续搜索页/歌单详情复用
 // 对应设计稿 ui/playlist-picker/
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/backend_client.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
+import 'playlist_cover.dart';
 import 'playlist_form_sheet.dart';
 
 /// 弹出"选择歌单"底部弹层，把 song 加入选中的歌单
@@ -45,6 +47,7 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
   /// 加入歌单（幂等：已加入的跳过）
   Future<void> _addToPlaylist(UserPlaylist p) async {
     if (_added.contains(p.id)) return;
+    debugPrint('[PlaylistPicker] 加入歌单: playlist=${p.id}, song=${widget.song.id}');
     final ok = await ref.read(backendClientProvider).addSongToPlaylist(
           p.id,
           songId: widget.song.id,
@@ -151,20 +154,10 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               onTap: () => _addToPlaylist(p),
-                              leading: Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: added
-                                        ? const [Color(0xFF6EE7B7), Color(0xFF34D399)]
-                                        : const [Color(0xFFA5B4FC), Color(0xFF818CF8)],
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 20),
+                              leading: PlaylistCover(
+                                coverUrl: p.coverUrl,
+                                size: 44,
+                                borderRadius: 10,
                               ),
                               title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                               subtitle: Text('${p.songCount} 首'),

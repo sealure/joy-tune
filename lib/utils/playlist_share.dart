@@ -75,9 +75,14 @@ class _PlaylistShareSheetState extends ConsumerState<_PlaylistShareSheet> {
     }
   }
 
-  /// 复制歌单链接（使用无需登录的推荐详情接口，游客可访问）
+  /// 复制分享链接（使用短码，不暴露服务端 ID/地址；游客可访问）
   void _copyLink() {
-    final link = '$apiBaseUrl/recommend/playlists/${widget.playlist.id}';
+    final code = widget.playlist.shareCode;
+    if (code.isEmpty) {
+      _toast('该歌单暂不支持分享');
+      return;
+    }
+    final link = '$apiBaseUrl/playlists/share/$code';
     Clipboard.setData(ClipboardData(text: link));
     _toast('已复制分享链接');
   }
@@ -195,7 +200,15 @@ class _ShareCardDialogState extends State<_ShareCardDialog> {
 
   /// 复制链接（分享给朋友，游客可访问）
   void _copyLink() {
-    final link = '$apiBaseUrl/recommend/playlists/${widget.playlist.id}';
+    final code = widget.playlist.shareCode;
+    if (code.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('该歌单暂不支持分享')),
+      );
+      return;
+    }
+    final link = '$apiBaseUrl/playlists/share/$code';
     Clipboard.setData(ClipboardData(text: link));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

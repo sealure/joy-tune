@@ -55,9 +55,16 @@ class HomeScreen extends ConsumerWidget {
     WidgetRef ref,
     List<RecommendPlaylist> playlists,
   ) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(recommendPlaylistsProvider);
+        // 等待新数据完成，避免下拉动画期间旧数据闪烁
+        await ref.read(recommendPlaylistsProvider.future);
+      },
+      child: ListView(
+        padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
         // 推荐歌单
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 8, 20, 10),
@@ -93,15 +100,23 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 20),
-      ],
+        ],
+      ),
     );
   }
 
   /// 使用 mock 数据构建（fallback）
   Widget _buildWithMockData(BuildContext context, WidgetRef ref) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(recommendPlaylistsProvider);
+        // 等待新数据完成，避免下拉动画期间旧数据闪烁
+        await ref.read(recommendPlaylistsProvider.future);
+      },
+      child: ListView(
+        padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 8, 20, 10),
           child: Text('推荐歌单', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
@@ -128,7 +143,8 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 20),
-      ],
+        ],
+      ),
     );
   }
 }

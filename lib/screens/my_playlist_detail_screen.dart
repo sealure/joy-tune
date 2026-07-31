@@ -2,6 +2,7 @@
 // 展示用户自建歌单的歌曲列表，支持播放全部/添加歌曲/移除歌曲/编辑信息/分享/拖拽排序
 // 对应设计稿 ui/my-playlist-detail/
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,7 @@ import '../services/providers.dart';
 import '../utils/player_utils.dart';
 import '../utils/playlist_share.dart';
 import '../widgets/playlist_form_sheet.dart';
+import '../widgets/playlist_cover.dart';
 import '../widgets/song_cover.dart';
 
 /// 我的歌单详情页
@@ -60,6 +62,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   Future<void> _finishSort() async {
     final songs = _localSongs;
     if (songs == null) return;
+    debugPrint('[MyPlaylistDetail] 提交排序: playlist=${widget.playlistId}, ids=${songs.map((s) => s.id).toList()}');
     final ok = await ref
         .read(backendClientProvider)
         .reorderPlaylistSongs(widget.playlistId, songs.map((s) => s.id).toList());
@@ -76,6 +79,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
 
   /// 从歌单移除歌曲，返回是否成功
   Future<bool> _removeSong(PlaylistSongInfo s) async {
+    debugPrint('[MyPlaylistDetail] 移除歌曲: playlist=${widget.playlistId}, song=${s.songId}');
     final ok = await ref
         .read(backendClientProvider)
         .removeSongFromPlaylist(widget.playlistId, s.songId);
@@ -125,12 +129,22 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
                     ]
                   : [
                       IconButton(
+                        tooltip: '调整排序',
+                        icon: const Icon(Icons.swap_vert_rounded),
+                        onPressed: () => _enterSort(detail.songs),
+                      ),
+                      IconButton(
                         tooltip: '分享歌单',
                         icon: const Icon(Icons.share_outlined),
                         onPressed: () => showPlaylistShareSheet(context, ref, detail.playlist),
                       ),
                       TextButton.icon(
-                        onPressed: () => showPlaylistFormSheet(context, ref, existing: detail.playlist),
+                        onPressed: () => showPlaylistFormSheet(
+                          context,
+                          ref,
+                          existing: detail.playlist,
+                          songs: detail.songs,
+                        ),
                         icon: const Icon(Icons.edit_outlined, size: 18),
                         label: const Text('编辑'),
                       ),
@@ -209,12 +223,12 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
           Container(
             width: 96,
             height: 96,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
             ),
-            child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 40),
+            child: PlaylistCover(coverUrl: playlist.coverUrl, size: 96, borderRadius: 14),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -309,7 +323,8 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
     }
     return ReorderableListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      buildDefaultDragHandles: false,
+      // 排序模式下启用默认拖拽手柄（右侧长按拖动），确保可拖
+      buildDefaultDragHandles: _sorting,
       onReorder: _onReorder,
       itemCount: songs.length,
       itemBuilder: (_, i) {
@@ -337,16 +352,6 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
             onTap: _sorting ? null : () => playSong(context, ref, song),
             onRemove: () => _removeSong(info),
             onSortMode: () => _enterSort(songs),
-            onFinishSort: _finishSort,
-            dragHandle: _sorting
-                ? ReorderableDragStartListener(
-                    index: i,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Icon(Icons.drag_handle_rounded, color: Colors.grey, size: 20),
-                    ),
-                  )
-                : null,
           ),
         );
       },
@@ -354,7 +359,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   }
 }
 
-/// 歌曲行：序号/拖拽手柄 + 封面 + 歌名/歌手 + 收藏 + ⋮
+/// 歌曲行：序号 + 封面 + 歌名/歌手 + 收藏 + ⋮（排序模式由默认拖拽手柄接管右侧）
 class _SongRow extends ConsumerStatefulWidget {
   final int index;
   final Song song;
@@ -362,8 +367,6 @@ class _SongRow extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback onRemove;
   final VoidCallback onSortMode;
-  final VoidCallback? onFinishSort;
-  final Widget? dragHandle;
 
   const _SongRow({
     required this.index,
@@ -372,8 +375,6 @@ class _SongRow extends ConsumerStatefulWidget {
     this.onTap,
     required this.onRemove,
     required this.onSortMode,
-    this.onFinishSort,
-    this.dragHandle,
   });
 
   @override
@@ -415,49 +416,46 @@ class _SongRowState extends ConsumerState<_SongRow> {
       leading: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.dragHandle != null)
-            widget.dragHandle!
-          else
-            SizedBox(
-              width: 24,
-              child: Text('${widget.index + 1}',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
-            ),
+          SizedBox(
+            width: 24,
+            child: Text('${widget.index + 1}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          ),
           const SizedBox(width: 6),
           SongCover(song: widget.song, size: 42, borderRadius: 8),
         ],
       ),
       title: Text(widget.song.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(widget.song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(
-              _favorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              color: _favorited ? Colors.red : Colors.grey,
-              size: 20,
+      // 排序模式下右侧交给默认拖拽手柄，隐藏收藏/⋮
+      trailing: widget.sorting
+          ? null
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _favorited ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: _favorited ? Colors.red : Colors.grey,
+                    size: 20,
+                  ),
+                  onPressed: _toggleFavorite,
+                ),
+                PopupMenuButton<_SongAction>(
+                  icon: const Icon(Icons.more_vert_rounded, color: Colors.grey, size: 20),
+                  onSelected: (action) => _onAction(action),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: _SongAction.playNext, child: Text('下一首播放')),
+                    const PopupMenuItem(
+                      value: _SongAction.remove,
+                      child: Text('从歌单移除', style: TextStyle(color: Colors.red)),
+                    ),
+                    const PopupMenuItem(value: _SongAction.sort, child: Text('调整排序')),
+                  ],
+                ),
+              ],
             ),
-            onPressed: widget.sorting ? null : _toggleFavorite,
-          ),
-          PopupMenuButton<_SongAction>(
-            icon: const Icon(Icons.more_vert_rounded, color: Colors.grey, size: 20),
-            onSelected: (action) => _onAction(action),
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: _SongAction.playNext, child: Text('下一首播放')),
-              const PopupMenuItem(
-                value: _SongAction.remove,
-                child: Text('从歌单移除', style: TextStyle(color: Colors.red)),
-              ),
-              if (widget.sorting)
-                const PopupMenuItem(value: _SongAction.done, child: Text('完成排序'))
-              else
-                const PopupMenuItem(value: _SongAction.sort, child: Text('调整排序')),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -476,11 +474,8 @@ class _SongRowState extends ConsumerState<_SongRow> {
       case _SongAction.sort:
         widget.onSortMode();
         break;
-      case _SongAction.done:
-        widget.onFinishSort?.call();
-        break;
     }
   }
 }
 
-enum _SongAction { playNext, remove, sort, done }
+enum _SongAction { playNext, remove, sort }

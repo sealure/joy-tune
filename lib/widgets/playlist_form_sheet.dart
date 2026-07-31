@@ -1,17 +1,22 @@
 // 歌单表单底部弹层（新建 / 编辑共用）
-// 我的歌单列表页与详情页复用
+// 我的歌单列表页与详情页复用；支持从歌单现有歌曲中选择封面
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/backend_client.dart';
+import '../models/song.dart';
 import '../services/providers.dart';
+import 'song_cover.dart';
 
 /// 弹出新建/编辑歌单底部表单
+/// [songs] 为当前歌单的歌曲列表（编辑时传入，用于"从歌曲选择封面"）
 Future<void> showPlaylistFormSheet(
   BuildContext context,
   WidgetRef ref, {
   UserPlaylist? existing,
+  List<PlaylistSongInfo>? songs,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -20,14 +25,15 @@ Future<void> showPlaylistFormSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => PlaylistFormSheet(existing: existing),
+    builder: (_) => PlaylistFormSheet(existing: existing, songs: songs),
   );
 }
 
 /// 新建 / 编辑歌单底部表单
 class PlaylistFormSheet extends ConsumerStatefulWidget {
   final UserPlaylist? existing;
-  const PlaylistFormSheet({super.key, this.existing});
+  final List<PlaylistSongInfo>? songs;
+  const PlaylistFormSheet({super.key, this.existing, this.songs});
 
   @override
   ConsumerState<PlaylistFormSheet> createState() => _PlaylistFormSheetState();
@@ -39,6 +45,7 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
   late final TextEditingController _descCtrl =
       TextEditingController(text: widget.existing?.description ?? '');
   late bool _isPublic = widget.existing?.isPublic ?? true;
+  late String _coverUrl = widget.existing?.coverUrl ?? '';
   bool _submitting = false;
 
   @override
@@ -46,6 +53,67 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
     _nameCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
+  }
+
+  /// 从歌单现有歌曲中选择封面
+  Future<void> _pickCoverFromSongs() async {
+    final songs = widget.songs;
+    if (songs == null || songs.isEmpty) return;
+    final selected = await showModalBottomSheet<PlaylistSongInfo>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 10),
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+            const Text('选择封面歌曲', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                itemCount: songs.length,
+                separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
+                itemBuilder: (_, i) {
+                  final s = songs[i];
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    onTap: () => Navigator.pop(ctx, s),
+                    leading: SongCover(
+                      song: Song(
+                        id: s.songId,
+                        name: s.songName,
+                        artist: s.artist,
+                        album: s.album,
+                        source: s.source,
+                        coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
+                      ),
+                      size: 44,
+                      borderRadius: 8,
+                    ),
+                    title: Text(s.songName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(s.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() => _coverUrl = selected.coverUrl);
+    }
   }
 
   /// 创建 / 更新歌单
@@ -59,11 +127,13 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
     setState(() => _submitting = true);
 
     final client = ref.read(backendClientProvider);
+    debugPrint('[PlaylistForm] ${widget.existing == null ? "创建" : "更新"}歌单: name=$name, isPublic=$_isPublic');
     UserPlaylist? result;
     if (widget.existing == null) {
       result = await client.createPlaylist(
         name: name,
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        coverUrl: _coverUrl.isEmpty ? null : _coverUrl,
         isPublic: _isPublic,
       );
     } else {
@@ -71,6 +141,7 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
         widget.existing!.id,
         name: name,
         description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        coverUrl: _coverUrl.isEmpty ? null : _coverUrl,
         isPublic: _isPublic,
       );
     }
@@ -111,6 +182,53 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
                     style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: 16),
+              // 封面区：预览 + 从歌单歌曲中选择
+              Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [Color(0xFFA5B4FC), Color(0xFF818CF8)]),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: _coverUrl.isNotEmpty
+                        ? Image.network(
+                            _coverUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.music_note_rounded, color: Colors.white, size: 28),
+                          )
+                        : const Icon(Icons.music_note_rounded, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('歌单封面', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 2),
+                        if (widget.songs != null && widget.songs!.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: _pickCoverFromSongs,
+                            icon: const Icon(Icons.image_outlined, size: 16),
+                            label: const Text('从歌单歌曲中选择'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF6366F1),
+                              padding: EdgeInsets.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          )
+                        else
+                          Text('添加歌曲后可从歌曲中选择封面',
+                              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _nameCtrl,
                 decoration: InputDecoration(

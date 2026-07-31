@@ -623,6 +623,7 @@ class UserPlaylist {
   final bool isPublic;
   final int songCount;
   final int playCount;
+  final String shareCode;
   final DateTime? createdAt;
 
   const UserPlaylist({
@@ -634,6 +635,7 @@ class UserPlaylist {
     this.isPublic = false,
     this.songCount = 0,
     this.playCount = 0,
+    this.shareCode = '',
     this.createdAt,
   });
 
@@ -647,6 +649,7 @@ class UserPlaylist {
       isPublic: json['is_public'] as bool? ?? false,
       songCount: BackendClient._parseUint64(json['song_count']),
       playCount: BackendClient._parseUint64(json['play_count']),
+      shareCode: json['share_code'] as String? ?? '',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
     );
   }

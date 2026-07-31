@@ -2,6 +2,7 @@
 // 展示当前用户自建歌单（Playlist API GET /api/v1/playlists），支持新建/编辑/删除/分享
 // 对应设计稿 ui/my-playlists/
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,28 +11,11 @@ import '../api/backend_client.dart';
 import '../services/providers.dart';
 import '../utils/playlist_share.dart';
 import '../widgets/playlist_form_sheet.dart';
+import '../widgets/playlist_cover.dart';
 
 /// 我的歌单列表页
 class MyPlaylistsScreen extends ConsumerWidget {
   const MyPlaylistsScreen({super.key});
-
-  /// 歌单封面占位（无封面时渐变 + 音符）
-  Widget _coverPlaceholder(String type) {
-    final color = switch (type) {
-      'alt1' => const [Color(0xFF6EE7B7), Color(0xFF34D399)],
-      'alt2' => const [Color(0xFFFCD34D), Color(0xFFFBBF24)],
-      _ => const [Color(0xFFA5B4FC), Color(0xFF818CF8)],
-    };
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: color),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 26),
-    );
-  }
 
   /// 格式化创建日期
   String _formatDate(DateTime? dt) {
@@ -97,7 +81,7 @@ class MyPlaylistsScreen extends ConsumerWidget {
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   onTap: () => context.push('/my-playlist/${p.id}'),
-                  leading: _coverPlaceholder(p.type == 'system' ? 'alt1' : ''),
+                  leading: PlaylistCover(coverUrl: p.coverUrl, size: 56),
                   title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
                   subtitle: Padding(
@@ -183,6 +167,7 @@ class MyPlaylistsScreen extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
+    debugPrint('[MyPlaylists] 删除歌单: id=${playlist.id}, name=${playlist.name}');
     final success = await ref.read(backendClientProvider).deletePlaylist(playlist.id);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
