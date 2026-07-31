@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../models/mock_data.dart';
 import '../api/backend_client.dart';
 import '../services/providers.dart';
-import '../widgets/playlist_cover.dart';
 
 /// 渐变色列表
 const _gradients = [
@@ -56,6 +55,9 @@ class HomeScreen extends ConsumerWidget {
     WidgetRef ref,
     List<RecommendPlaylist> playlists,
   ) {
+    // 系统推荐歌单（type=system）与用户公开分享歌单（type=user）分区展示
+    final systemList = playlists.where((p) => p.type != 'user').toList();
+    final sharedList = playlists.where((p) => p.type == 'user').toList();
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(recommendPlaylistsProvider);
@@ -66,42 +68,61 @@ class HomeScreen extends ConsumerWidget {
         padding: EdgeInsets.zero,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-        // 推荐歌单
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 8, 20, 10),
-          child: Text('推荐歌单', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-        ),
-        SizedBox(
-          height: 190,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: playlists.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (_, i) {
-              final playlist = playlists[i];
-              final gradient = _gradients[i % _gradients.length];
-              return _BackendPlaylistCard(
-                playlist: playlist,
-                gradient: gradient,
-                onTap: () => context.push(
-                  '/playlist/${playlist.id}',
-                  extra: {
-                    'id': playlist.id,
-                    'name': playlist.name,
-                    'subtitle': playlist.description.isNotEmpty
-                        ? playlist.description
-                        : '${playlist.songCount} 首',
-                    'backendId': playlist.id,
-                    'isBackendPlaylist': true,
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 20),
+          if (systemList.isNotEmpty) ...[
+            _sectionTitle('推荐歌单'),
+            _buildCarousel(context, ref, systemList),
+          ],
+          if (sharedList.isNotEmpty) ...[
+            _sectionTitle('分享歌单'),
+            _buildCarousel(context, ref, sharedList),
+          ],
+          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  /// 分区标题
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  /// 横向滚动歌单卡片区
+  Widget _buildCarousel(
+    BuildContext context,
+    WidgetRef ref,
+    List<RecommendPlaylist> list,
+  ) {
+    return SizedBox(
+      height: 190,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: list.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
+        itemBuilder: (_, i) {
+          final playlist = list[i];
+          final gradient = _gradients[i % _gradients.length];
+          return _BackendPlaylistCard(
+            playlist: playlist,
+            gradient: gradient,
+            onTap: () => context.push(
+              '/playlist/${playlist.id}',
+              extra: {
+                'id': playlist.id,
+                'name': playlist.name,
+                'subtitle': playlist.description.isNotEmpty
+                    ? playlist.description
+                    : '${playlist.songCount} 首',
+                'backendId': playlist.id,
+                'isBackendPlaylist': true,
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -165,76 +186,91 @@ class _BackendPlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 有封面时作为卡片背景图，否则用渐变背景
+    final hasCover = playlist.coverUrl.isNotEmpty;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 150,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: hasCover
+              ? null
+              : LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          image: hasCover
+              ? DecorationImage(image: NetworkImage(playlist.coverUrl), fit: BoxFit.cover)
+              : null,
           boxShadow: [
             BoxShadow(color: gradient.first.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Center(
-                  // 有封面显示封面，否则渐变占位（PlaylistCover 内部处理）
-                  child: PlaylistCover(
-                    coverUrl: playlist.coverUrl,
-                    size: 90,
-                    borderRadius: 12,
+        child: Stack(
+          children: [
+            // 底部暗色遮罩，保证文字可读
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
                   ),
                 ),
               ),
-              Text(
-                playlist.name,
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              // 用户公开歌单：显示创建者头像 + 昵称；否则显示歌曲数
-              if (playlist.userName != null && playlist.userName!.isNotEmpty)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ClipOval(
-                      child: (playlist.userAvatar != null && playlist.userAvatar!.isNotEmpty)
-                          ? Image.network(
-                              playlist.userAvatar!,
-                              width: 16,
-                              height: 16,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _defaultAvatar(),
-                            )
-                          : _defaultAvatar(),
-                    ),
-                    const SizedBox(width: 5),
-                    Flexible(
-                      child: Text(
-                        playlist.userName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11),
-                      ),
-                    ),
-                  ],
-                )
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Spacer(),
+                  Text(
+                    playlist.name,
+                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  // 用户公开歌单：显示创建者头像 + 昵称；否则显示歌曲数
+                  if (playlist.userName != null && playlist.userName!.isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipOval(
+                          child: (playlist.userAvatar != null && playlist.userAvatar!.isNotEmpty)
+                              ? Image.network(
+                                  playlist.userAvatar!,
+                                  width: 16,
+                                  height: 16,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _defaultAvatar(),
+                                )
+                              : _defaultAvatar(),
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            playlist.userName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    )
               else
                 Text(
                   '${playlist.songCount} 首',
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
                 ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
-    );
+    ),
+  );
   }
 
   /// 创建者默认头像占位
