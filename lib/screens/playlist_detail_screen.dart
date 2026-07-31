@@ -20,6 +20,10 @@ class PlaylistDetailScreen extends ConsumerWidget {
     final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
     final playlistName = extra?['name'] as String? ?? '歌单详情';
     final playlistSubtitle = extra?['subtitle'] as String?;
+    // 后端歌单（推荐/分享）：用 recommend 接口显示真实歌曲与封面
+    final isBackend = extra?['isBackendPlaylist'] == true;
+    final backendId = (extra?['backendId'] as num?)?.toInt() ?? 0;
+    final coverUrl = (extra?['coverUrl'] as String?) ?? '';
 
     // 根据 playlistId 找到对应的 MockPlaylist
     final playlist = recommendedPlaylists.firstWhere(
@@ -31,8 +35,13 @@ class PlaylistDetailScreen extends ConsumerWidget {
       ),
     );
 
-    // 通过 Provider 动态获取歌曲列表（使用 playlistId 作为 key）
-    final songsAsync = ref.watch(playlistSongsProvider(playlistId));
+    // 后端歌单：recommend 详情接口返回真实歌曲；否则按歌单名动态搜索
+    final AsyncValue<List<Song>> songsAsync;
+    if (isBackend && backendId > 0) {
+      songsAsync = ref.watch(recommendPlaylistSongsProvider(backendId));
+    } else {
+      songsAsync = ref.watch(playlistSongsProvider(playlistId));
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -59,7 +68,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
             ),
 
             // 头部区域
-            _buildHeader(theme, playlist, songsAsync, context, ref),
+            _buildHeader(theme, playlist, songsAsync, context, ref, coverUrl),
 
             // 歌曲列表（支持加载中/错误状态）
             Expanded(
@@ -107,6 +116,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
     AsyncValue<List<Song>> songsAsync,
     BuildContext context,
     WidgetRef ref,
+    String coverUrl,
   ) {
     // 歌曲数量：加载中显示占位，加载完成显示实际数量
     final songCountText = songsAsync.when(
@@ -115,82 +125,106 @@ class PlaylistDetailScreen extends ConsumerWidget {
       error: (_, __) => '加载失败',
     );
 
+    // 有封面时作为头部背景图，否则用渐变背景
+    final hasCover = coverUrl.isNotEmpty;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF4C1D95), Color(0xFF5B21B6), Color(0xFF6D28D9), Color(0xFF312E81)],
-        ),
+        gradient: hasCover
+            ? null
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF4C1D95), Color(0xFF5B21B6), Color(0xFF6D28D9), Color(0xFF312E81)],
+              ),
+        image: hasCover
+            ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover)
+            : null,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              playlist.name,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+      child: Stack(
+        children: [
+          // 底部暗色遮罩，保证文字可读
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                ),
+              ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              '悦听 · 共 $songCountText',
-              style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
-            ),
-            // 仅在加载完成后显示"播放全部"按钮
-            songsAsync.when(
-              data: (songs) {
-                if (songs.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  playlist.name,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '悦听 · 共 $songCountText',
+                  style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
+                ),
+                // 仅在加载完成后显示"播放全部"按钮
+                songsAsync.when(
+                  data: (songs) {
+                    if (songs.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(24),
-                          onTap: () {
-                            final audio = ref.read(audioServiceProvider);
-                            audio.stop();
-                            audio.setQueue(songs, startIndex: 0);
-                            context.push('/player', extra: songs[0]);
-                          },
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
-                                SizedBox(width: 6),
-                                Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
-                              ],
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: () {
+                                final audio = ref.read(audioServiceProvider);
+                                audio.stop();
+                                audio.setQueue(songs, startIndex: 0);
+                                context.push('/player', extra: songs[0]);
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
+                                    SizedBox(width: 6),
+                                    Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
             ),
           ],
         ),
+      ),
+        ],
       ),
     );
   }

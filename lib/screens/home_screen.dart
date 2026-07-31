@@ -119,6 +119,7 @@ class HomeScreen extends ConsumerWidget {
                     : '${playlist.songCount} 首',
                 'backendId': playlist.id,
                 'isBackendPlaylist': true,
+                'coverUrl': playlist.coverUrl,
               },
             ),
           );
