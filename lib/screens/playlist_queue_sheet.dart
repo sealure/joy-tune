@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
+import '../widgets/song_cover.dart';
 
 /// 播放队列底部 sheet
 class PlaylistQueueSheet extends ConsumerStatefulWidget {
@@ -113,7 +114,6 @@ class _PlaylistQueueSheetState extends ConsumerState<PlaylistQueueSheet> {
                       final isCurrent = i == currentIndex;
                       return _QueueTile(
                         song: song,
-                        index: i,
                         isCurrent: isCurrent,
                         onTap: () {
                           if (!isCurrent) {
@@ -150,13 +150,11 @@ class _PlaylistQueueSheetState extends ConsumerState<PlaylistQueueSheet> {
 
 class _QueueTile extends StatelessWidget {
   final Song song;
-  final int index;
   final bool isCurrent;
   final VoidCallback onTap;
 
   const _QueueTile({
     required this.song,
-    required this.index,
     required this.isCurrent,
     required this.onTap,
   });
@@ -173,19 +171,21 @@ class _QueueTile extends StatelessWidget {
             : null,
       ),
       child: ListTile(
-        leading: Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: isCurrent
-                ? const Color(0xFF6366F1)
-                : theme.colorScheme.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: isCurrent
-                ? Icon(Icons.play_arrow_rounded, size: 18, color: Colors.white)
-                : Text('${index + 1}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
-          ),
+        leading: Stack(
+          children: [
+            // 歌曲封面：自动解析 picId 并缓存
+            SongCover(song: song, size: 40, borderRadius: 8),
+            // 当前播放：封面叠加半透明遮罩 + 播放图标
+            if (isCurrent)
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.play_arrow_rounded, size: 18, color: Colors.white),
+              ),
+          ],
         ),
         title: Text(
           song.name,
