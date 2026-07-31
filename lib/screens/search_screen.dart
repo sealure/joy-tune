@@ -16,6 +16,12 @@ class _SearchState {
   final int page;
   /// 当前搜索关键词（非空表示已执行搜索）
   final String keyword;
+  /// 是否为专辑搜索（source 加 _album 后缀）
+  final bool albumSearch;
+  /// joox 页面是否已全部翻完（< 20 条表示到底）
+  final bool jooxComplete;
+  /// 其他音源是否已加载过
+  final bool otherSourcesLoaded;
 
   const _SearchState({
     this.songs = const [],
@@ -23,6 +29,9 @@ class _SearchState {
     this.hasMore = true,
     this.page = 0,
     this.keyword = '',
+    this.albumSearch = false,
+    this.jooxComplete = false,
+    this.otherSourcesLoaded = false,
   });
 
   _SearchState copyWith({
@@ -31,6 +40,9 @@ class _SearchState {
     bool? hasMore,
     int? page,
     String? keyword,
+    bool? albumSearch,
+    bool? jooxComplete,
+    bool? otherSourcesLoaded,
   }) {
     return _SearchState(
       songs: songs ?? this.songs,
@@ -38,6 +50,9 @@ class _SearchState {
       hasMore: hasMore ?? this.hasMore,
       page: page ?? this.page,
       keyword: keyword ?? this.keyword,
+      albumSearch: albumSearch ?? this.albumSearch,
+      jooxComplete: jooxComplete ?? this.jooxComplete,
+      otherSourcesLoaded: otherSourcesLoaded ?? this.otherSourcesLoaded,
     );
   }
 }
@@ -47,15 +62,19 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
 
   _SearchNotifier(this._ref) : super(const _SearchState());
 
-  /// 新搜索（重置分页，首次并发所有源）
-  Future<void> search(String keyword) async {
+  /// 新搜索（先搜 joox，joox 翻到底后才加载其他音源）
+  Future<void> search(String keyword, {bool albumSearch = false}) async {
     if (keyword.trim().isEmpty) {
       state = const _SearchState();
       return;
     }
     // 保存搜索历史
     await AppDatabase.addSearchHistory(keyword.trim());
-    state = state.copyWith(isLoading: true, songs: [], page: 0, hasMore: true, keyword: keyword.trim());
+    state = state.copyWith(
+      isLoading: true, songs: [], page: 0, hasMore: true,
+      keyword: keyword.trim(), albumSearch: albumSearch,
+      jooxComplete: false, otherSourcesLoaded: false,
+    );
     await _fetchAllSourceResults();
   }
 
@@ -66,48 +85,37 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     await _fetchPage(state.page + 1);
   }
 
-  /// 首次搜索：并发搜索所有音源，汇总去重并过滤
+  /// 首次搜索：先搜 joox，joox 没结果则立即加载其他音源
   Future<void> _fetchAllSourceResults() async {
     try {
       final client = _ref.read(gdMusicClientProvider);
-      final keyword = state.keyword.toLowerCase();
-      // 并发搜索所有源
-      final futures = GdMusicClient.sources.map((source) async {
-        try {
-          final results = await client.search(
-            keyword: state.keyword,
-            source: source,
-            count: 20,
-          );
-          // 非主源（joox）的结果做精确过滤：歌名/歌手/专辑需包含关键词
-          if (source != 'joox') {
-            return results.where((s) {
-              return s.name.toLowerCase().contains(keyword) ||
-                  s.artist.toLowerCase().contains(keyword) ||
-                  s.album.toLowerCase().contains(keyword);
-            }).toList();
-          }
-          return results;
-        } catch (_) {
-          return <Song>[];
-        }
-      });
-      final results = await Future.wait(futures);
-      // 汇总所有结果
-      final allSongs = results.expand((list) => list).toList();
-      // 去重（歌名+歌手相同视为同一首歌，保留第一个出现的）
-      final seen = <String>{};
-      final unique = <Song>[];
-      for (final song in allSongs) {
-        final key = '${song.name}_${song.artist}'.toLowerCase();
-        if (seen.add(key)) unique.add(song);
+      // 1. 先搜 joox（主源）
+      final jooxResults = await client.search(
+        keyword: state.keyword,
+        source: 'joox',
+        count: 99,
+        albumSearch: state.albumSearch,
+      );
+
+      final jooxComplete = jooxResults.length < 99;
+      List<Song> songs = jooxResults;
+      bool otherSourcesLoaded = false;
+
+      // 2. 如果 joox 没结果，立即加载其他音源
+      if (jooxResults.isEmpty) {
+        songs = await _fetchOtherSourcesSync();
+        otherSourcesLoaded = true;
       }
+
       if (!mounted) return;
       state = state.copyWith(
-        songs: unique,
+        songs: songs,
         isLoading: false,
-        hasMore: true, // 允许继续加载更多（从主源分页）
+        // joox 还有更多页，或者还没加载其他音源 → 可以继续加载
+        hasMore: !jooxComplete || !otherSourcesLoaded,
         page: 1,
+        jooxComplete: jooxComplete,
+        otherSourcesLoaded: otherSourcesLoaded,
       );
     } catch (e) {
       if (!mounted) return;
@@ -115,32 +123,105 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     }
   }
 
-  /// 分页加载（单源，用于后续翻页，跳过已有歌曲）
+  /// 分页加载：joox 没翻完就继续翻 joox，翻完则加载其他音源
   Future<void> _fetchPage(int page) async {
     try {
       final client = _ref.read(gdMusicClientProvider);
-      final results = await client.search(
-        keyword: state.keyword,
-        source: 'joox',
-        count: 20,
-        page: page,
-      );
-      if (!mounted) return;
-      // 跳过已存在的歌曲（歌名+歌手去重）
-      final seen = <String>{
-        for (final s in state.songs) '${s.name}_${s.artist}'.toLowerCase(),
-      };
-      final fresh = results.where((s) => !seen.contains('${s.name}_${s.artist}'.toLowerCase())).toList();
-      state = state.copyWith(
-        songs: [...state.songs, ...fresh],
-        isLoading: false,
-        hasMore: results.length >= 20,
-        page: page,
-      );
-    } catch (e) {
+
+      if (!state.jooxComplete) {
+        // ── 继续翻 joox 分页 ──
+        final results = await client.search(
+          keyword: state.keyword,
+          source: 'joox',
+          count: 99,
+          page: page,
+          albumSearch: state.albumSearch,
+        );
+        if (!mounted) return;
+
+        final jooxComplete = results.length < 99;
+        // 跳过已存在的歌曲
+        final seen = <String>{
+          for (final s in state.songs) '${s.name}_${s.artist}'.toLowerCase(),
+        };
+        final fresh = results
+            .where((s) => !seen.contains('${s.name}_${s.artist}'.toLowerCase()))
+            .toList();
+
+        var songs = [...state.songs, ...fresh];
+        var otherSourcesLoaded = state.otherSourcesLoaded;
+
+        // joox 翻完了，接着加载其他音源
+        if (jooxComplete && !otherSourcesLoaded) {
+          final otherResults = await _fetchOtherSourcesSync();
+          songs = [...songs, ...otherResults];
+          otherSourcesLoaded = true;
+        }
+
+        if (!mounted) return;
+        state = state.copyWith(
+          songs: songs,
+          isLoading: false,
+          hasMore: !jooxComplete || !otherSourcesLoaded,
+          page: page,
+          jooxComplete: jooxComplete,
+          otherSourcesLoaded: otherSourcesLoaded,
+        );
+      } else if (!state.otherSourcesLoaded) {
+        // ── joox 已翻完，加载其他音源 ──
+        final otherResults = await _fetchOtherSourcesSync();
+        if (!mounted) return;
+        state = state.copyWith(
+          songs: [...state.songs, ...otherResults],
+          isLoading: false,
+          hasMore: false,
+          otherSourcesLoaded: true,
+        );
+      } else {
+        // ── 全部加载完 ──
+        state = state.copyWith(isLoading: false, hasMore: false);
+      }
+    } catch (_) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false);
     }
+  }
+
+  /// 并发搜索非 joox 的所有音源，汇总去重并返回
+  Future<List<Song>> _fetchOtherSourcesSync() async {
+    final client = _ref.read(gdMusicClientProvider);
+    final keyword = state.keyword.toLowerCase();
+    final futures = GdMusicClient.sources
+        .where((s) => s != 'joox')
+        .map((source) async {
+      try {
+        final results = await client.search(
+          keyword: state.keyword,
+          source: source,
+          count: 99,
+          albumSearch: state.albumSearch,
+        );
+        // 非主源的结果做精确过滤
+        return results.where((s) {
+          return s.name.toLowerCase().contains(keyword) ||
+              s.artist.toLowerCase().contains(keyword) ||
+              s.album.toLowerCase().contains(keyword);
+        }).toList();
+      } catch (_) {
+        return <Song>[];
+      }
+    });
+    final allResults = await Future.wait(futures);
+    // 汇总所有结果
+    final allSongs = allResults.expand((list) => list).toList();
+    // 去重（歌名+歌手相同视为同一首歌，保留第一个）
+    final seen = <String>{};
+    final unique = <Song>[];
+    for (final song in allSongs) {
+      final key = '${song.name}_${song.artist}'.toLowerCase();
+      if (seen.add(key)) unique.add(song);
+    }
+    return unique;
   }
 }
 
@@ -158,6 +239,7 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   final _scrollCtrl = ScrollController();
+  bool _albumSearch = false; // 默认普通搜索，勾选后变为专辑搜索
 
   @override
   void initState() {
@@ -189,7 +271,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// 执行搜索
   void _doSearch(String keyword) {
-    ref.read(_searchProvider.notifier).search(keyword);
+    ref.read(_searchProvider.notifier).search(keyword, albumSearch: _albumSearch);
     setState(() {});
   }
 
@@ -207,7 +289,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         children: [
           // 搜索栏（固定）
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
@@ -227,6 +309,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onChanged: (v) => setState(() {}),
               onSubmitted: (v) => _doSearch(v),
               textInputAction: TextInputAction.search,
+            ),
+          ),
+          // 搜索类型切换：默认 / 专辑
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Row(
+              children: [
+                _SearchTypeChip(
+                  label: '默认',
+                  selected: !_albumSearch,
+                  onTap: () {
+                    if (_albumSearch) {
+                      setState(() => _albumSearch = false);
+                      if (_controller.text.isNotEmpty) _doSearch(_controller.text);
+                    }
+                  },
+                ),
+                const SizedBox(width: 8),
+                _SearchTypeChip(
+                  label: '专辑',
+                  selected: _albumSearch,
+                  onTap: () {
+                    if (!_albumSearch) {
+                      setState(() => _albumSearch = true);
+                      if (_controller.text.isNotEmpty) _doSearch(_controller.text);
+                    }
+                  },
+                ),
+              ],
             ),
           ),
 
@@ -250,9 +361,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     itemBuilder: (_, i) {
                       // 加载指示器
                       if (i == searchState.songs.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        // joox 已翻完且正在加载其他音源时显示提示文字
+                        final isJooxDone = searchState.jooxComplete && !searchState.otherSourcesLoaded;
+                        return Column(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            ),
+                            if (isJooxDone)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Text(
+                                  '正在加载其他音源...',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                          ],
                         );
                       }
                       return SongTile(
@@ -312,6 +437,46 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             }).toList(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 搜索类型切换标签
+class _SearchTypeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SearchTypeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            color: selected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }

@@ -42,22 +42,25 @@ class GdMusicClient {
   ];
 
   /// 搜索歌曲
+  /// [albumSearch] 为 true 时 source 加 _album 后缀，用于专辑搜索
   Future<List<Song>> search({
     required String keyword,
     String source = 'netease',
     int count = 20,
     int page = 1,
+    bool albumSearch = false,
   }) async {
+    final searchSource = albumSearch ? '${source}_album' : source;
     final response = await _dio.get('', queryParameters: {
       'types': 'search',
-      'source': source,
+      'source': searchSource,
       'name': keyword,
       'count': count,
       'pages': page,
     });
 
     final list = response.data as List<dynamic>;
-    print('[GdMusicClient] search: keyword=$keyword, source=$source, count=$count, resultCount=${list.length}');
+    print('[GdMusicClient] search: keyword=$keyword, source=$searchSource, count=$count, resultCount=${list.length}');
     return list.map((e) => Song.fromJson(e as Map<String, dynamic>, source: source)).toList();
   }
 
