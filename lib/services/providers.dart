@@ -73,8 +73,7 @@ final recommendPlaylistsProvider = FutureProvider<List<RecommendPlaylist>>((ref)
 
 /// 从后端获取推荐歌单歌曲列表
 final recommendPlaylistSongsProvider =
-    FutureProvider.family<List<Song>, int>((ref, playlistId) async {
-  final client = ref.watch(backendClientProvider);
+    FutureProvider.family<List<Song>, int>((ref, playlistId) async {  final client = ref.watch(backendClientProvider);
   final detail = await client.getRecommendPlaylistDetail(playlistId);
   if (detail == null) return [];
 
@@ -125,4 +124,19 @@ final playlistSongsProvider =
   }
   // 不会到达这里，但 Dart 静态分析需要
   throw StateError('unreachable');
+});
+
+// ── 我的歌单 Provider ──
+
+/// 我的歌单列表（登录用户从后端获取，游客为空）
+final myPlaylistsProvider = FutureProvider<List<UserPlaylist>>((ref) async {
+  final client = ref.watch(backendClientProvider);
+  return client.getUserPlaylists();
+});
+
+/// 我的歌单详情（含歌曲列表）
+final myPlaylistDetailProvider =
+    FutureProvider.family<UserPlaylistDetail?, int>((ref, playlistId) async {
+  final client = ref.watch(backendClientProvider);
+  return client.getUserPlaylistDetail(playlistId);
 });

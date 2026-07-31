@@ -176,14 +176,52 @@ class _BackendPlaylistCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text(
-                '${playlist.songCount} 首',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
-              ),
+              // 用户公开歌单：显示创建者头像 + 昵称；否则显示歌曲数
+              if (playlist.userName != null && playlist.userName!.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipOval(
+                      child: (playlist.userAvatar != null && playlist.userAvatar!.isNotEmpty)
+                          ? Image.network(
+                              playlist.userAvatar!,
+                              width: 16,
+                              height: 16,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _defaultAvatar(),
+                            )
+                          : _defaultAvatar(),
+                    ),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        playlist.userName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Text(
+                  '${playlist.songCount} 首',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 创建者默认头像占位
+  Widget _defaultAvatar() {
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+      child: const Icon(Icons.person_rounded, size: 10, color: Colors.white70),
     );
   }
 }

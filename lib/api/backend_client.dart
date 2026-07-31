@@ -240,6 +240,29 @@ class BackendClient {
     }
   }
 
+  /// 更新歌单信息（编辑名称/描述/封面/公开状态）
+  /// 仅传入需要修改的字段，未传字段保持原值
+  Future<UserPlaylist?> updatePlaylist(int id, {
+    String? name,
+    String? description,
+    String? coverUrl,
+    bool? isPublic,
+  }) async {
+    try {
+      final dio = await _authedDio;
+      final response = await dio.put('/playlists/$id', data: {
+        if (name != null) 'name': name,
+        if (description != null) 'description': description,
+        if (coverUrl != null) 'cover_url': coverUrl,
+        if (isPublic != null) 'is_public': isPublic,
+      });
+      return UserPlaylist.fromJson(response.data['playlist'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      debugPrint('>>> [PLAYLIST] 更新歌单失败: ${e.message}');
+      return null;
+    }
+  }
+
   /// 安全解析 proto uint64 字段（JSON 中可能为数字或字符串）
   static int _parseUint64(dynamic value) {
     if (value is int) return value;
@@ -586,6 +609,7 @@ class UserPlaylist {
   final bool isPublic;
   final int songCount;
   final int playCount;
+  final DateTime? createdAt;
 
   const UserPlaylist({
     required this.id,
@@ -596,6 +620,7 @@ class UserPlaylist {
     this.isPublic = false,
     this.songCount = 0,
     this.playCount = 0,
+    this.createdAt,
   });
 
   factory UserPlaylist.fromJson(Map<String, dynamic> json) {
@@ -608,6 +633,7 @@ class UserPlaylist {
       isPublic: json['is_public'] as bool? ?? false,
       songCount: json['song_count'] as int? ?? 0,
       playCount: json['play_count'] as int? ?? 0,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
     );
   }
 }

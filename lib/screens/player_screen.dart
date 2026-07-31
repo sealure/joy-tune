@@ -15,6 +15,7 @@ import '../theme/player_colors.dart';
 import '../utils/lyric_utils.dart';
 import '../widgets/player_seek_bar.dart';
 import '../widgets/favorite_button.dart';
+import '../widgets/playlist_picker_sheet.dart';
 import 'playlist_queue_sheet.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
@@ -514,9 +515,84 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          _topBarBtn(Icons.more_horiz_rounded, () {}),
+          _topBarBtn(Icons.more_horiz_rounded, () => _showMoreMenu(song)),
         ],
       ),
+    );
+  }
+
+  /// ⋮ 更多菜单：加入歌单 / 定时关闭 / 歌曲信息
+  void _showMoreMenu(Song song) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // drag handle
+            Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(top: 10, bottom: 12),
+              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+            ),
+            const Text('更多', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: _moreMenuIcon(Icons.queue_music_rounded),
+              title: const Text('加入歌单'),
+              trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+              onTap: () {
+                Navigator.pop(context);
+                showPlaylistPickerSheet(context, ref, song: song);
+              },
+            ),
+            ListTile(
+              leading: _moreMenuIcon(Icons.bedtime_outlined),
+              title: const Text('定时关闭'),
+              trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('定时关闭功能暂未支持'), duration: Duration(seconds: 2)),
+                );
+              },
+            ),
+            ListTile(
+              leading: _moreMenuIcon(Icons.info_outline_rounded),
+              title: const Text('歌曲信息'),
+              trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${song.name} · ${song.artist}'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 更多菜单项图标（浅靛蓝圆角底）
+  Widget _moreMenuIcon(IconData icon) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
     );
   }
 

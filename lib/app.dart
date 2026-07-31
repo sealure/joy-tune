@@ -9,6 +9,8 @@ import 'screens/settings_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/playlist_detail_screen.dart';
+import 'screens/my_playlists_screen.dart';
+import 'screens/my_playlist_detail_screen.dart';
 import 'screens/comments_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/profile_edit_screen.dart';
@@ -36,6 +38,15 @@ class ViaMusicApp extends StatelessWidget {
           GoRoute(
             path: '/playlist/:id',
             builder: (_, state) => PlaylistDetailScreen(playlistId: state.pathParameters['id']!),
+          ),
+          // 我的歌单列表页（个人中心入口）
+          GoRoute(path: '/my-playlists', builder: (_, __) => const MyPlaylistsScreen()),
+          // 我的歌单详情页（管理能力）
+          GoRoute(
+            path: '/my-playlist/:id',
+            builder: (_, state) => MyPlaylistDetailScreen(
+              playlistId: int.parse(state.pathParameters['id']!),
+            ),
           ),
         ],
       ),

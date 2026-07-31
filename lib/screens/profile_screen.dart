@@ -201,6 +201,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: () => context.push('/favorites'),
                   ),
                   _MenuTile(
+                    icon: Icons.queue_music_rounded,
+                    label: '我的歌单',
+                    iconBg: const Color(0xFFECFDF5),
+                    iconColor: const Color(0xFF10B981),
+                    enabled: _isLoggedIn,
+                    onTap: () => context.push('/my-playlists'),
+                  ),
+                  _MenuTile(
                     icon: Icons.history_rounded,
                     label: '播放历史',
                     iconBg: const Color(0xFFEEF2FF),
