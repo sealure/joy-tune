@@ -153,6 +153,10 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
     );
     if (result != null) {
       ref.invalidate(myPlaylistsProvider);
+      // 编辑时同步刷新详情页（封面/名称/公开状态即时生效）
+      if (widget.existing != null) {
+        ref.invalidate(myPlaylistDetailProvider(widget.existing!.id));
+      }
     }
   }
 

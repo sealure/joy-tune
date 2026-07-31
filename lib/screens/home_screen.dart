@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../models/mock_data.dart';
 import '../api/backend_client.dart';
 import '../services/providers.dart';
+import '../widgets/playlist_cover.dart';
 
 /// 渐变色列表
 const _gradients = [
@@ -182,7 +183,12 @@ class _BackendPlaylistCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Center(
-                  child: Icon(Icons.album_rounded, size: 48, color: Colors.white.withValues(alpha: 0.9)),
+                  // 有封面显示封面，否则渐变占位（PlaylistCover 内部处理）
+                  child: PlaylistCover(
+                    coverUrl: playlist.coverUrl,
+                    size: 90,
+                    borderRadius: 12,
+                  ),
                 ),
               ),
               Text(

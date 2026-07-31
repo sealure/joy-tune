@@ -77,6 +77,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 统计行真实数据：收藏数 / 创建歌单数
+    final favCount = ref.watch(favoritesProvider).maybeWhen(
+      data: (songs) => '${songs.length}',
+      orElse: () => '---',
+    );
+    final playlistCount = ref.watch(myPlaylistsProvider).maybeWhen(
+      data: (playlists) => '${playlists.length}',
+      orElse: () => '---',
+    );
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -179,9 +188,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
                 children: [
-                  _StatItem(label: '收藏歌曲', value: _isLoggedIn ? '28' : '---'),
-                  _StatItem(label: '创建歌单', value: _isLoggedIn ? '3' : '---'),
-                  _StatItem(label: '听歌总数', value: _isLoggedIn ? '156' : '---'),
+                  _StatItem(label: '收藏歌曲', value: _isLoggedIn ? favCount : '---'),
+                  _StatItem(label: '创建歌单', value: _isLoggedIn ? playlistCount : '---'),
+                  _StatItem(label: '听歌总数', value: _isLoggedIn ? '---' : '---'),
                 ],
               ),
             ),
