@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../api/gdmusic_client.dart';
 import '../db/app_database.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../widgets/song_tile.dart';
+import '../widgets/playlist_picker_sheet.dart';
 import '../utils/player_utils.dart';
 
 /// 搜索结果分页状态
@@ -278,6 +280,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(_searchProvider);
+    // 从我的歌单详情"添加歌曲"进入时，extra 携带目标歌单 id
+    final addToPlaylistId =
+        (GoRouterState.of(context).extra as Map?)?['playlistId'] as int?;
     // 是否显示搜索历史：搜索框为空且无搜索结果时显示
     final showHistory = _controller.text.isEmpty && searchState.songs.isEmpty;
     // 每次 build 时直接读取最新历史记录
@@ -340,6 +345,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ],
             ),
           ),
+          // 从详情页"添加歌曲"进入时提示选择歌曲
+          if (addToPlaylistId != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                '点击右侧 ＋ 将歌曲加入该歌单',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Color(0xFF6366F1)),
+              ),
+            ),
 
           // 搜索历史（固定，搜索框为空且无搜索结果时显示）
           if (showHistory && history.isNotEmpty)
@@ -383,12 +404,48 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       return SongTile(
                         song: searchState.songs[i],
                         onTap: () => playSong(context, ref, searchState.songs[i]),
+                        trailing: _addToPlaylistButton(searchState.songs[i]),
                       );
                     },
                   ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 搜索结果行"加入歌单"按钮
+  /// 从详情页"添加歌曲"进入时（路由 extra 带 playlistId），直接加入该歌单；
+  /// 否则弹出选择歌单弹层（可复用组件）
+  Widget _addToPlaylistButton(Song song) {
+    final extra = GoRouterState.of(context).extra as Map?;
+    final playlistId = extra?['playlistId'] as int?;
+    return IconButton(
+      tooltip: playlistId == null ? '加入歌单' : '添加到当前歌单',
+      icon: Icon(Icons.playlist_add_rounded, color: Theme.of(context).colorScheme.primary),
+      onPressed: () async {
+        if (playlistId != null) {
+          final ok = await ref.read(backendClientProvider).addSongToPlaylist(
+                playlistId,
+                songId: song.id,
+                songName: song.name,
+                artist: song.artist,
+                album: song.album.isNotEmpty ? song.album : null,
+                coverUrl: song.coverUrl,
+                source: song.source,
+              );
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(SnackBar(content: Text(ok ? '已加入歌单' : '加入失败，请重试')));
+          if (ok) {
+            ref.invalidate(myPlaylistDetailProvider(playlistId));
+            ref.invalidate(myPlaylistsProvider);
+          }
+        } else {
+          await showPlaylistPickerSheet(context, ref, song: song);
+        }
+      },
     );
   }
 

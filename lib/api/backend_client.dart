@@ -104,7 +104,7 @@ class BackendClient {
 
       return RecommendPlaylistsResult(
         playlists: playlists,
-        total: data['total'] as int? ?? 0,
+        total: BackendClient._parseUint64(data['total']),
       );
     } on DioException catch (e) {
       debugPrint('>>> [RECOMMEND] 获取推荐歌单失败: ${e.message}');
@@ -236,6 +236,20 @@ class BackendClient {
       return true;
     } on DioException catch (e) {
       debugPrint('>>> [PLAYLIST] 删除歌单失败: ${e.message}');
+      return false;
+    }
+  }
+
+  /// 调整歌单内歌曲顺序（songIds 为 playlist_songs 记录 ID 的新顺序）
+  Future<bool> reorderPlaylistSongs(int playlistId, List<int> songIds) async {
+    try {
+      final dio = await _authedDio;
+      await dio.post('/playlists/$playlistId/reorder', data: {
+        'song_ids': songIds,
+      });
+      return true;
+    } on DioException catch (e) {
+      debugPrint('>>> [PLAYLIST] 调整排序失败: ${e.message}');
       return false;
     }
   }
@@ -420,7 +434,7 @@ class BackendClient {
 
       return CommentsResult(
         comments: comments,
-        total: data['total'] as int? ?? 0,
+        total: BackendClient._parseUint64(data['total']),
       );
     } on DioException catch (e) {
       debugPrint('>>> [COMMENT] 获取评论失败: ${e.message}');
@@ -539,13 +553,13 @@ class RecommendPlaylist {
   factory RecommendPlaylist.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
     return RecommendPlaylist(
-      id: json['id'] as int? ?? 0,
+      id: BackendClient._parseUint64(json['id']),
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       coverUrl: json['cover_url'] as String? ?? '',
       type: json['type'] as String? ?? 'system',
-      songCount: json['song_count'] as int? ?? 0,
-      playCount: json['play_count'] as int? ?? 0,
+      songCount: BackendClient._parseUint64(json['song_count']),
+      playCount: BackendClient._parseUint64(json['play_count']),
       userName: user?['nickname'] as String?,
       userAvatar: user?['avatar_url'] as String?,
     );
@@ -581,7 +595,7 @@ class PlaylistSongInfo {
 
   factory PlaylistSongInfo.fromJson(Map<String, dynamic> json) {
     return PlaylistSongInfo(
-      id: json['id'] as int? ?? 0,
+      id: BackendClient._parseUint64(json['id']),
       songId: json['song_id'] as String? ?? '',
       songName: json['song_name'] as String? ?? '',
       artist: json['artist'] as String? ?? '',
@@ -625,14 +639,14 @@ class UserPlaylist {
 
   factory UserPlaylist.fromJson(Map<String, dynamic> json) {
     return UserPlaylist(
-      id: json['id'] as int? ?? 0,
+      id: BackendClient._parseUint64(json['id']),
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       coverUrl: json['cover_url'] as String? ?? '',
       type: json['type'] as String? ?? 'user',
       isPublic: json['is_public'] as bool? ?? false,
-      songCount: json['song_count'] as int? ?? 0,
-      playCount: json['play_count'] as int? ?? 0,
+      songCount: BackendClient._parseUint64(json['song_count']),
+      playCount: BackendClient._parseUint64(json['play_count']),
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
     );
   }
@@ -690,12 +704,12 @@ class CommentInfo {
         .toList();
 
     return CommentInfo(
-      id: json['id'] as int? ?? 0,
-      userId: json['user_id'] as int? ?? 0,
+      id: BackendClient._parseUint64(json['id']),
+      userId: BackendClient._parseUint64(json['user_id']),
       content: json['content'] as String? ?? '',
-      likeCount: json['like_count'] as int? ?? 0,
+      likeCount: BackendClient._parseUint64(json['like_count']),
       isLiked: json['is_liked'] as bool? ?? false,
-      parentId: json['parent_id'] as int?,
+      parentId: json['parent_id'] == null ? null : BackendClient._parseUint64(json['parent_id']),
       userName: user?['nickname'] as String?,
       userAvatar: user?['avatar_url'] as String?,
       replies: repliesList,
