@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
+import 'song_cover.dart';
 
 /// 底部迷你播放栏（当无播放内容时隐藏）
 class MiniPlayerBar extends ConsumerStatefulWidget {
@@ -69,16 +70,19 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                // 封面占位
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                // 封面：显示当前歌曲封面，无歌曲时用占位图
+                if (song != null)
+                  SongCover(song: song, size: 40, borderRadius: 8)
+                else
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.music_note_rounded, size: 20, color: theme.colorScheme.primary),
                   ),
-                  child: Icon(Icons.music_note_rounded, size: 20, color: theme.colorScheme.primary),
-                ),
                 const SizedBox(width: 12),
 
                 // 歌名

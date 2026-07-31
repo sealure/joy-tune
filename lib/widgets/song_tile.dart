@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/song.dart';
-import 'cover_image.dart';
+import 'song_cover.dart';
 
 /// 歌曲列表项
 class SongTile extends StatelessWidget {
@@ -25,8 +25,8 @@ class SongTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              // 封面
-              CoverImage(url: coverUrl, size: 44, borderRadius: 8),
+              // 封面：优先外部传入 URL，否则按歌曲 picId 自动解析
+              SongCover(song: song, coverUrl: coverUrl, size: 44, borderRadius: 8),
               const SizedBox(width: 12),
 
               // 歌名 & 歌手
