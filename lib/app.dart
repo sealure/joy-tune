@@ -13,6 +13,7 @@ import 'screens/comments_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/mini_player_bar.dart';
 
 class ViaMusicApp extends StatelessWidget {
   ViaMusicApp({super.key});
@@ -84,8 +85,14 @@ class _MainShell extends StatelessWidget {
       currentIndex = 0;
     }
 
+    // 底部 Tab 壳：统一承载迷你播放栏，首页/搜索/收藏/我的/歌单详情自动生效
     return Scaffold(
-      body: child,
+      body: Column(
+        children: [
+          Expanded(child: child),
+          const MiniPlayerBar(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: (i) {

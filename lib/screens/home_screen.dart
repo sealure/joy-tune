@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../models/mock_data.dart';
 import '../api/backend_client.dart';
 import '../services/providers.dart';
-import '../widgets/mini_player_bar.dart';
 
 /// 渐变色列表
 const _gradients = [
@@ -31,26 +30,20 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: playlistsAsync.when(
-                // 后端推荐歌单加载成功
-                data: (playlists) {
-                  if (playlists.isEmpty) {
-                    // 后端无数据时 fallback 到 mock 数据
-                    return _buildWithMockData(context, ref);
-                  }
-                  return _buildWithBackendData(context, ref, playlists);
-                },
-                // 加载中
-                loading: () => const Center(child: CircularProgressIndicator()),
-                // 加载失败，fallback 到 mock 数据
-                error: (_, __) => _buildWithMockData(context, ref),
-              ),
-            ),
-            const MiniPlayerBar(),
-          ],
+        // 迷你播放栏由 _MainShell 统一提供
+        child: playlistsAsync.when(
+          // 后端推荐歌单加载成功
+          data: (playlists) {
+            if (playlists.isEmpty) {
+              // 后端无数据时 fallback 到 mock 数据
+              return _buildWithMockData(context, ref);
+            }
+            return _buildWithBackendData(context, ref, playlists);
+          },
+          // 加载中
+          loading: () => const Center(child: CircularProgressIndicator()),
+          // 加载失败，fallback 到 mock 数据
+          error: (_, __) => _buildWithMockData(context, ref),
         ),
       ),
     );

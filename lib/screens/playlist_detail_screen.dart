@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
-import '../widgets/mini_player_bar.dart';
 import '../utils/player_utils.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
@@ -95,9 +94,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
-            // 迷你播放栏
-            const MiniPlayerBar(),
+            // 迷你播放栏由 _MainShell 统一提供
           ],
         ),
       ),

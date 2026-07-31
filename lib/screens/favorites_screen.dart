@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../widgets/song_tile.dart';
-import '../widgets/mini_player_bar.dart';
 import '../utils/player_utils.dart';
 
 class FavoritesScreen extends ConsumerWidget {
@@ -38,7 +37,7 @@ class FavoritesScreen extends ConsumerWidget {
             children: [
               // 头部区域：播放全部
               _buildHeader(context, ref, songs),
-              // 歌曲列表
+              // 歌曲列表（迷你播放栏由 _MainShell 统一提供）
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -57,8 +56,6 @@ class FavoritesScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              // 迷你播放栏
-              const MiniPlayerBar(),
             ],
           );
         },
