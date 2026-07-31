@@ -139,7 +139,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Via Music · 共 $songCountText',
+              '悦听 · 共 $songCountText',
               style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
             ),
             // 仅在加载完成后显示"播放全部"按钮

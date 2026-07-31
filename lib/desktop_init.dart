@@ -21,7 +21,7 @@ Future<void> initDesktop() async {
     size: Size(400, 700),
     minimumSize: Size(400, 500),
     center: true,
-    title: 'Via Music',
+    title: '悦听',
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -41,12 +41,12 @@ Future<void> initDesktop() async {
   await systemTray.initSystemTray(
     title: '',
     iconPath: 'assets/tray_icon.png',
-    toolTip: 'Via Music',
+    toolTip: '悦听',
   );
 
   await systemTray.setContextMenu([
     MenuItem(
-      label: '显示 Via Music',
+      label: '显示 悦听',
       onClicked: () async {
         await windowManager.show();
         await windowManager.focus();

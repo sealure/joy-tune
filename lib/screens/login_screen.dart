@@ -66,7 +66,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // 4. 登录成功，跳转首页
       if (result.isNewUser) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('欢迎注册 Via Music！')),
+          const SnackBar(content: Text('欢迎注册 悦听！')),
         );
       }
       debugPrint('>>> [STEP 4] 跳转到首页');
@@ -148,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'Via Music',
+                    '悦听',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w600,

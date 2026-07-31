@@ -125,7 +125,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'Via Music',
+                    '悦听',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w600,

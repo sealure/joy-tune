@@ -88,7 +88,7 @@ class FavoritesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Via Music · 共 ${songs.length} 首',
+              '悦听 · 共 ${songs.length} 首',
               style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 16),
