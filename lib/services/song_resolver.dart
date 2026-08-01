@@ -100,9 +100,9 @@ class SongResolver {
         songId: song.id,
         source: song.source,
       );
-      // 并发加载封面 + 歌词
+      // 并发加载封面 + 歌词（封面用 searchCoverUrl：优先已带 URL，无则搜索兜底）
       final results = await Future.wait([
-        fetchCoverUrl(song),
+        searchCoverUrl(song),
         fetchLyricsText(song),
       ]);
       return SongResolveResult(

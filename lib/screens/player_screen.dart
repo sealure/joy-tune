@@ -309,17 +309,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _showLyrics = false;
     });
     await Future.wait([
-      _loadCover(client, song),
+      _loadCover(song),
       _loadLyrics(client, song),
     ]);
   }
 
-  Future<void> _loadCover(GdMusicClient client, Song song) async {
-    if (song.picId == null || song.picId!.isEmpty) return;
-    try {
-      final url = await client.getCoverUrl(picId: song.picId!, source: song.source);
-      if (mounted) setState(() => _coverUrl = url);
-    } catch (_) {}
+  Future<void> _loadCover(Song song) async {
+    // 统一封面解析：优先已带 coverUrl，否则按 picId，最后按歌名搜索兜底
+    final resolver = ref.read(songResolverProvider);
+    final url = await resolver.searchCoverUrl(song);
+    if (mounted && url != null && url.isNotEmpty) {
+      setState(() => _coverUrl = url);
+    }
   }
 
   Future<void> _loadLyrics(GdMusicClient client, Song song) async {

@@ -6,6 +6,7 @@ import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../utils/player_utils.dart';
+import '../widgets/song_cover.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -237,16 +238,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
       itemBuilder: (_, i) {
         final song = songs[i];
         return ListTile(
-          leading: Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text('${i + 1}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary)),
-            ),
-          ),
+          leading: SongCover(song: song, size: 44, borderRadius: 8),
           title: Text(song.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(song.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: IconButton(
