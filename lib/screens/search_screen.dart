@@ -7,9 +7,10 @@ import '../api/gdmusic_client.dart';
 import '../db/app_database.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
+import '../utils/cover_resolver.dart';
+import '../utils/player_utils.dart';
 import '../widgets/song_tile.dart';
 import '../widgets/playlist_picker_sheet.dart';
-import '../utils/player_utils.dart';
 
 /// 搜索结果分页状态
 class _SearchState {
@@ -426,18 +427,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       icon: Icon(Icons.playlist_add_rounded, color: Theme.of(context).colorScheme.primary),
       onPressed: () async {
         if (playlistId != null) {
-          // 解析封面 URL：搜索结果通常只有 pic_id，解析后才能展示封面
-          var coverUrl = song.coverUrl;
-          if ((coverUrl == null || coverUrl.isEmpty) && song.picId != null && song.picId!.isNotEmpty) {
-            try {
-              coverUrl = await ref
-                  .read(gdMusicClientProvider)
-                  .getCoverUrl(picId: song.picId!, source: song.source);
-              debugPrint('[Search] 封面解析成功: $coverUrl');
-            } catch (e) {
-              debugPrint('[Search] 封面解析失败: $e');
-            }
-          }
+          // 解析封面 URL：优先已带 coverUrl，否则按 picId 解析（统一入口）
+          final coverUrl = await resolveCoverUrl(ref.read(gdMusicClientProvider), song);
+          debugPrint('[Search] 加入歌单封面: $coverUrl');
           final ok = await ref.read(backendClientProvider).addSongToPlaylist(
                 playlistId,
                 songId: song.id,

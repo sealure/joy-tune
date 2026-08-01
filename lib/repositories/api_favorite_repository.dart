@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../api/backend_client.dart';
 import '../api/gdmusic_client.dart';
 import '../models/song.dart';
+import '../utils/cover_resolver.dart';
 import 'favorite_repository.dart';
 
 /// 后端 API 收藏仓库
@@ -77,17 +78,8 @@ class ApiFavoriteRepository implements FavoriteRepository {
   }
 
   /// 解析封面 URL（优先使用已带 URL，如歌单加入的歌；否则按 picId 懒加载）
-  Future<String?> _resolveCoverUrl(Song song) async {
-    if (song.coverUrl != null && song.coverUrl!.isNotEmpty) {
-      return song.coverUrl;
-    }
-    if (song.picId == null || song.picId!.isEmpty) return null;
-    try {
-      return await _gdMusic.getCoverUrl(picId: song.picId!, source: song.source);
-    } catch (e) {
-      debugPrint('[ApiFavoriteRepo] 解析封面失败: $e');
-      return null;
-    }
+  Future<String?> _resolveCoverUrl(Song song) {
+    return resolveCoverUrl(_gdMusic, song);
   }
 
   /// 解析音频 URL（优先使用已带 URL，否则按 songId 获取播放地址）

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/backend_client.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
+import '../utils/cover_resolver.dart';
 import 'playlist_cover.dart';
 import 'playlist_form_sheet.dart';
 
@@ -49,18 +50,9 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
     if (_added.contains(p.id)) return;
     final song = widget.song;
     debugPrint('[PlaylistPicker] 加入歌单: playlist=${p.id}, song=${song.id}');
-    // 解析封面 URL：搜索/播放歌曲通常只有 pic_id，解析后才能展示封面
-    var coverUrl = song.coverUrl;
-    if ((coverUrl == null || coverUrl.isEmpty) && song.picId != null && song.picId!.isNotEmpty) {
-      try {
-        coverUrl = await ref
-            .read(gdMusicClientProvider)
-            .getCoverUrl(picId: song.picId!, source: song.source);
-        debugPrint('[PlaylistPicker] 封面解析成功: $coverUrl');
-      } catch (e) {
-        debugPrint('[PlaylistPicker] 封面解析失败: $e');
-      }
-    }
+    // 解析封面 URL：优先已带 coverUrl，否则按 picId 解析（统一入口）
+    final coverUrl = await resolveCoverUrl(ref.read(gdMusicClientProvider), song);
+    debugPrint('[PlaylistPicker] 加入歌单封面: $coverUrl');
     final ok = await ref.read(backendClientProvider).addSongToPlaylist(
           p.id,
           songId: song.id,

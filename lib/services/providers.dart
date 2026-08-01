@@ -77,13 +77,14 @@ final recommendPlaylistSongsProvider =
   final detail = await client.getRecommendPlaylistDetail(playlistId);
   if (detail == null) return [];
 
-  // 将后端歌曲信息转换为前端 Song 模型
+  // 将后端歌曲信息转换为前端 Song 模型（保留封面，供列表/播放使用）
   return detail.songs.map((s) => Song(
     id: s.songId,
     name: s.songName,
     artist: s.artist,
     album: s.album,
     source: s.source,
+    coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
     picId: null,
     lyricId: null,
   )).toList();

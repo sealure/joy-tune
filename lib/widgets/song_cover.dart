@@ -41,8 +41,13 @@ class SongCover extends ConsumerStatefulWidget {
 class _SongCoverState extends ConsumerState<SongCover> {
   String? _coverUrl;
 
-  /// 内存缓存键：音源 + 图片 ID
-  String get _cacheKey => '${widget.song.source}_${widget.song.picId}';
+  /// 内存缓存键：有 picId 用 `${source}_${picId}`，否则用 `${source}_${songId}`
+  String get _cacheKey {
+    final picId = widget.song.picId;
+    return (picId != null && picId.isNotEmpty)
+        ? '${widget.song.source}_$picId'
+        : '${widget.song.source}_${widget.song.id}';
+  }
 
   @override
   void initState() {
@@ -68,7 +73,11 @@ class _SongCoverState extends ConsumerState<SongCover> {
     if (_coverUrl != null && _coverUrl!.isNotEmpty) return;
 
     final picId = widget.song.picId;
-    if (picId == null || picId.isEmpty) return;
+    // 无 picId：历史 songs 数据可能缺封面信息，按歌名+歌手搜索补封面
+    if (picId == null || picId.isEmpty) {
+      await _resolveCoverBySearch();
+      return;
+    }
 
     // 命中内存缓存直接使用
     if (_coverUrlCache.containsKey(_cacheKey)) {
@@ -88,6 +97,32 @@ class _SongCoverState extends ConsumerState<SongCover> {
       final url = await client.getCoverUrl(picId: picId, source: widget.song.source);
       _coverUrlCache[_cacheKey] = url;
       if (mounted && url.isNotEmpty) {
+        setState(() => _coverUrl = url);
+      }
+    } catch (_) {
+      // 解析失败：保持占位图，不写入缓存以便下次重试
+    } finally {
+      _coverUrlInFlight.remove(_cacheKey);
+    }
+  }
+
+  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带缓存与去重）
+  Future<void> _resolveCoverBySearch() async {
+    if (_coverUrlCache.containsKey(_cacheKey)) {
+      final url = _coverUrlCache[_cacheKey];
+      if (mounted && url != null && url.isNotEmpty) {
+        setState(() => _coverUrl = url);
+      }
+      return;
+    }
+    if (_coverUrlInFlight.contains(_cacheKey)) return;
+    _coverUrlInFlight.add(_cacheKey);
+
+    try {
+      final resolver = ref.read(songResolverProvider);
+      final url = await resolver.searchCoverUrl(widget.song);
+      _coverUrlCache[_cacheKey] = url;
+      if (mounted && url != null && url.isNotEmpty) {
         setState(() => _coverUrl = url);
       }
     } catch (_) {

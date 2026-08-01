@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/song.dart';
 import '../api/gdmusic_client.dart';
+import '../utils/cover_resolver.dart';
 import 'providers.dart';
 
 /// 歌曲解析结果
@@ -115,15 +116,28 @@ class SongResolver {
     }
   }
 
-  /// 获取封面 URL
+  /// 获取封面 URL（优先使用已带 URL，否则按 picId 解析）
   Future<String?> fetchCoverUrl(Song song) async {
-    if (song.picId == null || song.picId!.isEmpty) return null;
+    return resolveCoverUrl(_ref.read(gdMusicClientProvider), song);
+  }
+
+  /// 兜底获取封面 URL：无 coverUrl 且无 picId 时（历史 songs 数据不全），
+  /// 按歌名+歌手搜索精确匹配后解析封面，用于封面回填
+  Future<String?> searchCoverUrl(Song song) async {
+    // 已有封面信息则直接返回
+    final direct = await fetchCoverUrl(song);
+    if (direct != null && direct.isNotEmpty) return direct;
+
     try {
-      final client = _ref.read(gdMusicClientProvider);
-      return await client.getCoverUrl(picId: song.picId!, source: song.source);
+      final all = await _searchAllSources(song);
+      final matched = _findBestMatch(song, all);
+      if (matched != null) {
+        return fetchCoverUrl(matched);
+      }
     } catch (_) {
-      return null;
+      // 搜索失败降级为无封面（占位图）
     }
+    return null;
   }
 
   /// 获取歌词文本
