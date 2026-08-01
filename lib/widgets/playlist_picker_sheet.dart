@@ -47,15 +47,28 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
   /// 加入歌单（幂等：已加入的跳过）
   Future<void> _addToPlaylist(UserPlaylist p) async {
     if (_added.contains(p.id)) return;
-    debugPrint('[PlaylistPicker] 加入歌单: playlist=${p.id}, song=${widget.song.id}');
+    final song = widget.song;
+    debugPrint('[PlaylistPicker] 加入歌单: playlist=${p.id}, song=${song.id}');
+    // 解析封面 URL：搜索/播放歌曲通常只有 pic_id，解析后才能展示封面
+    var coverUrl = song.coverUrl;
+    if ((coverUrl == null || coverUrl.isEmpty) && song.picId != null && song.picId!.isNotEmpty) {
+      try {
+        coverUrl = await ref
+            .read(gdMusicClientProvider)
+            .getCoverUrl(picId: song.picId!, source: song.source);
+        debugPrint('[PlaylistPicker] 封面解析成功: $coverUrl');
+      } catch (e) {
+        debugPrint('[PlaylistPicker] 封面解析失败: $e');
+      }
+    }
     final ok = await ref.read(backendClientProvider).addSongToPlaylist(
           p.id,
-          songId: widget.song.id,
-          songName: widget.song.name,
-          artist: widget.song.artist,
-          album: widget.song.album.isNotEmpty ? widget.song.album : null,
-          coverUrl: widget.song.coverUrl,
-          source: widget.song.source,
+          songId: song.id,
+          songName: song.name,
+          artist: song.artist,
+          album: song.album.isNotEmpty ? song.album : null,
+          coverUrl: coverUrl,
+          source: song.source,
         );
     if (!mounted) return;
     if (ok) {

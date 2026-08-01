@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -425,13 +426,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       icon: Icon(Icons.playlist_add_rounded, color: Theme.of(context).colorScheme.primary),
       onPressed: () async {
         if (playlistId != null) {
+          // 解析封面 URL：搜索结果通常只有 pic_id，解析后才能展示封面
+          var coverUrl = song.coverUrl;
+          if ((coverUrl == null || coverUrl.isEmpty) && song.picId != null && song.picId!.isNotEmpty) {
+            try {
+              coverUrl = await ref
+                  .read(gdMusicClientProvider)
+                  .getCoverUrl(picId: song.picId!, source: song.source);
+              debugPrint('[Search] 封面解析成功: $coverUrl');
+            } catch (e) {
+              debugPrint('[Search] 封面解析失败: $e');
+            }
+          }
           final ok = await ref.read(backendClientProvider).addSongToPlaylist(
                 playlistId,
                 songId: song.id,
                 songName: song.name,
                 artist: song.artist,
                 album: song.album.isNotEmpty ? song.album : null,
-                coverUrl: song.coverUrl,
+                coverUrl: coverUrl,
                 source: song.source,
               );
           if (!context.mounted) return;

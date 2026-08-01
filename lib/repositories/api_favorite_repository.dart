@@ -76,8 +76,11 @@ class ApiFavoriteRepository implements FavoriteRepository {
     }
   }
 
-  /// 解析封面 URL
+  /// 解析封面 URL（优先使用已带 URL，如歌单加入的歌；否则按 picId 懒加载）
   Future<String?> _resolveCoverUrl(Song song) async {
+    if (song.coverUrl != null && song.coverUrl!.isNotEmpty) {
+      return song.coverUrl;
+    }
     if (song.picId == null || song.picId!.isEmpty) return null;
     try {
       return await _gdMusic.getCoverUrl(picId: song.picId!, source: song.source);
@@ -87,8 +90,11 @@ class ApiFavoriteRepository implements FavoriteRepository {
     }
   }
 
-  /// 解析音频 URL
+  /// 解析音频 URL（优先使用已带 URL，否则按 songId 获取播放地址）
   Future<String?> _resolveAudioUrl(Song song) async {
+    if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
+      return song.audioUrl;
+    }
     try {
       final playUrl = await _gdMusic.getPlayUrl(songId: song.id, source: song.source);
       return playUrl.url;
@@ -98,8 +104,11 @@ class ApiFavoriteRepository implements FavoriteRepository {
     }
   }
 
-  /// 解析歌词 API URL
+  /// 解析歌词 API URL（优先使用已带 URL，否则按 lyricId 拼接）
   Future<String?> _resolveLyrics(Song song) async {
+    if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
+      return song.lyricsUrl;
+    }
     if (song.lyricId == null || song.lyricId!.isEmpty) return null;
     try {
       // 构造歌词 API URL（不调 API，纯拼接，后续播放时按需获取歌词文本）
