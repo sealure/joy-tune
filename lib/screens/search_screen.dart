@@ -438,6 +438,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 album: song.album.isNotEmpty ? song.album : null,
                 coverUrl: coverUrl,
                 source: song.source,
+                picId: song.picId,
               );
           if (!context.mounted) return;
           ScaffoldMessenger.of(context)

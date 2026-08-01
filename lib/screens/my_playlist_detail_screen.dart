@@ -40,6 +40,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
         album: s.album,
         source: s.source,
         coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
+        picId: s.picId.isNotEmpty ? s.picId : null,
       );
 
   /// 格式化创建日期

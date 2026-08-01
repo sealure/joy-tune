@@ -198,6 +198,7 @@ class BackendClient {
     String? album,
     String? coverUrl,
     String? source,
+    String? picId,
   }) async {
     try {
       final dio = await _authedDio;
@@ -208,6 +209,7 @@ class BackendClient {
         if (album != null) 'album': album,
         if (coverUrl != null) 'cover_url': coverUrl,
         if (source != null) 'source': source,
+        if (picId != null) 'pic_id': picId,
       });
       return true;
     } on DioException catch (e) {
@@ -297,6 +299,7 @@ class BackendClient {
     String? audioUrl,
     String? lyricsUrl,
     String? album,
+    String? picId,
   }) async {
     debugPrint('[BACKEND] likeSong: songId=$songId, songName=$songName');
     try {
@@ -310,6 +313,7 @@ class BackendClient {
         if (audioUrl != null) 'audio_url': audioUrl,
         if (lyricsUrl != null) 'lyrics_url': lyricsUrl,
         if (album != null) 'album': album,
+        if (picId != null) 'pic_id': picId,
       });
       debugPrint('[BACKEND] likeSong 响应: status=${response.statusCode}, data=${response.data}');
       return LikeResult(
@@ -397,6 +401,7 @@ class BackendClient {
           artist: json['artist']?.toString() ?? '',
           source: json['source']?.toString() ?? 'netease',
           album: json['album']?.toString() ?? '',
+          picId: json['pic_id']?.toString(),
           audioUrl: audioUrl,
           coverUrl: json['cover_url']?.toString(),
           lyricsUrl: json['lyrics_url']?.toString(),
@@ -582,6 +587,7 @@ class PlaylistSongInfo {
   final String album;
   final String coverUrl;
   final String source;
+  final String picId;
 
   const PlaylistSongInfo({
     required this.id,
@@ -591,6 +597,7 @@ class PlaylistSongInfo {
     this.album = '',
     this.coverUrl = '',
     this.source = '',
+    this.picId = '',
   });
 
   factory PlaylistSongInfo.fromJson(Map<String, dynamic> json) {
@@ -602,6 +609,7 @@ class PlaylistSongInfo {
       album: json['album'] as String? ?? '',
       coverUrl: json['cover_url'] as String? ?? '',
       source: json['source'] as String? ?? '',
+      picId: json['pic_id'] as String? ?? '',
     );
   }
 }

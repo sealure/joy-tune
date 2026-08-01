@@ -37,6 +37,7 @@ class ApiFavoriteRepository implements FavoriteRepository {
       songName: song.name,
       artist: song.artist,
       source: song.source,
+      picId: song.picId,
     );
 
     // 2. 再异步上传完整元信息（不阻塞 UI）
@@ -70,7 +71,8 @@ class ApiFavoriteRepository implements FavoriteRepository {
           source: song.source,
           audioUrl: audioUrl,
           lyricsUrl: lyricsText,
-          album: song.album.isNotEmpty ? song.album : null);
+          album: song.album.isNotEmpty ? song.album : null,
+          picId: song.picId);
       debugPrint('[ApiFavoriteRepo] 后台上传成功');
     } catch (e) {
       debugPrint('[ApiFavoriteRepo] 后台上传失败: $e');

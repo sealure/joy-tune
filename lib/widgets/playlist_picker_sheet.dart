@@ -61,6 +61,7 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
           album: song.album.isNotEmpty ? song.album : null,
           coverUrl: coverUrl,
           source: song.source,
+          picId: song.picId,
         );
     if (!mounted) return;
     if (ok) {
