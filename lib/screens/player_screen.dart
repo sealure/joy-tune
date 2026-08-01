@@ -189,30 +189,34 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // 无缓存 → 优先使用后端返回的 audioUrl（收藏页歌曲已被 songs 表填充此字段）
     if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
       print('[Player] 使用后端 audioUrl: ${song.audioUrl}');
+      try {
+        // 直接使用后端返回的封面 URL，无需再调外部 API 解析
+        if (mounted) {
+          if (song.coverUrl != null) {
+            setState(() => _coverUrl = song.coverUrl);
+            cache.saveMetadata(cacheKey, {'coverUrl': song.coverUrl});
+          }
+          // 歌词 URL 需异步获取后解析（非阻塞）
+          if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
+            _loadLyricsFromUrl(song.lyricsUrl!, cache, cacheKey);
+          } else {
+            _loadSongMetadata(song);
+          }
+        }
 
-      // 直接使用后端返回的封面 URL，无需再调外部 API 解析
-      if (mounted) {
-        if (song.coverUrl != null) {
-          setState(() => _coverUrl = song.coverUrl);
-          cache.saveMetadata(cacheKey, {'coverUrl': song.coverUrl});
-        }
-        // 歌词 URL 需异步获取后解析（非阻塞）
-        if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
-          _loadLyricsFromUrl(song.lyricsUrl!, cache, cacheKey);
-        } else {
-          _loadSongMetadata(song);
-        }
+        _checkFavorite(song);
+        if (!mounted) return;
+        await audio.play(song.audioUrl!, songId: song.id, song: song);
+        if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
+        _fetchPrefetchNext(audio);
+        return;
+      } catch (e) {
+        // 后端 audioUrl 已失效（播放 URL 有过期时间）：降级到下方按 song_id 重新解析
+        print('[Player] 后端 audioUrl 播放失败，降级重新解析: $e');
       }
-
-      _checkFavorite(song);
-      if (!mounted) return;
-      await audio.play(song.audioUrl!, songId: song.id, song: song);
-      if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
-      _fetchPrefetchNext(audio);
-      return;
     }
 
-    // 无 audioUrl → 用已有 ID 解析（不重新搜索，避免匹配到翻唱/Live版本）
+    // 无 audioUrl 或 audioUrl 失效 → 用已有 ID 解析（不重新搜索，避免匹配到翻唱/Live版本）
     _loadSongMetadata(song);
     _checkFavorite(song);
 

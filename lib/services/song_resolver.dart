@@ -96,10 +96,14 @@ class SongResolver {
   Future<SongResolveResult?> resolveDirectly(Song song) async {
     final client = _ref.read(gdMusicClientProvider);
     try {
-      await client.getPlayUrl(
+      final playUrl = await client.getPlayUrl(
         songId: song.id,
         source: song.source,
       );
+      // URL 为空说明后端解析失败，回退到多源搜索解析
+      if (playUrl.url.isEmpty) {
+        return resolve(song);
+      }
       // 并发加载封面 + 歌词（封面用 searchCoverUrl：优先已带 URL，无则搜索兜底）
       final results = await Future.wait([
         searchCoverUrl(song),
