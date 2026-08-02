@@ -307,7 +307,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   Future<void> _loadSongMetadata(Song song) async {
     final client = ref.read(gdMusicClientProvider);
     setState(() {
-      _coverUrl = null;
+      // 优先立即显示已带封面（如收藏/歌单的歌），缺失时 _loadCover 再异步解析
+      _coverUrl = song.coverUrl;
       _lyrics = [];
       _currentLyricIndex = -1;
       _showLyrics = false;
