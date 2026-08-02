@@ -14,6 +14,7 @@ import 'screens/my_playlist_detail_screen.dart';
 import 'screens/comments_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/profile_edit_screen.dart';
+import 'screens/play_history_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player_bar.dart';
 
@@ -41,6 +42,8 @@ class ViaMusicApp extends StatelessWidget {
           ),
           // 我的歌单列表页（个人中心入口）
           GoRoute(path: '/my-playlists', builder: (_, __) => const MyPlaylistsScreen()),
+          // 播放历史页（个人中心入口）
+          GoRoute(path: '/play-history', builder: (_, __) => const PlayHistoryScreen()),
           // 我的歌单详情页（管理能力）
           GoRoute(
             path: '/my-playlist/:id',

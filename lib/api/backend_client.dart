@@ -422,14 +422,26 @@ class BackendClient {
   // ══════════════════════════════════════════
 
   /// 上报一次播放（登录用户开始播放时调用）
-  Future<bool> reportPlay(String songId, {String? source, int? playDuration}) async {
-    debugPrint('[BACKEND] reportPlay: songId=$songId, source=$source, playDuration=$playDuration');
+  Future<bool> reportPlay(String songId, {
+    String? source,
+    int? playDuration,
+    String? songName,
+    String? artist,
+    String? coverUrl,
+    String? album,
+  }) async {
+    debugPrint('[BACKEND] reportPlay: songId=$songId, source=$source, songName=$songName');
     try {
       final dio = await _authedDio;
       await dio.post('/play-records', data: {
         'song_id': songId,
         if (source != null) 'source': source,
         if (playDuration != null) 'play_duration': playDuration,
+        // 歌曲元信息写入后端 songs 表，供播放历史展示
+        if (songName != null) 'song_name': songName,
+        if (artist != null) 'artist': artist,
+        if (coverUrl != null) 'cover_url': coverUrl,
+        if (album != null) 'album': album,
       });
       return true;
     } on DioException catch (e) {
@@ -448,6 +460,38 @@ class BackendClient {
     } on DioException catch (e) {
       debugPrint('>>> [BACKEND] getPlayCount Dio异常: ${e.message}, response=${e.response?.statusCode}');
       return 0;
+    }
+  }
+
+  /// 获取当前用户播放历史（按播放时间倒序）
+  Future<List<PlayHistoryItem>> getPlayHistory({int page = 1, int size = 100}) async {
+    debugPrint('[BACKEND] getPlayHistory: page=$page, size=$size');
+    try {
+      final dio = await _authedDio;
+      final response = await dio.get('/play-records', queryParameters: {
+        'page': page,
+        'size': size,
+      });
+      final records = response.data['records'] as List? ?? [];
+      return records
+          .map((r) => PlayHistoryItem.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      debugPrint('>>> [BACKEND] getPlayHistory Dio异常: ${e.message}, response=${e.response?.statusCode}');
+      return [];
+    }
+  }
+
+  /// 清空当前用户播放历史
+  Future<bool> clearPlayHistory() async {
+    debugPrint('[BACKEND] clearPlayHistory');
+    try {
+      final dio = await _authedDio;
+      await dio.delete('/play-records');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('>>> [BACKEND] clearPlayHistory Dio异常: ${e.message}, response=${e.response?.statusCode}');
+      return false;
     }
   }
 
@@ -767,4 +811,37 @@ class CommentsResult {
   final List<CommentInfo> comments;
   final int total;
   const CommentsResult({required this.comments, required this.total});
+}
+
+/// 播放历史项（含歌曲元信息）
+class PlayHistoryItem {
+  final String songId;
+  final String songName;
+  final String artist;
+  final String coverUrl;
+  final String source;
+  final String album;
+  final DateTime? playedAt;
+
+  const PlayHistoryItem({
+    required this.songId,
+    this.songName = '',
+    this.artist = '',
+    this.coverUrl = '',
+    this.source = '',
+    this.album = '',
+    this.playedAt,
+  });
+
+  factory PlayHistoryItem.fromJson(Map<String, dynamic> json) {
+    return PlayHistoryItem(
+      songId: json['song_id']?.toString() ?? '',
+      songName: json['song_name']?.toString() ?? '',
+      artist: json['artist']?.toString() ?? '',
+      coverUrl: json['cover_url']?.toString() ?? '',
+      source: json['source']?.toString() ?? '',
+      album: json['album']?.toString() ?? '',
+      playedAt: DateTime.tryParse(json['played_at']?.toString() ?? ''),
+    );
+  }
 }

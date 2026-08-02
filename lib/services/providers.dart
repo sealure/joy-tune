@@ -55,7 +55,15 @@ final audioServiceProvider = Provider<AudioService>((ref) {
   audio.onSongPlayed = (song) async {
     final isLoggedIn = await ref.read(authServiceProvider).isLoggedIn;
     if (!isLoggedIn) return;
-    await ref.read(backendClientProvider).reportPlay(song.id, source: song.source);
+    // 带上歌曲元信息，后端写入 songs 表供播放历史展示
+    await ref.read(backendClientProvider).reportPlay(
+          song.id,
+          source: song.source,
+          songName: song.name,
+          artist: song.artist,
+          coverUrl: song.coverUrl,
+          album: song.album,
+        );
   };
   return audio;
 });
@@ -159,4 +167,14 @@ final playCountProvider = FutureProvider<int>((ref) async {
   if (!isLoggedIn) return 0;
   final client = ref.watch(backendClientProvider);
   return client.getPlayCount();
+});
+
+// ── 播放历史 Provider ──
+
+/// 当前用户播放历史（按播放时间倒序），未登录为空
+final playHistoryProvider = FutureProvider<List<PlayHistoryItem>>((ref) async {
+  final isLoggedIn = ref.watch(isLoggedInProvider);
+  if (!isLoggedIn) return [];
+  final client = ref.watch(backendClientProvider);
+  return client.getPlayHistory();
 });

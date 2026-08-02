@@ -228,6 +228,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     iconBg: const Color(0xFFEEF2FF),
                     iconColor: const Color(0xFF6366F1),
                     enabled: _isLoggedIn,
+                    onTap: () => context.push('/play-history'),
                   ),
                   _MenuTile(
                     icon: Icons.settings_outlined,
