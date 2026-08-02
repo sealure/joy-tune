@@ -86,6 +86,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       data: (playlists) => '${playlists.length}',
       orElse: () => '---',
     );
+    // 听歌总数（累计播放次数，实时从后端统计）
+    final playCount = ref.watch(playCountProvider).maybeWhen(
+      data: (count) => '$count',
+      orElse: () => '---',
+    );
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -190,7 +195,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   _StatItem(label: '收藏歌曲', value: _isLoggedIn ? favCount : '---'),
                   _StatItem(label: '创建歌单', value: _isLoggedIn ? playlistCount : '---'),
-                  _StatItem(label: '听歌总数', value: _isLoggedIn ? '---' : '---'),
+                  _StatItem(label: '听歌总数', value: _isLoggedIn ? playCount : '---'),
                 ],
               ),
             ),

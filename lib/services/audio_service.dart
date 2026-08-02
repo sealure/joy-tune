@@ -10,6 +10,9 @@ class AudioService {
   String? currentSongId;
   Song? currentSong;
 
+  /// 播放上报回调：一首歌成功开始播放时触发，外部用于埋点（如上报听歌总数）
+  Future<void> Function(Song song)? onSongPlayed;
+
   // ── 播放队列 ──
   final List<Song> _queue = [];
   int _currentQueueIndex = -1;
@@ -151,6 +154,10 @@ class AudioService {
     try {
       await _player.open(Media(playSource));
       await _player.play();
+      // 播放成功后触发埋点回调（不阻塞播放流程）
+      if (song != null) {
+        unawaited(onSongPlayed?.call(song));
+      }
     } catch (e) {
       currentSongId = null;
       currentSong = null;

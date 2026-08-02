@@ -418,6 +418,40 @@ class BackendClient {
   }
 
   // ══════════════════════════════════════════
+  // 播放记录（听歌总数）
+  // ══════════════════════════════════════════
+
+  /// 上报一次播放（登录用户开始播放时调用）
+  Future<bool> reportPlay(String songId, {String? source, int? playDuration}) async {
+    debugPrint('[BACKEND] reportPlay: songId=$songId, source=$source, playDuration=$playDuration');
+    try {
+      final dio = await _authedDio;
+      await dio.post('/play-records', data: {
+        'song_id': songId,
+        if (source != null) 'source': source,
+        if (playDuration != null) 'play_duration': playDuration,
+      });
+      return true;
+    } on DioException catch (e) {
+      debugPrint('>>> [BACKEND] reportPlay Dio异常: ${e.message}, response=${e.response?.statusCode}');
+      return false;
+    }
+  }
+
+  /// 获取当前用户累计播放次数（听歌总数）
+  Future<int> getPlayCount() async {
+    debugPrint('[BACKEND] getPlayCount');
+    try {
+      final dio = await _authedDio;
+      final response = await dio.get('/play-records/count');
+      return BackendClient._parseUint64(response.data['total_play_count']);
+    } on DioException catch (e) {
+      debugPrint('>>> [BACKEND] getPlayCount Dio异常: ${e.message}, response=${e.response?.statusCode}');
+      return 0;
+    }
+  }
+
+  // ══════════════════════════════════════════
   // 评论
   // ══════════════════════════════════════════
 

@@ -49,7 +49,16 @@ final favoriteServiceProvider = Provider<FavoriteService>((ref) {
   return FavoriteService(ref.watch(favoriteRepositoryProvider));
 });
 
-final audioServiceProvider = Provider<AudioService>((ref) => AudioService());
+final audioServiceProvider = Provider<AudioService>((ref) {
+  final audio = AudioService();
+  // 播放上报埋点：登录用户成功开始播放一首歌时上报一次
+  audio.onSongPlayed = (song) async {
+    final isLoggedIn = await ref.read(authServiceProvider).isLoggedIn;
+    if (!isLoggedIn) return;
+    await ref.read(backendClientProvider).reportPlay(song.id, source: song.source);
+  };
+  return audio;
+});
 
 final songResolverProvider = Provider<SongResolver>((ref) => SongResolver(ref));
 
@@ -140,4 +149,14 @@ final myPlaylistDetailProvider =
     FutureProvider.family<UserPlaylistDetail?, int>((ref, playlistId) async {
   final client = ref.watch(backendClientProvider);
   return client.getUserPlaylistDetail(playlistId);
+});
+
+// ── 听歌总数 Provider ──
+
+/// 当前用户累计播放次数（听歌总数），未登录为 0
+final playCountProvider = FutureProvider<int>((ref) async {
+  final isLoggedIn = ref.watch(isLoggedInProvider);
+  if (!isLoggedIn) return 0;
+  final client = ref.watch(backendClientProvider);
+  return client.getPlayCount();
 });
