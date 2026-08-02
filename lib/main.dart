@@ -28,17 +28,41 @@ String _platformName() {
 }
 
 /// 生成或获取设备 ID（用于停服检查）
+/// 优先复用本地已存 ID；首次生成时优先用系统稳定 ID（ANDROID_ID / iOS IDFV），
+/// 取不到才回退到随机 UUID。卸载重装后 SharedPreferences 被清，但系统 ID 仍尽量一致。
 Future<String> _getDeviceId() async {
   final prefs = await SharedPreferences.getInstance();
   var deviceId = prefs.getString('device_id');
-  if (deviceId == null || deviceId.isEmpty) {
-    // 首次启动，生成 UUID
-    const uuid = Uuid();
-    final platform = _platformName();
-    deviceId = '$platform-${uuid.v4()}';
-    await prefs.setString('device_id', deviceId);
+  if (deviceId != null && deviceId.isNotEmpty) {
+    // 已有则复用，避免升级后设备被当成新设备
+    return deviceId;
   }
+
+  // 首次生成：优先使用系统稳定 ID
+  const uuid = Uuid();
+  final platform = _platformName();
+  final systemId = await _getSystemDeviceId();
+  final idPart = systemId ?? uuid.v4();
+  deviceId = '$platform-$idPart';
+  await prefs.setString('device_id', deviceId);
   return deviceId;
+}
+
+/// 获取系统级稳定设备 ID
+/// Android 返回 ANDROID_ID（8+ 卸载重装可能变化，系统备份恢复则不变）；
+/// iOS 返回 identifierForVendor。取不到返回 null，由调用方回退到随机 UUID。
+Future<String?> _getSystemDeviceId() async {
+  try {
+    const channel = MethodChannel('via_music/device_id');
+    final id = await channel.invokeMethod<String>('getSystemDeviceId');
+    // ANDROID_ID 过滤空值与已知的无效占位值 9774d56d682e549c
+    if (id != null && id.isNotEmpty && id != '9774d56d682e549c') {
+      return id;
+    }
+  } catch (e) {
+    debugPrint('>>> [DEVICE] 获取系统设备 ID 失败: $e');
+  }
+  return null;
 }
 
 void main() async {

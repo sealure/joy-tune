@@ -12,5 +12,22 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    // 设备 ID 通道：Flutter 侧通过此通道获取 iOS 系统稳定的 identifierForVendor
+    let channel = FlutterMethodChannel(
+      name: "via_music/device_id",
+      binaryMessenger: engineBridge.applicationBinaryMessenger
+    )
+    channel.setMethodCallHandler { call, result in
+      if call.method == "getSystemDeviceId" {
+        if let identifierForVendor = UIDevice.current.identifierForVendor?.uuidString {
+          result(identifierForVendor)
+        } else {
+          result(nil)
+        }
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 }
