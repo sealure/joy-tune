@@ -1,14 +1,13 @@
 // 选择歌单弹层
-// 可复用组件：把当前歌曲加入用户自建歌单（AddSongToPlaylist）
+// 可复用组件：把当前歌曲加入本地歌单（is_synced=0，后台同步 AddSongToPlaylist）
 // 入口：播放页 ⋮ 更多菜单「加入歌单」；后续搜索页/歌单详情复用
 // 对应设计稿 ui/playlist-picker/
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/backend_client.dart';
 import '../models/song.dart';
+import '../repositories/playlist_repository.dart';
 import '../services/providers.dart';
 import '../utils/cover_resolver.dart';
 import 'playlist_cover.dart';
@@ -41,49 +40,31 @@ class PlaylistPickerSheet extends ConsumerStatefulWidget {
 }
 
 class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
-  /// 已加入的歌单 id 集合
-  final Set<int> _added = {};
+  /// 已加入的歌单本地 id 集合
+  final Set<String> _added = {};
   String _keyword = '';
 
-  /// 加入歌单（幂等：已加入的跳过）
-  Future<void> _addToPlaylist(UserPlaylist p) async {
-    if (_added.contains(p.id)) return;
+  /// 加入歌单（本地写 is_synced=0，后台同步；幂等：已加入的跳过）
+  Future<void> _addToPlaylist(LocalPlaylistInfo p) async {
+    if (_added.contains(p.localId)) return;
     final song = widget.song;
-    debugPrint('[PlaylistPicker] 加入歌单: playlist=${p.id}, song=${song.id}');
+    debugPrint('[PlaylistPicker] 加入歌单: localId=${p.localId}, song=${song.id}');
     // 解析封面 URL：优先已带 coverUrl，否则按 picId 解析（统一入口）
     final coverUrl = await resolveCoverUrl(ref.read(gdMusicClientProvider), song);
     debugPrint('[PlaylistPicker] 加入歌单封面: $coverUrl');
-    final ok = await ref.read(backendClientProvider).addSongToPlaylist(
-          p.id,
-          songId: song.id,
-          songName: song.name,
-          artist: song.artist,
-          album: song.album.isNotEmpty ? song.album : null,
-          coverUrl: coverUrl,
-          source: song.source,
-          picId: song.picId,
-        );
+    await ref.read(playlistRepositoryProvider).addSong(p.localId, song);
     if (!mounted) return;
-    if (ok) {
-      setState(() => _added.add(p.id));
-      ref.invalidate(myPlaylistsProvider);
-      ref.invalidate(myPlaylistDetailProvider(p.id));
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(
-          SnackBar(content: Text('已加入「${p.name}」'), duration: const Duration(seconds: 2)),
-        );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('加入失败，请重试')),
+    setState(() => _added.add(p.localId));
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(content: Text('已加入「${p.name}」'), duration: const Duration(seconds: 2)),
       );
-    }
   }
 
-  /// 新建歌单：创建成功后刷新列表
+  /// 新建歌单：本地创建，流式列表自动刷新
   Future<void> _createPlaylist() async {
     await showPlaylistFormSheet(context, ref);
-    ref.invalidate(myPlaylistsProvider);
   }
 
   @override
@@ -156,7 +137,7 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
                           itemCount: filtered.length,
                           itemBuilder: (_, i) {
                             final p = filtered[i];
-                            final added = _added.contains(p.id);
+                            final added = _added.contains(p.localId);
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               onTap: () => _addToPlaylist(p),

@@ -12,7 +12,8 @@ import 'package:uuid/uuid.dart';
 
 import 'app.dart';
 import 'config/api_config.dart';
-import 'db/app_database.dart';
+import 'db/daos/settings_dao.dart';
+import 'db/legacy_prefs.dart';
 import 'services/providers.dart';
 // 延迟导入桌面端模块（仅桌面平台使用）
 import 'desktop_init.dart' as desktop;
@@ -29,20 +30,28 @@ String _platformName() {
 
 /// 生成或获取设备 ID（用于停服检查）
 /// 仅保存稳定的系统 ID（ANDROID_ID / iOS IDFV），不含平台前缀（平台由上报字段单独携带）；
-/// 优先复用本地已存 ID，取不到系统 ID 时回退到随机 UUID。
-Future<String> _getDeviceId() async {
-  final prefs = await SharedPreferences.getInstance();
-  var deviceId = prefs.getString('device_id');
+/// 存储于本地 SQLite（local_settings），优先复用已存 ID，
+/// 旧 SharedPreferences 中已有值则回退迁移，取不到系统 ID 时回退到随机 UUID。
+Future<String> _getDeviceId(SettingsDao settingsDao) async {
+  var deviceId = await settingsDao.get('device_id');
   if (deviceId != null && deviceId.isNotEmpty) {
     // 已有则复用，避免升级后设备被当成新设备
     return deviceId;
+  }
+
+  // 旧 SharedPreferences 回退迁移（SQLite 化前的老用户连续性）
+  final prefs = await SharedPreferences.getInstance();
+  final legacy = prefs.getString('device_id');
+  if (legacy != null && legacy.isNotEmpty) {
+    await settingsDao.set('device_id', legacy);
+    return legacy;
   }
 
   // 首次生成：优先使用系统稳定 ID
   const uuid = Uuid();
   final systemId = await _getSystemDeviceId();
   deviceId = systemId ?? uuid.v4();
-  await prefs.setString('device_id', deviceId);
+  await settingsDao.set('device_id', deviceId);
   return deviceId;
 }
 
@@ -69,8 +78,8 @@ void main() async {
   // 初始化 media_kit（加载 libmpv）
   MediaKit.ensureInitialized();
 
-  // 初始化本地数据库
-  await AppDatabase.initialize();
+  // 初始化旧 SharedPreferences 存储（SQLite 迁移的数据源）
+  await LegacyPrefs.initialize();
 
   // 桌面端初始化（try-catch 保护，移动端不会报错）
   if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
@@ -84,12 +93,26 @@ void main() async {
   // 创建 Provider 容器
   final container = ProviderContainer();
 
+  // ── 本地数据库预热 + 旧数据迁移 ──
+  try {
+    // 打开 SQLite（drift），首次访问触发建表
+    await container.read(databaseProvider).customSelect('SELECT 1').get();
+    // 旧 SharedPreferences 数据迁入 SQLite（收藏/搜索历史/播放会话）
+    await container.read(legacyPrefsMigratorProvider).run();
+  } catch (e) {
+    debugPrint('>>> [STARTUP] 本地数据库初始化失败: $e');
+  }
+
+  // ── 启动后台同步任务（立即首扫 + 周期；游客态自动跳过推送）──
+  container.read(syncServiceProvider).start();
+
   // ── 启动时拉取后端配置 ──
   try {
     final backendClient = container.read(backendClientProvider);
+    final settingsDao = container.read(settingsDaoProvider);
 
-    // 获取设备 ID
-    final deviceId = await _getDeviceId();
+    // 获取设备 ID（存于本地 SQLite，含旧值迁移回退）
+    final deviceId = await _getDeviceId(settingsDao);
 
     // 上报设备（幂等，失败静默忽略不影响启动）
     await backendClient.reportDevice(

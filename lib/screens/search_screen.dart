@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../api/gdmusic_client.dart';
-import '../db/app_database.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../utils/cover_resolver.dart';
@@ -72,8 +71,8 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
       state = const _SearchState();
       return;
     }
-    // 保存搜索历史
-    await AppDatabase.addSearchHistory(keyword.trim());
+    // 保存搜索历史（本地 SQLite，纯本地）
+    await _ref.read(searchHistoryDaoProvider).addKeyword(keyword.trim());
     state = state.copyWith(
       isLoading: true, songs: [], page: 0, hasMore: true,
       keyword: keyword.trim(), albumSearch: albumSearch,
@@ -282,13 +281,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(_searchProvider);
-    // 从我的歌单详情"添加歌曲"进入时，extra 携带目标歌单 id
+    // 从我的歌单详情"添加歌曲"进入时，extra 携带目标歌单本地 id
     final addToPlaylistId =
-        (GoRouterState.of(context).extra as Map?)?['playlistId'] as int?;
+        (GoRouterState.of(context).extra as Map?)?['playlistId'] as String?;
     // 是否显示搜索历史：搜索框为空且无搜索结果时显示
     final showHistory = _controller.text.isEmpty && searchState.songs.isEmpty;
-    // 每次 build 时直接读取最新历史记录
-    final history = AppDatabase.getSearchHistory();
+    // 搜索历史（本地 SQLite 流式）
+    final history = ref.watch(searchHistoryProvider).valueOrNull ?? const <String>[];
 
     return Scaffold(
       appBar: AppBar(title: const Text('搜索')),
@@ -417,37 +416,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   /// 搜索结果行"加入歌单"按钮
-  /// 从详情页"添加歌曲"进入时（路由 extra 带 playlistId），直接加入该歌单；
+  /// 从详情页"添加歌曲"进入时（路由 extra 带 playlistId 本地 UUID），直接加入该歌单；
   /// 否则弹出选择歌单弹层（可复用组件）
   Widget _addToPlaylistButton(Song song) {
     final extra = GoRouterState.of(context).extra as Map?;
-    final playlistId = extra?['playlistId'] as int?;
+    final playlistId = extra?['playlistId'] as String?;
     return IconButton(
       tooltip: playlistId == null ? '加入歌单' : '添加到当前歌单',
       icon: Icon(Icons.playlist_add_rounded, color: Theme.of(context).colorScheme.primary),
       onPressed: () async {
         if (playlistId != null) {
-          // 解析封面 URL：优先已带 coverUrl，否则按 picId 解析（统一入口）
+          // 本地写 is_synced=0，后台同步；封面 URL 解析后一并存储
           final coverUrl = await resolveCoverUrl(ref.read(gdMusicClientProvider), song);
           debugPrint('[Search] 加入歌单封面: $coverUrl');
-          final ok = await ref.read(backendClientProvider).addSongToPlaylist(
-                playlistId,
-                songId: song.id,
-                songName: song.name,
-                artist: song.artist,
-                album: song.album.isNotEmpty ? song.album : null,
-                coverUrl: coverUrl,
-                source: song.source,
-                picId: song.picId,
-              );
+          await ref.read(playlistRepositoryProvider).addSong(playlistId, song);
           if (!context.mounted) return;
           ScaffoldMessenger.of(context)
             ..clearSnackBars()
-            ..showSnackBar(SnackBar(content: Text(ok ? '已加入歌单' : '加入失败，请重试')));
-          if (ok) {
-            ref.invalidate(myPlaylistDetailProvider(playlistId));
-            ref.invalidate(myPlaylistsProvider);
-          }
+            ..showSnackBar(const SnackBar(content: Text('已加入歌单')));
         } else {
           await showPlaylistPickerSheet(context, ref, song: song);
         }
@@ -470,8 +456,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               Text('历史搜索', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
               GestureDetector(
                 onTap: () async {
-                  await AppDatabase.clearSearchHistory();
-                  setState(() {});
+                  await ref.read(searchHistoryDaoProvider).clearAll();
                 },
                 child: Text('清空', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
               ),

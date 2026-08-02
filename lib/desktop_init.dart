@@ -5,8 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:system_tray/system_tray.dart';
 
-import 'db/app_database.dart';
-
 /// 桌面端初始化（窗口管理器 + 系统托盘）
 Future<void> initDesktop() async {
   await windowManager.ensureInitialized();

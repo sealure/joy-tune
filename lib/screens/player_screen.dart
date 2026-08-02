@@ -37,7 +37,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   bool _showLyrics = false;
   final ScrollController _lyricScrollCtrl = ScrollController();
 
-  bool _isFavorited = false;
   bool _isRestoringSession = false; // 是否正在恢复播放会话
 
   late AnimationController _rotationCtrl;
@@ -296,10 +295,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // ── 收藏（本地 + 后端同步）──
 
   Future<void> _checkFavorite(Song song) async {
-    // 同时检查本地和后端
-    final repo = ref.read(favoriteRepositoryProvider);
-    final fav = await repo.isFavorited(song.id);
-    if (mounted) setState(() => _isFavorited = fav);
+    // 收藏状态由 favorite_button 依据本地 SQLite 实时跟踪，无需在此维护字段
   }
 
   // ── 元数据加载 ──

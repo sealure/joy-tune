@@ -71,6 +71,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
       debugPrint('>>> [STEP 4] 跳转到首页');
       ref.read(isLoggedInProvider.notifier).state = true;
+      // 登录成功后触发同步：拉取服务端收藏/歌单合并到本地，并推送本地游客数据
+      ref.read(syncServiceProvider).syncNow(forcePull: true);
       context.go('/home');
     } catch (e, stackTrace) {
       debugPrint('>>> [ERROR] 登录失败: $e');

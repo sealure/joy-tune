@@ -15,6 +15,12 @@ dependencies:
 
   # 音频
   # 本地存储
+  # 本地数据库（SQLite）：收藏/歌单/播放历史/搜索历史/播放会话等，需同步表带 is_synced 标记
+  drift: ^2.34.3
+  # drift 的 Flutter 封装：统一移动端原生数据库与桌面端 ffi（自带 sqlite3_flutter_libs + path_provider）
+  drift_flutter: ^0.3.1
+  # 网络连接状态监听：网络恢复时触发后台同步
+  connectivity_plus: ^7.3.1
   shared_preferences: ^2.3.0
   flutter_secure_storage: ^9.2.4
 
@@ -48,6 +54,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # drift 代码生成（与 drift 主版本一致）
+  drift_dev: ^2.34.3
+  build_runner: ^2.4.13
+  # 单元测试 mock
+  mocktail: ^1.0.4
 
 flutter:
   uses-material-design: true

@@ -44,11 +44,11 @@ class ViaMusicApp extends StatelessWidget {
           GoRoute(path: '/my-playlists', builder: (_, __) => const MyPlaylistsScreen()),
           // 播放历史页（个人中心入口）
           GoRoute(path: '/play-history', builder: (_, __) => const PlayHistoryScreen()),
-          // 我的歌单详情页（管理能力）
+          // 我的歌单详情页（管理能力），id 为本地歌单 UUID
           GoRoute(
             path: '/my-playlist/:id',
             builder: (_, state) => MyPlaylistDetailScreen(
-              playlistId: int.parse(state.pathParameters['id']!),
+              playlistId: state.pathParameters['id']!,
             ),
           ),
         ],

@@ -1,0 +1,178 @@
+import 'package:drift/drift.dart';
+
+/// 本地收藏表（需同步）：主键 (song_id, source)，镜像 Song 全字段
+/// 删除用 soft delete（deleted=1），重新收藏=deleted 置 0；
+/// is_synced=0 待同步；syncedEver 记录"是否曾成功同步到服务端"，用于删除同步判定
+class LocalFavorites extends Table {
+  /// 歌曲 ID（原始音源 ID）
+  TextColumn get songId => text()();
+  /// 音源标识（netease/qqmusic/joox 等）
+  TextColumn get source => text()();
+  /// 歌曲名
+  TextColumn get name => text()();
+  /// 歌手
+  TextColumn get artist => text()();
+  /// 专辑
+  TextColumn get album => text().withDefault(const Constant(''))();
+  /// 封面图 pic_id（按需懒加载）
+  TextColumn get picId => text().nullable()();
+  /// 歌词 ID
+  TextColumn get lyricId => text().nullable()();
+  /// 播放地址
+  TextColumn get audioUrl => text().nullable()();
+  /// 封面 URL
+  TextColumn get coverUrl => text().nullable()();
+  /// 歌词 LRC 地址
+  TextColumn get lyricsUrl => text().nullable()();
+  /// soft delete 标记（1=已取消收藏待同步删除）
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  /// 是否已同步到服务端（0=待同步）
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  /// 是否曾成功同步过（用于删除同步：曾同步的删除需调 DELETE，未同步的直接物理删）
+  BoolColumn get syncedEver => boolean().withDefault(const Constant(false))();
+  /// 收藏时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {songId, source};
+}
+
+/// 本地歌单表（需同步）：主键 id=本地 UUID
+/// 两段式主键：本地创建无远端 id，同步成功后回填 remoteId，后续更新/删除/分享依赖 remoteId
+class LocalPlaylists extends Table {
+  /// 本地歌单 ID（UUID，客户端生成）
+  TextColumn get id => text()();
+  /// 服务端歌单 ID（POST /playlists 创建成功后回填，null 表示尚未同步）
+  IntColumn get remoteId => integer().nullable()();
+  /// 歌单名称
+  TextColumn get name => text()();
+  /// 歌单描述
+  TextColumn get description => text().withDefault(const Constant(''))();
+  /// 封面 URL
+  TextColumn get coverUrl => text().withDefault(const Constant(''))();
+  /// 是否公开可见
+  BoolColumn get isPublic => boolean().withDefault(const Constant(false))();
+  /// soft delete 标记
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  /// 是否已同步到服务端
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  /// 是否曾成功同步过
+  BoolColumn get syncedEver => boolean().withDefault(const Constant(false))();
+  /// 创建时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// 本地歌单歌曲关联表（需同步）：本地行自增主键
+/// sortOrder 为本地顺序（MVP 只同步增删、不保证远端顺序）；
+/// remoteId 回填远端 playlist_songs 记录 id（reorder 增强用）
+class LocalPlaylistSongs extends Table {
+  /// 本地行主键（自增）
+  IntColumn get id => integer().autoIncrement()();
+  /// 所属本地歌单 ID（FK → local_playlists.id）
+  TextColumn get playlistId => text().references(LocalPlaylists, #id)();
+  /// 歌曲 ID
+  TextColumn get songId => text()();
+  /// 音源
+  TextColumn get source => text()();
+  /// 歌曲名
+  TextColumn get songName => text()();
+  /// 歌手
+  TextColumn get artist => text()();
+  /// 专辑
+  TextColumn get album => text().withDefault(const Constant(''))();
+  /// 封面 URL
+  TextColumn get coverUrl => text().nullable()();
+  /// 封面图 pic_id
+  TextColumn get picId => text().nullable()();
+  /// 本地排序序号
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  /// 远端 playlist_songs 记录 id（同步后回填，reorder 增强用）
+  IntColumn get remoteId => integer().nullable()();
+  /// soft delete 标记
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  /// 是否已同步到服务端
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  /// 是否曾成功同步过
+  BoolColumn get syncedEver => boolean().withDefault(const Constant(false))();
+  /// 创建时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+        {playlistId, songId, source},
+      ];
+}
+
+/// 本地播放记录表（需同步）：每条 = 一次开始播放
+/// 只上报 is_synced=0 的记录（按 id 升序），attemptCount 超过上限暂停避免重复计数
+class LocalPlayRecords extends Table {
+  /// 本地行主键（自增）
+  IntColumn get id => integer().autoIncrement()();
+  /// 歌曲 ID
+  TextColumn get songId => text()();
+  /// 音源
+  TextColumn get source => text().withDefault(const Constant(''))();
+  /// 歌曲名
+  TextColumn get songName => text().withDefault(const Constant(''))();
+  /// 歌手
+  TextColumn get artist => text().withDefault(const Constant(''))();
+  /// 封面 URL
+  TextColumn get coverUrl => text().nullable()();
+  /// 专辑
+  TextColumn get album => text().withDefault(const Constant(''))();
+  /// 播放时间（本地记录时刻）
+  DateTimeColumn get playedAt => dateTime().withDefault(currentDateAndTime)();
+  /// 是否已同步到服务端
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  /// 同步尝试次数（超过上限暂停，避免断网重试重复计数）
+  IntColumn get attemptCount => integer().withDefault(const Constant(0))();
+}
+
+/// 本地搜索历史表（纯本地，无 is_synced）
+class LocalSearchHistory extends Table {
+  /// 本地行主键（自增）
+  IntColumn get id => integer().autoIncrement()();
+  /// 搜索关键词（唯一，去重置顶）
+  TextColumn get keyword => text().unique()();
+  /// 搜索时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// 本地播放会话表（纯本地，单行 id=1，存储队列+进度+模式）
+class LocalPlaySessions extends Table {
+  /// 单行固定 id=1
+  IntColumn get id => integer()();
+  /// 播放队列（歌曲 JSON 序列化，沿用现有队列模型）
+  TextColumn get queueJson => text().nullable()();
+  /// 当前播放索引
+  IntColumn get currentIndex => integer().withDefault(const Constant(0))();
+  /// 播放进度（毫秒）
+  IntColumn get positionMs => integer().withDefault(const Constant(0))();
+  /// 播放模式（sequential/loop/shuffle）
+  TextColumn get playMode => text().withDefault(const Constant('loop'))();
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// 本地设置表（纯本地，key-value）
+/// 承载 device_id、桌面窗口宽高、prefs_migrated、pending_clear_play_history、
+/// favorites_pulled_<userId> 等
+class LocalSettings extends Table {
+  /// 配置键名
+  TextColumn get key => text()();
+  /// 配置值
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}

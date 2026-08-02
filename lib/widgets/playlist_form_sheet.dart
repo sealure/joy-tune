@@ -1,12 +1,12 @@
 // 歌单表单底部弹层（新建 / 编辑共用）
 // 我的歌单列表页与详情页复用；支持从歌单现有歌曲中选择封面
+// 本地 SQLite 优先：创建/编辑写本地（is_synced=0），由 SyncService 同步服务端
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/backend_client.dart';
-import '../models/song.dart';
+import '../repositories/playlist_repository.dart';
 import '../services/providers.dart';
 import 'song_cover.dart';
 
@@ -15,8 +15,8 @@ import 'song_cover.dart';
 Future<void> showPlaylistFormSheet(
   BuildContext context,
   WidgetRef ref, {
-  UserPlaylist? existing,
-  List<PlaylistSongInfo>? songs,
+  LocalPlaylistInfo? existing,
+  List<LocalPlaylistSongInfo>? songs,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -31,8 +31,8 @@ Future<void> showPlaylistFormSheet(
 
 /// 新建 / 编辑歌单底部表单
 class PlaylistFormSheet extends ConsumerStatefulWidget {
-  final UserPlaylist? existing;
-  final List<PlaylistSongInfo>? songs;
+  final LocalPlaylistInfo? existing;
+  final List<LocalPlaylistSongInfo>? songs;
   const PlaylistFormSheet({super.key, this.existing, this.songs});
 
   @override
@@ -59,7 +59,7 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
   Future<void> _pickCoverFromSongs() async {
     final songs = widget.songs;
     if (songs == null || songs.isEmpty) return;
-    final selected = await showModalBottomSheet<PlaylistSongInfo>(
+    final selected = await showModalBottomSheet<LocalPlaylistSongInfo>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
@@ -89,14 +89,7 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
                     contentPadding: EdgeInsets.zero,
                     onTap: () => Navigator.pop(ctx, s),
                     leading: SongCover(
-                      song: Song(
-                        id: s.songId,
-                        name: s.songName,
-                        artist: s.artist,
-                        album: s.album,
-                        source: s.source,
-                        coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
-                      ),
+                      song: s.toSong(),
                       size: 44,
                       borderRadius: 8,
                     ),
@@ -112,11 +105,11 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
       ),
     );
     if (selected != null && mounted) {
-      setState(() => _coverUrl = selected.coverUrl);
+      setState(() => _coverUrl = selected.coverUrl ?? '');
     }
   }
 
-  /// 创建 / 更新歌单
+  /// 创建 / 更新歌单（本地写，后台同步）
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
@@ -126,22 +119,17 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
     if (_submitting) return;
     setState(() => _submitting = true);
 
-    final client = ref.read(backendClientProvider);
+    final repo = ref.read(playlistRepositoryProvider);
+    final desc = _descCtrl.text.trim().isEmpty ? '' : _descCtrl.text.trim();
     debugPrint('[PlaylistForm] ${widget.existing == null ? "创建" : "更新"}歌单: name=$name, isPublic=$_isPublic');
-    UserPlaylist? result;
     if (widget.existing == null) {
-      result = await client.createPlaylist(
-        name: name,
-        description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-        coverUrl: _coverUrl.isEmpty ? null : _coverUrl,
-        isPublic: _isPublic,
-      );
+      await repo.create(name: name, description: desc, coverUrl: _coverUrl, isPublic: _isPublic);
     } else {
-      result = await client.updatePlaylist(
-        widget.existing!.id,
+      await repo.update(
+        widget.existing!.localId,
         name: name,
-        description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
-        coverUrl: _coverUrl.isEmpty ? null : _coverUrl,
+        description: desc,
+        coverUrl: _coverUrl,
         isPublic: _isPublic,
       );
     }
@@ -149,14 +137,12 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
     if (!mounted) return;
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result != null ? '已保存' : '保存失败，请重试')),
+      const SnackBar(content: Text('已保存')),
     );
-    if (result != null) {
-      ref.invalidate(myPlaylistsProvider);
-      // 编辑时同步刷新详情页（封面/名称/公开状态即时生效）
-      if (widget.existing != null) {
-        ref.invalidate(myPlaylistDetailProvider(widget.existing!.id));
-      }
+    // 本地写即时生效，刷新列表与详情（编辑时）
+    ref.invalidate(myPlaylistsProvider);
+    if (widget.existing != null) {
+      ref.invalidate(myPlaylistProvider(widget.existing!.localId));
     }
   }
 

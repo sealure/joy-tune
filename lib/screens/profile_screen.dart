@@ -65,6 +65,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   /// 退出登录
   Future<void> _handleLogout() async {
     final authService = ref.read(authServiceProvider);
+    // 退出前尽力同步本地未同步数据到该账号（游客切换到别的账号前先冲刷）
+    await ref.read(syncServiceProvider).syncNow();
     await authService.logout();
     if (!mounted) return;
     ref.read(isLoggedInProvider.notifier).state = false;

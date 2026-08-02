@@ -188,12 +188,12 @@ class PlayHistoryScreen extends ConsumerWidget {
     );
     if (confirmed != true) return;
 
-    final ok = await ref.read(backendClientProvider).clearPlayHistory();
-    // 无论成功失败都刷新，保持界面一致
-    ref.invalidate(playHistoryProvider);
+    // 本地清空 + 标记待同步清服务端（SyncService 登录后调 DELETE /play-records）
+    await ref.read(playRecordRepositoryProvider).clear();
+    await ref.read(settingsDaoProvider).set('pending_clear_play_history', 'true');
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? '已清空播放历史' : '清空失败，请稍后再试')),
+        const SnackBar(content: Text('已清空播放历史')),
       );
     }
   }

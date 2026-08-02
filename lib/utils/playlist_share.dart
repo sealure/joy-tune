@@ -1,5 +1,6 @@
 // 歌单分享工具
-// 提供可复用的"分享歌单"底部弹层：公开开关（is_public）、复制链接、生成分享卡片预览
+// 提供可复用的"分享歌单"底部弹层：公开开关（本地改 + 后台同步）、复制链接、生成分享卡片预览
+// 仅对已同步到服务端的歌单开放（remoteId != null），未同步则提示
 // 我的歌单列表页 ⋮ 菜单与详情页 AppBar 分享图标共用
 
 import 'dart:io';
@@ -10,15 +11,15 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/backend_client.dart';
 import '../config/api_config.dart';
+import '../repositories/playlist_repository.dart';
 import '../services/providers.dart';
 
 /// 弹出"分享歌单"底部弹层
 Future<void> showPlaylistShareSheet(
   BuildContext context,
   WidgetRef ref,
-  UserPlaylist playlist,
+  LocalPlaylistInfo playlist,
 ) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -33,7 +34,7 @@ Future<void> showPlaylistShareSheet(
 
 /// 分享歌单弹层内容
 class _PlaylistShareSheet extends ConsumerStatefulWidget {
-  final UserPlaylist playlist;
+  final LocalPlaylistInfo playlist;
   const _PlaylistShareSheet({required this.playlist});
 
   @override
@@ -51,40 +52,42 @@ class _PlaylistShareSheetState extends ConsumerState<_PlaylistShareSheet> {
       ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
   }
 
-  /// 切换公开状态，调 updatePlaylist(isPublic)
+  /// 切换公开状态（本地写 is_synced=0，后台同步到服务端）
   Future<void> _togglePublic(bool value) async {
     if (_saving) return;
     setState(() {
       _saving = true;
       _isPublic = value;
     });
-    final updated = await ref
-        .read(backendClientProvider)
-        .updatePlaylist(widget.playlist.id, isPublic: value);
+    await ref
+        .read(playlistRepositoryProvider)
+        .update(widget.playlist.localId, isPublic: value);
     if (!mounted) return;
     setState(() => _saving = false);
-    if (updated != null) {
-      // 同步刷新列表与详情
-      ref.invalidate(myPlaylistsProvider);
-      ref.invalidate(myPlaylistDetailProvider(widget.playlist.id));
-      _toast(value ? '已公开，歌单将出现在首页推荐' : '已取消公开');
-    } else {
-      // 失败回滚开关状态
-      setState(() => _isPublic = widget.playlist.isPublic);
-      _toast('操作失败，请重试');
-    }
+    // 本地流式自动刷新列表与详情
+    _toast(value ? '已公开，歌单将出现在首页推荐' : '已取消公开');
   }
 
-  /// 复制分享链接（使用短码，不暴露服务端 ID/地址；游客可访问）
-  void _copyLink() {
-    final code = widget.playlist.shareCode;
-    if (code.isEmpty) {
-      _toast('该歌单暂不支持分享');
+  /// 复制分享链接（从服务端实时获取 share_code，游客可访问）
+  Future<void> _copyLink() async {
+    final remoteId = widget.playlist.remoteId;
+    if (remoteId == null) {
+      _toast('歌单同步到账号后即可分享');
       return;
     }
-    final link = '$apiBaseUrl/playlists/share/$code';
-    Clipboard.setData(ClipboardData(text: link));
-    _toast('已复制分享链接');
+    try {
+      final detail = await ref.read(backendClientProvider).getUserPlaylistDetail(remoteId);
+      final code = detail?.playlist.shareCode ?? '';
+      if (code.isEmpty) {
+        _toast('该歌单暂不支持分享');
+        return;
+      }
+      final link = '$apiBaseUrl/playlists/share/$code';
+      Clipboard.setData(ClipboardData(text: link));
+      _toast('已复制分享链接');
+    } catch (_) {
+      _toast('获取分享链接失败，请重试');
+    }
   }
 
   /// 生成分享卡片预览
@@ -160,15 +163,15 @@ class _PlaylistShareSheetState extends ConsumerState<_PlaylistShareSheet> {
 
 /// 分享卡片预览弹窗
 /// 渐变封面 + 歌单名 + 歌曲数/创建者 + 二维码占位 + 品牌，支持保存为图片
-class _ShareCardDialog extends StatefulWidget {
-  final UserPlaylist playlist;
+class _ShareCardDialog extends ConsumerStatefulWidget {
+  final LocalPlaylistInfo playlist;
   const _ShareCardDialog({required this.playlist});
 
   @override
-  State<_ShareCardDialog> createState() => _ShareCardDialogState();
+  ConsumerState<_ShareCardDialog> createState() => _ShareCardDialogState();
 }
 
-class _ShareCardDialogState extends State<_ShareCardDialog> {
+class _ShareCardDialogState extends ConsumerState<_ShareCardDialog> {
   final GlobalKey _cardKey = GlobalKey();
   bool _saving = false;
 
@@ -182,7 +185,7 @@ class _ShareCardDialogState extends State<_ShareCardDialog> {
       final image = await boundary.toImage(pixelRatio: 3);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final dir = await Directory.systemTemp.createTemp('via_share_');
-      final file = File('${dir.path}/playlist_${widget.playlist.id}.png');
+      final file = File('${dir.path}/playlist_${widget.playlist.localId}.png');
       await file.writeAsBytes(byteData!.buffer.asUint8List());
       if (!mounted) return;
       setState(() => _saving = false);
@@ -198,22 +201,39 @@ class _ShareCardDialogState extends State<_ShareCardDialog> {
     }
   }
 
-  /// 复制链接（分享给朋友，游客可访问）
-  void _copyLink() {
-    final code = widget.playlist.shareCode;
-    if (code.isEmpty) {
+  /// 复制链接（从服务端实时获取 share_code，游客可访问）
+  Future<void> _copyLink() async {
+    final remoteId = widget.playlist.remoteId;
+    if (remoteId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('该歌单暂不支持分享')),
+        const SnackBar(content: Text('歌单同步到账号后即可分享')),
       );
       return;
     }
-    final link = '$apiBaseUrl/playlists/share/$code';
-    Clipboard.setData(ClipboardData(text: link));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制分享链接')),
-    );
+    try {
+      final detail =
+          await ref.read(backendClientProvider).getUserPlaylistDetail(remoteId);
+      final code = detail?.playlist.shareCode ?? '';
+      if (code.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('该歌单暂不支持分享')),
+        );
+        return;
+      }
+      final link = '$apiBaseUrl/playlists/share/$code';
+      Clipboard.setData(ClipboardData(text: link));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已复制分享链接')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('获取分享链接失败，请重试')),
+      );
+    }
   }
 
   @override

@@ -1,5 +1,5 @@
 // 我的歌单列表页
-// 展示当前用户自建歌单（Playlist API GET /api/v1/playlists），支持新建/编辑/删除/分享
+// 展示本地 SQLite 歌单（登录后 SyncService 同步到服务端），支持新建/编辑/删除/分享
 // 对应设计稿 ui/my-playlists/
 
 import 'package:flutter/foundation.dart';
@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../api/backend_client.dart';
+import '../repositories/playlist_repository.dart';
 import '../services/providers.dart';
 import '../utils/playlist_share.dart';
 import '../widgets/playlist_form_sheet.dart';
@@ -80,7 +80,7 @@ class MyPlaylistsScreen extends ConsumerWidget {
                 final p = playlists[i];
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  onTap: () => context.push('/my-playlist/${p.id}'),
+                  onTap: () => context.push('/my-playlist/${p.localId}'),
                   leading: PlaylistCover(coverUrl: p.coverUrl, size: 56),
                   title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
@@ -136,12 +136,20 @@ class MyPlaylistsScreen extends ConsumerWidget {
 
   /// ⋮ 菜单操作
   Future<void> _onRowAction(
-      BuildContext context, WidgetRef ref, UserPlaylist playlist, _RowAction action) async {
+      BuildContext context, WidgetRef ref, LocalPlaylistInfo playlist, _RowAction action) async {
     switch (action) {
       case _RowAction.edit:
         await _showPlaylistForm(context, ref, existing: playlist);
         break;
       case _RowAction.share:
+        if (!playlist.synced) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('歌单同步到账号后即可分享')),
+            );
+          }
+          break;
+        }
         await showPlaylistShareSheet(context, ref, playlist);
         break;
       case _RowAction.delete:
@@ -150,8 +158,8 @@ class MyPlaylistsScreen extends ConsumerWidget {
     }
   }
 
-  /// 删除歌单（二次确认）
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, UserPlaylist playlist) async {
+  /// 删除歌单（本地 soft delete，后台同步服务端）
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, LocalPlaylistInfo playlist) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -167,17 +175,16 @@ class MyPlaylistsScreen extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
-    debugPrint('[MyPlaylists] 删除歌单: id=${playlist.id}, name=${playlist.name}');
-    final success = await ref.read(backendClientProvider).deletePlaylist(playlist.id);
+    debugPrint('[MyPlaylists] 删除歌单: localId=${playlist.localId}, name=${playlist.name}');
+    await ref.read(playlistRepositoryProvider).delete(playlist.localId);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(success ? '已删除「${playlist.name}」' : '删除失败，请重试')),
+      SnackBar(content: Text('已删除「${playlist.name}」')),
     );
-    if (success) ref.invalidate(myPlaylistsProvider);
   }
 
   /// 新建 / 编辑歌单底部表单弹层
-  Future<void> _showPlaylistForm(BuildContext context, WidgetRef ref, {UserPlaylist? existing}) {
+  Future<void> _showPlaylistForm(BuildContext context, WidgetRef ref, {LocalPlaylistInfo? existing}) {
     return showPlaylistFormSheet(context, ref, existing: existing);
   }
 }

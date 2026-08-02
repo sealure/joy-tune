@@ -1,5 +1,6 @@
 // 我的歌单详情页
-// 展示用户自建歌单的歌曲列表，支持播放全部/添加歌曲/移除歌曲/编辑信息/分享/拖拽排序
+// 展示本地 SQLite 歌单的歌曲列表，支持播放全部/添加歌曲/移除歌曲/编辑信息/分享/拖拽排序
+// 本地优先：增删改先写本地（is_synced=0），SyncService 后台同步服务端
 // 对应设计稿 ui/my-playlist-detail/
 
 import 'package:flutter/foundation.dart';
@@ -7,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../api/backend_client.dart';
 import '../models/song.dart';
+import '../repositories/playlist_repository.dart';
 import '../services/providers.dart';
 import '../utils/player_utils.dart';
 import '../utils/playlist_share.dart';
@@ -16,9 +17,9 @@ import '../widgets/playlist_form_sheet.dart';
 import '../widgets/playlist_cover.dart';
 import '../widgets/song_cover.dart';
 
-/// 我的歌单详情页
+/// 我的歌单详情页（playlistId 为本地歌单 UUID）
 class MyPlaylistDetailScreen extends ConsumerStatefulWidget {
-  final int playlistId;
+  final String playlistId;
   const MyPlaylistDetailScreen({super.key, required this.playlistId});
 
   @override
@@ -29,70 +30,53 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   /// 是否处于排序模式
   bool _sorting = false;
 
-  /// 排序模式下的本地歌曲顺序（未排序时为 null，直接用后端数据）
-  List<PlaylistSongInfo>? _localSongs;
-
-  /// 后端歌曲信息 → 前端 Song 模型
-  Song _toSong(PlaylistSongInfo s) => Song(
-        id: s.songId,
-        name: s.songName,
-        artist: s.artist,
-        album: s.album,
-        source: s.source,
-        coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
-        picId: s.picId.isNotEmpty ? s.picId : null,
-      );
+  /// 排序模式下的本地歌曲顺序（未排序时为 null）
+  List<LocalPlaylistSongInfo>? _localSongs;
 
   /// 格式化创建日期
-  String _formatDate(DateTime? dt) {
-    if (dt == null) return '';
+  String _formatDate(DateTime dt) {
     final m = dt.month.toString().padLeft(2, '0');
     final d = dt.day.toString().padLeft(2, '0');
     return '${dt.year}-$m-$d 创建';
   }
 
   /// 进入排序模式
-  void _enterSort(List<PlaylistSongInfo> songs) {
+  void _enterSort(List<LocalPlaylistSongInfo> songs) {
     setState(() {
       _sorting = true;
       _localSongs = List.of(songs);
     });
   }
 
-  /// 排序完成：提交新顺序到后端
+  /// 排序完成：提交新顺序到本地（后台同步）
   Future<void> _finishSort() async {
     final songs = _localSongs;
     if (songs == null) return;
-    debugPrint('[MyPlaylistDetail] 提交排序: playlist=${widget.playlistId}, ids=${songs.map((s) => s.id).toList()}');
-    final ok = await ref
-        .read(backendClientProvider)
-        .reorderPlaylistSongs(widget.playlistId, songs.map((s) => s.id).toList());
+    debugPrint('[MyPlaylistDetail] 提交排序: playlist=${widget.playlistId}, songs=${songs.map((s) => s.songId).toList()}');
+    await ref
+        .read(playlistRepositoryProvider)
+        .reorder(widget.playlistId, songs.map((s) => s.songId).toList());
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? '已保存排序' : '保存排序失败，请重试')),
+      const SnackBar(content: Text('已保存排序')),
     );
-    if (ok) ref.invalidate(myPlaylistDetailProvider(widget.playlistId));
     setState(() {
       _sorting = false;
       _localSongs = null;
     });
   }
 
-  /// 从歌单移除歌曲，返回是否成功
-  Future<bool> _removeSong(PlaylistSongInfo s) async {
+  /// 从歌单移除歌曲（本地 soft delete，后台同步）
+  Future<bool> _removeSong(LocalPlaylistSongInfo s) async {
     debugPrint('[MyPlaylistDetail] 移除歌曲: playlist=${widget.playlistId}, song=${s.songId}');
-    final ok = await ref
-        .read(backendClientProvider)
-        .removeSongFromPlaylist(widget.playlistId, s.songId);
+    await ref
+        .read(playlistRepositoryProvider)
+        .removeSong(widget.playlistId, s.songId, s.source);
     if (!mounted) return false;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? '已从歌单移除' : '移除失败，请重试')),
+      const SnackBar(content: Text('已从歌单移除')),
     );
-    if (ok) {
-      ref.invalidate(myPlaylistDetailProvider(widget.playlistId));
-      ref.invalidate(myPlaylistsProvider);
-    }
-    return ok;
+    return true;
   }
 
   /// 拖拽排序回调（仅排序模式生效）
@@ -108,73 +92,72 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final detailAsync = ref.watch(myPlaylistDetailProvider(widget.playlistId));
+    final playlistAsync = ref.watch(myPlaylistProvider(widget.playlistId));
+    final songsAsync = ref.watch(myPlaylistSongsProvider(widget.playlistId));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('歌单详情'),
-        actions: detailAsync.maybeWhen(
-          data: (detail) => detail == null
-              ? null
-              : _sorting
-                  ? [
-                      // 排序模式：完成按钮
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: TextButton.icon(
-                          onPressed: _finishSort,
-                          icon: const Icon(Icons.check_rounded, size: 18),
-                          label: const Text('完成'),
-                        ),
-                      ),
-                    ]
-                  : [
-                      IconButton(
-                        tooltip: '调整排序',
-                        icon: const Icon(Icons.swap_vert_rounded),
-                        onPressed: () => _enterSort(detail.songs),
-                      ),
-                      IconButton(
-                        tooltip: '分享歌单',
-                        icon: const Icon(Icons.share_outlined),
-                        onPressed: () => showPlaylistShareSheet(context, ref, detail.playlist),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => showPlaylistFormSheet(
-                          context,
-                          ref,
-                          existing: detail.playlist,
-                          songs: detail.songs,
-                        ),
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        label: const Text('编辑'),
-                      ),
-                    ],
-          orElse: () => null,
-        ),
-      ),
-      body: detailAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('加载失败: $e'),
-              const SizedBox(height: 12),
-              FilledButton.tonal(
-                onPressed: () => ref.invalidate(myPlaylistDetailProvider(widget.playlistId)),
-                child: const Text('重试'),
+        title: const Text('歌单详情'),
+        actions: [
+          if (_sorting)
+            // 排序模式：完成按钮
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton.icon(
+                onPressed: _finishSort,
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: const Text('完成'),
               ),
-            ],
-          ),
-        ),
-        data: (detail) {
-          if (detail == null) {
-            return const Center(child: Text('歌单不存在或无权访问'));
+            )
+          else ...[
+            IconButton(
+              tooltip: '调整排序',
+              icon: const Icon(Icons.swap_vert_rounded),
+              onPressed: () {
+                final songs = _localSongs ?? const <LocalPlaylistSongInfo>[];
+                if (songs.isNotEmpty) _enterSort(songs);
+              },
+            ),
+            IconButton(
+              tooltip: '分享歌单',
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () {
+                final playlist = playlistAsync.valueOrNull;
+                if (playlist == null) return;
+                if (!playlist.synced) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('歌单同步到账号后即可分享')),
+                  );
+                  return;
+                }
+                showPlaylistShareSheet(context, ref, playlist);
+              },
+            ),
+            TextButton.icon(
+              onPressed: () {
+                final playlist = playlistAsync.valueOrNull;
+                if (playlist == null) return;
+                showPlaylistFormSheet(
+                  context,
+                  ref,
+                  existing: playlist,
+                  songs: songsAsync.valueOrNull ?? const [],
+                );
+              },
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('编辑'),
+            ),
+          ],
+        ],
+      ),
+      body: playlistAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('加载失败: $e')),
+        data: (playlist) {
+          if (playlist == null) {
+            return const Center(child: Text('歌单不存在或已删除'));
           }
-          final playlist = detail.playlist;
-          // 排序模式下使用本地顺序，否则用后端数据
-          final songs = _sorting ? _localSongs ?? [] : detail.songs;
+          final songs = _sorting ? _localSongs ?? const <LocalPlaylistSongInfo>[] : (songsAsync.valueOrNull ?? const <LocalPlaylistSongInfo>[]);
 
           return Column(
             children: [
@@ -197,7 +180,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
               // 渐变 Hero
               _buildHero(theme, playlist, songs.length),
               // 操作区
-              _buildActions(context, detail, songs),
+              _buildActions(context, playlist, songs),
               // 歌曲列表
               Expanded(child: _buildSongList(context, songs)),
             ],
@@ -208,7 +191,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   }
 
   /// 渐变 Hero 头部
-  Widget _buildHero(ThemeData theme, UserPlaylist playlist, int songCount) {
+  Widget _buildHero(ThemeData theme, LocalPlaylistInfo playlist, int songCount) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -257,8 +240,8 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   }
 
   /// 操作区：播放全部 + 添加歌曲
-  Widget _buildActions(BuildContext context, UserPlaylistDetail detail, List<PlaylistSongInfo> songs) {
-    final songModels = songs.map(_toSong).toList();
+  Widget _buildActions(BuildContext context, LocalPlaylistInfo playlist, List<LocalPlaylistSongInfo> songs) {
+    final songModels = songs.map((s) => s.toSong()).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
       child: Row(
@@ -318,7 +301,7 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
   }
 
   /// 歌曲列表（ReorderableListView 支持拖拽排序 + Dismissible 左滑移除）
-  Widget _buildSongList(BuildContext context, List<PlaylistSongInfo> songs) {
+  Widget _buildSongList(BuildContext context, List<LocalPlaylistSongInfo> songs) {
     if (songs.isEmpty) {
       return const Center(child: Text('歌单暂无歌曲'));
     }
@@ -330,9 +313,9 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
       itemCount: songs.length,
       itemBuilder: (_, i) {
         final info = songs[i];
-        final song = _toSong(info);
+        final song = info.toSong();
         return Dismissible(
-          key: ValueKey('song-${info.id}'),
+          key: ValueKey('song-${info.rowId}'),
           // 排序模式下禁用左滑
           direction: _sorting ? DismissDirection.none : DismissDirection.endToStart,
           confirmDismiss: (_) => _removeSong(info),
@@ -405,7 +388,6 @@ class _SongRowState extends ConsumerState<_SongRow> {
       await repo.add(widget.song);
     }
     if (mounted) setState(() => _favorited = !_favorited);
-    ref.invalidate(favoritesProvider);
   }
 
   @override
