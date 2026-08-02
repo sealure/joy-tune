@@ -65,6 +65,27 @@ class BackendClient {
     }
   }
 
+  /// 上报设备信息（客户端启动时调用，幂等）
+  /// 服务端据此记录活跃设备，作为精确停服的定位依据；失败静默忽略不影响启动
+  Future<bool> reportDevice({
+    required String deviceId,
+    required String platform,
+    String appVersion = '',
+  }) async {
+    try {
+      await _dio.post('/devices/report', data: {
+        'device_id': deviceId,
+        'platform': platform,
+        if (appVersion.isNotEmpty) 'app_version': appVersion,
+      });
+      debugPrint('>>> [DEVICE] 设备上报成功: $deviceId');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('>>> [DEVICE] 设备上报失败: ${e.message}');
+      return false;
+    }
+  }
+
   /// 检查停服开关
   Future<ShutdownCheckResult> checkShutdown({String? deviceId}) async {
     try {

@@ -11,10 +11,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'app.dart';
+import 'config/api_config.dart';
 import 'db/app_database.dart';
 import 'services/providers.dart';
 // 延迟导入桌面端模块（仅桌面平台使用）
 import 'desktop_init.dart' as desktop;
+
+/// 获取当前平台标识
+String _platformName() {
+  if (Platform.isAndroid) return 'android';
+  if (Platform.isIOS) return 'ios';
+  if (Platform.isMacOS) return 'macos';
+  if (Platform.isWindows) return 'windows';
+  if (Platform.isLinux) return 'linux';
+  return 'unknown';
+}
 
 /// 生成或获取设备 ID（用于停服检查）
 Future<String> _getDeviceId() async {
@@ -23,12 +34,7 @@ Future<String> _getDeviceId() async {
   if (deviceId == null || deviceId.isEmpty) {
     // 首次启动，生成 UUID
     const uuid = Uuid();
-    final platform = Platform.isAndroid ? 'android'
-        : Platform.isIOS ? 'ios'
-        : Platform.isMacOS ? 'macos'
-        : Platform.isWindows ? 'windows'
-        : Platform.isLinux ? 'linux'
-        : 'unknown';
+    final platform = _platformName();
     deviceId = '$platform-${uuid.v4()}';
     await prefs.setString('device_id', deviceId);
   }
@@ -62,6 +68,13 @@ void main() async {
 
     // 获取设备 ID
     final deviceId = await _getDeviceId();
+
+    // 上报设备（幂等，失败静默忽略不影响启动）
+    await backendClient.reportDevice(
+      deviceId: deviceId,
+      platform: _platformName(),
+      appVersion: appVersion,
+    );
 
     // 检查停服开关（优先级最高）
     final shutdownResult = await backendClient.checkShutdown(deviceId: deviceId);
