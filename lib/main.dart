@@ -28,8 +28,8 @@ String _platformName() {
 }
 
 /// 生成或获取设备 ID（用于停服检查）
-/// 优先复用本地已存 ID；首次生成时优先用系统稳定 ID（ANDROID_ID / iOS IDFV），
-/// 取不到才回退到随机 UUID。卸载重装后 SharedPreferences 被清，但系统 ID 仍尽量一致。
+/// 仅保存稳定的系统 ID（ANDROID_ID / iOS IDFV），不含平台前缀（平台由上报字段单独携带）；
+/// 优先复用本地已存 ID，取不到系统 ID 时回退到随机 UUID。
 Future<String> _getDeviceId() async {
   final prefs = await SharedPreferences.getInstance();
   var deviceId = prefs.getString('device_id');
@@ -40,10 +40,8 @@ Future<String> _getDeviceId() async {
 
   // 首次生成：优先使用系统稳定 ID
   const uuid = Uuid();
-  final platform = _platformName();
   final systemId = await _getSystemDeviceId();
-  final idPart = systemId ?? uuid.v4();
-  deviceId = '$platform-$idPart';
+  deviceId = systemId ?? uuid.v4();
   await prefs.setString('device_id', deviceId);
   return deviceId;
 }

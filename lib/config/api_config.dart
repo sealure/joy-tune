@@ -7,4 +7,4 @@ const String apiBaseUrl = 'http://192.168.1.5:8080/api/v1';
 
 /// 客户端版本号（设备上报用）
 /// 与 pubspec.yaml 的 version 字段保持一致，升级版本时同步修改
-const String appVersion = '0.1.0';
+const String appVersion = '0.0.1';
