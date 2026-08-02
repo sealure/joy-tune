@@ -148,7 +148,8 @@ class AuthService {
     final authedDio = await this.authedDio;
     final data = <String, dynamic>{};
     if (nickname != null) data['nickname'] = nickname;
-    if (avatarUrl != null) data['avatarUrl'] = avatarUrl;
+    // 后端 proto 字段为 avatar_url（gRPC-gateway 使用 snake_case），不要用 camelCase
+    if (avatarUrl != null) data['avatar_url'] = avatarUrl;
 
     try {
       final response = await authedDio.put('/user/profile', data: data);

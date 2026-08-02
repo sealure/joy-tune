@@ -21,12 +21,17 @@ class User {
     final rawId = json['id'];
     final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '') ?? 0;
 
+    // 后端 gRPC-gateway 统一输出 snake_case（如 avatar_url / auth_provider），
+    // 这里优先解析 snake_case，同时兼容历史 camelCase 数据
+    final avatarUrl = json['avatar_url'] as String? ?? json['avatarUrl'] as String? ?? '';
+    final authProvider = json['auth_provider'] as String? ?? json['authProvider'] as String? ?? '';
+
     return User(
       id: id,
       email: json['email'] as String? ?? '',
       nickname: json['nickname'] as String? ?? '',
-      avatarUrl: json['avatarUrl'] as String? ?? '',
-      authProvider: json['authProvider'] as String? ?? '',
+      avatarUrl: avatarUrl,
+      authProvider: authProvider,
     );
   }
 
