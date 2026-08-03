@@ -207,7 +207,7 @@ class PlayHistoryScreen extends ConsumerWidget {
       artist: r.artist,
       album: r.album,
       coverUrl: r.coverUrl.isEmpty ? null : r.coverUrl,
-      audioUrl: null,
+      lyricId: r.lyricId.isEmpty ? null : r.lyricId,
     );
   }
 

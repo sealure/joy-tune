@@ -32,7 +32,7 @@ class _FakeBackendClient extends BackendClient {
   int _nextPlaylistId = 100;
 
   @override
-  Future<LikeResult?> likeSong(String songId, {String? songName, String? artist, String? coverUrl, String? source, String? audioUrl, String? lyricsUrl, String? album, String? picId}) async {
+  Future<LikeResult?> likeSong(String songId, {String? songName, String? artist, String? source, String? album, String? picId, String? lyricId}) async {
     calls.add(['like', songId]);
     return likeSuccess ? const LikeResult(success: true, likeCount: 1) : null;
   }
@@ -62,7 +62,7 @@ class _FakeBackendClient extends BackendClient {
   }
 
   @override
-  Future<bool> addSongToPlaylist(int playlistId, {required String songId, required String songName, required String artist, String? album, String? coverUrl, String? source, String? picId}) async {
+  Future<bool> addSongToPlaylist(int playlistId, {required String songId, required String songName, required String artist, String? album, String? source, String? picId, String? lyricId}) async {
     calls.add(['addSong', '$playlistId', songId]);
     return true;
   }
@@ -74,7 +74,7 @@ class _FakeBackendClient extends BackendClient {
   }
 
   @override
-  Future<bool> reportPlay(String songId, {String? source, int? playDuration, String? songName, String? artist, String? coverUrl, String? album}) async {
+  Future<bool> reportPlay(String songId, {String? source, int? playDuration, String? songName, String? artist, String? album, String? picId, String? lyricId}) async {
     calls.add(['reportPlay', songId]);
     return reportSuccess;
   }

@@ -1377,6 +1377,12 @@ class $LocalPlaylistSongsTable extends LocalPlaylistSongs
   late final GeneratedColumn<String> picId = GeneratedColumn<String>(
       'pic_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lyricIdMeta =
+      const VerificationMeta('lyricId');
+  @override
+  late final GeneratedColumn<String> lyricId = GeneratedColumn<String>(
+      'lyric_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _sortOrderMeta =
       const VerificationMeta('sortOrder');
   @override
@@ -1440,6 +1446,7 @@ class $LocalPlaylistSongsTable extends LocalPlaylistSongs
         album,
         coverUrl,
         picId,
+        lyricId,
         sortOrder,
         remoteId,
         deleted,
@@ -1504,6 +1511,10 @@ class $LocalPlaylistSongsTable extends LocalPlaylistSongs
       context.handle(
           _picIdMeta, picId.isAcceptableOrUnknown(data['pic_id']!, _picIdMeta));
     }
+    if (data.containsKey('lyric_id')) {
+      context.handle(_lyricIdMeta,
+          lyricId.isAcceptableOrUnknown(data['lyric_id']!, _lyricIdMeta));
+    }
     if (data.containsKey('sort_order')) {
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
@@ -1561,6 +1572,8 @@ class $LocalPlaylistSongsTable extends LocalPlaylistSongs
           .read(DriftSqlType.string, data['${effectivePrefix}cover_url']),
       picId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}pic_id']),
+      lyricId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyric_id']),
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
       remoteId: attachedDatabase.typeMapping
@@ -1611,6 +1624,9 @@ class LocalPlaylistSong extends DataClass
   /// 封面图 pic_id
   final String? picId;
 
+  /// 歌词 ID（音源原始歌词 ID，实时解析歌词）
+  final String? lyricId;
+
   /// 本地排序序号
   final int sortOrder;
 
@@ -1638,6 +1654,7 @@ class LocalPlaylistSong extends DataClass
       required this.album,
       this.coverUrl,
       this.picId,
+      this.lyricId,
       required this.sortOrder,
       this.remoteId,
       required this.deleted,
@@ -1659,6 +1676,9 @@ class LocalPlaylistSong extends DataClass
     }
     if (!nullToAbsent || picId != null) {
       map['pic_id'] = Variable<String>(picId);
+    }
+    if (!nullToAbsent || lyricId != null) {
+      map['lyric_id'] = Variable<String>(lyricId);
     }
     map['sort_order'] = Variable<int>(sortOrder);
     if (!nullToAbsent || remoteId != null) {
@@ -1685,6 +1705,9 @@ class LocalPlaylistSong extends DataClass
           : Value(coverUrl),
       picId:
           picId == null && nullToAbsent ? const Value.absent() : Value(picId),
+      lyricId: lyricId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lyricId),
       sortOrder: Value(sortOrder),
       remoteId: remoteId == null && nullToAbsent
           ? const Value.absent()
@@ -1709,6 +1732,7 @@ class LocalPlaylistSong extends DataClass
       album: serializer.fromJson<String>(json['album']),
       coverUrl: serializer.fromJson<String?>(json['coverUrl']),
       picId: serializer.fromJson<String?>(json['picId']),
+      lyricId: serializer.fromJson<String?>(json['lyricId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       remoteId: serializer.fromJson<int?>(json['remoteId']),
       deleted: serializer.fromJson<bool>(json['deleted']),
@@ -1730,6 +1754,7 @@ class LocalPlaylistSong extends DataClass
       'album': serializer.toJson<String>(album),
       'coverUrl': serializer.toJson<String?>(coverUrl),
       'picId': serializer.toJson<String?>(picId),
+      'lyricId': serializer.toJson<String?>(lyricId),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'remoteId': serializer.toJson<int?>(remoteId),
       'deleted': serializer.toJson<bool>(deleted),
@@ -1749,6 +1774,7 @@ class LocalPlaylistSong extends DataClass
           String? album,
           Value<String?> coverUrl = const Value.absent(),
           Value<String?> picId = const Value.absent(),
+          Value<String?> lyricId = const Value.absent(),
           int? sortOrder,
           Value<int?> remoteId = const Value.absent(),
           bool? deleted,
@@ -1765,6 +1791,7 @@ class LocalPlaylistSong extends DataClass
         album: album ?? this.album,
         coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
         picId: picId.present ? picId.value : this.picId,
+        lyricId: lyricId.present ? lyricId.value : this.lyricId,
         sortOrder: sortOrder ?? this.sortOrder,
         remoteId: remoteId.present ? remoteId.value : this.remoteId,
         deleted: deleted ?? this.deleted,
@@ -1784,6 +1811,7 @@ class LocalPlaylistSong extends DataClass
       album: data.album.present ? data.album.value : this.album,
       coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
       picId: data.picId.present ? data.picId.value : this.picId,
+      lyricId: data.lyricId.present ? data.lyricId.value : this.lyricId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
@@ -1806,6 +1834,7 @@ class LocalPlaylistSong extends DataClass
           ..write('album: $album, ')
           ..write('coverUrl: $coverUrl, ')
           ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('remoteId: $remoteId, ')
           ..write('deleted: $deleted, ')
@@ -1827,6 +1856,7 @@ class LocalPlaylistSong extends DataClass
       album,
       coverUrl,
       picId,
+      lyricId,
       sortOrder,
       remoteId,
       deleted,
@@ -1846,6 +1876,7 @@ class LocalPlaylistSong extends DataClass
           other.album == this.album &&
           other.coverUrl == this.coverUrl &&
           other.picId == this.picId &&
+          other.lyricId == this.lyricId &&
           other.sortOrder == this.sortOrder &&
           other.remoteId == this.remoteId &&
           other.deleted == this.deleted &&
@@ -1864,6 +1895,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
   final Value<String> album;
   final Value<String?> coverUrl;
   final Value<String?> picId;
+  final Value<String?> lyricId;
   final Value<int> sortOrder;
   final Value<int?> remoteId;
   final Value<bool> deleted;
@@ -1880,6 +1912,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
     this.album = const Value.absent(),
     this.coverUrl = const Value.absent(),
     this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.remoteId = const Value.absent(),
     this.deleted = const Value.absent(),
@@ -1897,6 +1930,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
     this.album = const Value.absent(),
     this.coverUrl = const Value.absent(),
     this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.remoteId = const Value.absent(),
     this.deleted = const Value.absent(),
@@ -1918,6 +1952,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
     Expression<String>? album,
     Expression<String>? coverUrl,
     Expression<String>? picId,
+    Expression<String>? lyricId,
     Expression<int>? sortOrder,
     Expression<int>? remoteId,
     Expression<bool>? deleted,
@@ -1935,6 +1970,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
       if (album != null) 'album': album,
       if (coverUrl != null) 'cover_url': coverUrl,
       if (picId != null) 'pic_id': picId,
+      if (lyricId != null) 'lyric_id': lyricId,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (remoteId != null) 'remote_id': remoteId,
       if (deleted != null) 'deleted': deleted,
@@ -1954,6 +1990,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
       Value<String>? album,
       Value<String?>? coverUrl,
       Value<String?>? picId,
+      Value<String?>? lyricId,
       Value<int>? sortOrder,
       Value<int?>? remoteId,
       Value<bool>? deleted,
@@ -1970,6 +2007,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
       album: album ?? this.album,
       coverUrl: coverUrl ?? this.coverUrl,
       picId: picId ?? this.picId,
+      lyricId: lyricId ?? this.lyricId,
       sortOrder: sortOrder ?? this.sortOrder,
       remoteId: remoteId ?? this.remoteId,
       deleted: deleted ?? this.deleted,
@@ -2009,6 +2047,9 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
     if (picId.present) {
       map['pic_id'] = Variable<String>(picId.value);
     }
+    if (lyricId.present) {
+      map['lyric_id'] = Variable<String>(lyricId.value);
+    }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
@@ -2042,6 +2083,7 @@ class LocalPlaylistSongsCompanion extends UpdateCompanion<LocalPlaylistSong> {
           ..write('album: $album, ')
           ..write('coverUrl: $coverUrl, ')
           ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('remoteId: $remoteId, ')
           ..write('deleted: $deleted, ')
@@ -2101,6 +2143,11 @@ class $LocalPlayRecordsTable extends LocalPlayRecords
   late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
       'cover_url', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _picIdMeta = const VerificationMeta('picId');
+  @override
+  late final GeneratedColumn<String> picId = GeneratedColumn<String>(
+      'pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _albumMeta = const VerificationMeta('album');
   @override
   late final GeneratedColumn<String> album = GeneratedColumn<String>(
@@ -2108,6 +2155,12 @@ class $LocalPlayRecordsTable extends LocalPlayRecords
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _lyricIdMeta =
+      const VerificationMeta('lyricId');
+  @override
+  late final GeneratedColumn<String> lyricId = GeneratedColumn<String>(
+      'lyric_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _playedAtMeta =
       const VerificationMeta('playedAt');
   @override
@@ -2142,7 +2195,9 @@ class $LocalPlayRecordsTable extends LocalPlayRecords
         songName,
         artist,
         coverUrl,
+        picId,
         album,
+        lyricId,
         playedAt,
         isSynced,
         attemptCount
@@ -2182,9 +2237,17 @@ class $LocalPlayRecordsTable extends LocalPlayRecords
       context.handle(_coverUrlMeta,
           coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
     }
+    if (data.containsKey('pic_id')) {
+      context.handle(
+          _picIdMeta, picId.isAcceptableOrUnknown(data['pic_id']!, _picIdMeta));
+    }
     if (data.containsKey('album')) {
       context.handle(
           _albumMeta, album.isAcceptableOrUnknown(data['album']!, _albumMeta));
+    }
+    if (data.containsKey('lyric_id')) {
+      context.handle(_lyricIdMeta,
+          lyricId.isAcceptableOrUnknown(data['lyric_id']!, _lyricIdMeta));
     }
     if (data.containsKey('played_at')) {
       context.handle(_playedAtMeta,
@@ -2221,8 +2284,12 @@ class $LocalPlayRecordsTable extends LocalPlayRecords
           .read(DriftSqlType.string, data['${effectivePrefix}artist'])!,
       coverUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}cover_url']),
+      picId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pic_id']),
       album: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}album'])!,
+      lyricId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyric_id']),
       playedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}played_at'])!,
       isSynced: attachedDatabase.typeMapping
@@ -2257,8 +2324,14 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
   /// 封面 URL
   final String? coverUrl;
 
+  /// 封面图 pic_id（音源原始封面 ID，实时解析封面）
+  final String? picId;
+
   /// 专辑
   final String album;
+
+  /// 歌词 ID（音源原始歌词 ID，实时解析歌词）
+  final String? lyricId;
 
   /// 播放时间（本地记录时刻）
   final DateTime playedAt;
@@ -2275,7 +2348,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
       required this.songName,
       required this.artist,
       this.coverUrl,
+      this.picId,
       required this.album,
+      this.lyricId,
       required this.playedAt,
       required this.isSynced,
       required this.attemptCount});
@@ -2290,7 +2365,13 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
     if (!nullToAbsent || coverUrl != null) {
       map['cover_url'] = Variable<String>(coverUrl);
     }
+    if (!nullToAbsent || picId != null) {
+      map['pic_id'] = Variable<String>(picId);
+    }
     map['album'] = Variable<String>(album);
+    if (!nullToAbsent || lyricId != null) {
+      map['lyric_id'] = Variable<String>(lyricId);
+    }
     map['played_at'] = Variable<DateTime>(playedAt);
     map['is_synced'] = Variable<bool>(isSynced);
     map['attempt_count'] = Variable<int>(attemptCount);
@@ -2307,7 +2388,12 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
       coverUrl: coverUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(coverUrl),
+      picId:
+          picId == null && nullToAbsent ? const Value.absent() : Value(picId),
       album: Value(album),
+      lyricId: lyricId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lyricId),
       playedAt: Value(playedAt),
       isSynced: Value(isSynced),
       attemptCount: Value(attemptCount),
@@ -2324,7 +2410,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
       songName: serializer.fromJson<String>(json['songName']),
       artist: serializer.fromJson<String>(json['artist']),
       coverUrl: serializer.fromJson<String?>(json['coverUrl']),
+      picId: serializer.fromJson<String?>(json['picId']),
       album: serializer.fromJson<String>(json['album']),
+      lyricId: serializer.fromJson<String?>(json['lyricId']),
       playedAt: serializer.fromJson<DateTime>(json['playedAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       attemptCount: serializer.fromJson<int>(json['attemptCount']),
@@ -2340,7 +2428,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
       'songName': serializer.toJson<String>(songName),
       'artist': serializer.toJson<String>(artist),
       'coverUrl': serializer.toJson<String?>(coverUrl),
+      'picId': serializer.toJson<String?>(picId),
       'album': serializer.toJson<String>(album),
+      'lyricId': serializer.toJson<String?>(lyricId),
       'playedAt': serializer.toJson<DateTime>(playedAt),
       'isSynced': serializer.toJson<bool>(isSynced),
       'attemptCount': serializer.toJson<int>(attemptCount),
@@ -2354,7 +2444,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
           String? songName,
           String? artist,
           Value<String?> coverUrl = const Value.absent(),
+          Value<String?> picId = const Value.absent(),
           String? album,
+          Value<String?> lyricId = const Value.absent(),
           DateTime? playedAt,
           bool? isSynced,
           int? attemptCount}) =>
@@ -2365,7 +2457,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
         songName: songName ?? this.songName,
         artist: artist ?? this.artist,
         coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
+        picId: picId.present ? picId.value : this.picId,
         album: album ?? this.album,
+        lyricId: lyricId.present ? lyricId.value : this.lyricId,
         playedAt: playedAt ?? this.playedAt,
         isSynced: isSynced ?? this.isSynced,
         attemptCount: attemptCount ?? this.attemptCount,
@@ -2378,7 +2472,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
       songName: data.songName.present ? data.songName.value : this.songName,
       artist: data.artist.present ? data.artist.value : this.artist,
       coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      picId: data.picId.present ? data.picId.value : this.picId,
       album: data.album.present ? data.album.value : this.album,
+      lyricId: data.lyricId.present ? data.lyricId.value : this.lyricId,
       playedAt: data.playedAt.present ? data.playedAt.value : this.playedAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       attemptCount: data.attemptCount.present
@@ -2396,7 +2492,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
           ..write('songName: $songName, ')
           ..write('artist: $artist, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('picId: $picId, ')
           ..write('album: $album, ')
+          ..write('lyricId: $lyricId, ')
           ..write('playedAt: $playedAt, ')
           ..write('isSynced: $isSynced, ')
           ..write('attemptCount: $attemptCount')
@@ -2406,7 +2504,7 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
 
   @override
   int get hashCode => Object.hash(id, songId, source, songName, artist,
-      coverUrl, album, playedAt, isSynced, attemptCount);
+      coverUrl, picId, album, lyricId, playedAt, isSynced, attemptCount);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2417,7 +2515,9 @@ class LocalPlayRecord extends DataClass implements Insertable<LocalPlayRecord> {
           other.songName == this.songName &&
           other.artist == this.artist &&
           other.coverUrl == this.coverUrl &&
+          other.picId == this.picId &&
           other.album == this.album &&
+          other.lyricId == this.lyricId &&
           other.playedAt == this.playedAt &&
           other.isSynced == this.isSynced &&
           other.attemptCount == this.attemptCount);
@@ -2430,7 +2530,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
   final Value<String> songName;
   final Value<String> artist;
   final Value<String?> coverUrl;
+  final Value<String?> picId;
   final Value<String> album;
+  final Value<String?> lyricId;
   final Value<DateTime> playedAt;
   final Value<bool> isSynced;
   final Value<int> attemptCount;
@@ -2441,7 +2543,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
     this.songName = const Value.absent(),
     this.artist = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.picId = const Value.absent(),
     this.album = const Value.absent(),
+    this.lyricId = const Value.absent(),
     this.playedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.attemptCount = const Value.absent(),
@@ -2453,7 +2557,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
     this.songName = const Value.absent(),
     this.artist = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.picId = const Value.absent(),
     this.album = const Value.absent(),
+    this.lyricId = const Value.absent(),
     this.playedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.attemptCount = const Value.absent(),
@@ -2465,7 +2571,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
     Expression<String>? songName,
     Expression<String>? artist,
     Expression<String>? coverUrl,
+    Expression<String>? picId,
     Expression<String>? album,
+    Expression<String>? lyricId,
     Expression<DateTime>? playedAt,
     Expression<bool>? isSynced,
     Expression<int>? attemptCount,
@@ -2477,7 +2585,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
       if (songName != null) 'song_name': songName,
       if (artist != null) 'artist': artist,
       if (coverUrl != null) 'cover_url': coverUrl,
+      if (picId != null) 'pic_id': picId,
       if (album != null) 'album': album,
+      if (lyricId != null) 'lyric_id': lyricId,
       if (playedAt != null) 'played_at': playedAt,
       if (isSynced != null) 'is_synced': isSynced,
       if (attemptCount != null) 'attempt_count': attemptCount,
@@ -2491,7 +2601,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
       Value<String>? songName,
       Value<String>? artist,
       Value<String?>? coverUrl,
+      Value<String?>? picId,
       Value<String>? album,
+      Value<String?>? lyricId,
       Value<DateTime>? playedAt,
       Value<bool>? isSynced,
       Value<int>? attemptCount}) {
@@ -2502,7 +2614,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
       songName: songName ?? this.songName,
       artist: artist ?? this.artist,
       coverUrl: coverUrl ?? this.coverUrl,
+      picId: picId ?? this.picId,
       album: album ?? this.album,
+      lyricId: lyricId ?? this.lyricId,
       playedAt: playedAt ?? this.playedAt,
       isSynced: isSynced ?? this.isSynced,
       attemptCount: attemptCount ?? this.attemptCount,
@@ -2530,8 +2644,14 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
     if (coverUrl.present) {
       map['cover_url'] = Variable<String>(coverUrl.value);
     }
+    if (picId.present) {
+      map['pic_id'] = Variable<String>(picId.value);
+    }
     if (album.present) {
       map['album'] = Variable<String>(album.value);
+    }
+    if (lyricId.present) {
+      map['lyric_id'] = Variable<String>(lyricId.value);
     }
     if (playedAt.present) {
       map['played_at'] = Variable<DateTime>(playedAt.value);
@@ -2554,7 +2674,9 @@ class LocalPlayRecordsCompanion extends UpdateCompanion<LocalPlayRecord> {
           ..write('songName: $songName, ')
           ..write('artist: $artist, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('picId: $picId, ')
           ..write('album: $album, ')
+          ..write('lyricId: $lyricId, ')
           ..write('playedAt: $playedAt, ')
           ..write('isSynced: $isSynced, ')
           ..write('attemptCount: $attemptCount')
@@ -4049,6 +4171,7 @@ typedef $$LocalPlaylistSongsTableCreateCompanionBuilder
   Value<String> album,
   Value<String?> coverUrl,
   Value<String?> picId,
+  Value<String?> lyricId,
   Value<int> sortOrder,
   Value<int?> remoteId,
   Value<bool> deleted,
@@ -4067,6 +4190,7 @@ typedef $$LocalPlaylistSongsTableUpdateCompanionBuilder
   Value<String> album,
   Value<String?> coverUrl,
   Value<String?> picId,
+  Value<String?> lyricId,
   Value<int> sortOrder,
   Value<int?> remoteId,
   Value<bool> deleted,
@@ -4128,6 +4252,9 @@ class $$LocalPlaylistSongsTableFilterComposer
 
   ColumnFilters<String> get picId => $composableBuilder(
       column: $table.picId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
@@ -4201,6 +4328,9 @@ class $$LocalPlaylistSongsTableOrderingComposer
   ColumnOrderings<String> get picId => $composableBuilder(
       column: $table.picId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 
@@ -4272,6 +4402,9 @@ class $$LocalPlaylistSongsTableAnnotationComposer
 
   GeneratedColumn<String> get picId =>
       $composableBuilder(column: $table.picId, builder: (column) => column);
+
+  GeneratedColumn<String> get lyricId =>
+      $composableBuilder(column: $table.lyricId, builder: (column) => column);
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
@@ -4346,6 +4479,7 @@ class $$LocalPlaylistSongsTableTableManager extends RootTableManager<
             Value<String> album = const Value.absent(),
             Value<String?> coverUrl = const Value.absent(),
             Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<int?> remoteId = const Value.absent(),
             Value<bool> deleted = const Value.absent(),
@@ -4363,6 +4497,7 @@ class $$LocalPlaylistSongsTableTableManager extends RootTableManager<
             album: album,
             coverUrl: coverUrl,
             picId: picId,
+            lyricId: lyricId,
             sortOrder: sortOrder,
             remoteId: remoteId,
             deleted: deleted,
@@ -4380,6 +4515,7 @@ class $$LocalPlaylistSongsTableTableManager extends RootTableManager<
             Value<String> album = const Value.absent(),
             Value<String?> coverUrl = const Value.absent(),
             Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
             Value<int?> remoteId = const Value.absent(),
             Value<bool> deleted = const Value.absent(),
@@ -4397,6 +4533,7 @@ class $$LocalPlaylistSongsTableTableManager extends RootTableManager<
             album: album,
             coverUrl: coverUrl,
             picId: picId,
+            lyricId: lyricId,
             sortOrder: sortOrder,
             remoteId: remoteId,
             deleted: deleted,
@@ -4469,7 +4606,9 @@ typedef $$LocalPlayRecordsTableCreateCompanionBuilder
   Value<String> songName,
   Value<String> artist,
   Value<String?> coverUrl,
+  Value<String?> picId,
   Value<String> album,
+  Value<String?> lyricId,
   Value<DateTime> playedAt,
   Value<bool> isSynced,
   Value<int> attemptCount,
@@ -4482,7 +4621,9 @@ typedef $$LocalPlayRecordsTableUpdateCompanionBuilder
   Value<String> songName,
   Value<String> artist,
   Value<String?> coverUrl,
+  Value<String?> picId,
   Value<String> album,
+  Value<String?> lyricId,
   Value<DateTime> playedAt,
   Value<bool> isSynced,
   Value<int> attemptCount,
@@ -4515,8 +4656,14 @@ class $$LocalPlayRecordsTableFilterComposer
   ColumnFilters<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get album => $composableBuilder(
       column: $table.album, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get playedAt => $composableBuilder(
       column: $table.playedAt, builder: (column) => ColumnFilters(column));
@@ -4555,8 +4702,14 @@ class $$LocalPlayRecordsTableOrderingComposer
   ColumnOrderings<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get album => $composableBuilder(
       column: $table.album, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get playedAt => $composableBuilder(
       column: $table.playedAt, builder: (column) => ColumnOrderings(column));
@@ -4596,8 +4749,14 @@ class $$LocalPlayRecordsTableAnnotationComposer
   GeneratedColumn<String> get coverUrl =>
       $composableBuilder(column: $table.coverUrl, builder: (column) => column);
 
+  GeneratedColumn<String> get picId =>
+      $composableBuilder(column: $table.picId, builder: (column) => column);
+
   GeneratedColumn<String> get album =>
       $composableBuilder(column: $table.album, builder: (column) => column);
+
+  GeneratedColumn<String> get lyricId =>
+      $composableBuilder(column: $table.lyricId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get playedAt =>
       $composableBuilder(column: $table.playedAt, builder: (column) => column);
@@ -4642,7 +4801,9 @@ class $$LocalPlayRecordsTableTableManager extends RootTableManager<
             Value<String> songName = const Value.absent(),
             Value<String> artist = const Value.absent(),
             Value<String?> coverUrl = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
             Value<String> album = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
             Value<DateTime> playedAt = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> attemptCount = const Value.absent(),
@@ -4654,7 +4815,9 @@ class $$LocalPlayRecordsTableTableManager extends RootTableManager<
             songName: songName,
             artist: artist,
             coverUrl: coverUrl,
+            picId: picId,
             album: album,
+            lyricId: lyricId,
             playedAt: playedAt,
             isSynced: isSynced,
             attemptCount: attemptCount,
@@ -4666,7 +4829,9 @@ class $$LocalPlayRecordsTableTableManager extends RootTableManager<
             Value<String> songName = const Value.absent(),
             Value<String> artist = const Value.absent(),
             Value<String?> coverUrl = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
             Value<String> album = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
             Value<DateTime> playedAt = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> attemptCount = const Value.absent(),
@@ -4678,7 +4843,9 @@ class $$LocalPlayRecordsTableTableManager extends RootTableManager<
             songName: songName,
             artist: artist,
             coverUrl: coverUrl,
+            picId: picId,
             album: album,
+            lyricId: lyricId,
             playedAt: playedAt,
             isSynced: isSynced,
             attemptCount: attemptCount,

@@ -37,6 +37,7 @@ class PlayRecordRepository {
         coverUrl: r.coverUrl ?? '',
         source: r.source,
         album: r.album,
+        lyricId: r.lyricId ?? '',
         playedAt: r.playedAt,
       );
 }

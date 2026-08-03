@@ -143,6 +143,7 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
     String album = '',
     String? coverUrl,
     String? picId,
+    String? lyricId,
   }) async {
     final existing = await (select(localPlaylistSongs)
           ..where((t) =>
@@ -167,6 +168,7 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
         album: Value(album),
         coverUrl: Value(coverUrl),
         picId: Value(picId),
+        lyricId: Value(lyricId),
         sortOrder: Value(nextOrder),
       ));
     } else if (existing.deleted) {
@@ -185,6 +187,7 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
               album: Value(album),
               coverUrl: Value(coverUrl),
               picId: Value(picId),
+              lyricId: Value(lyricId),
             ),
           );
     } else {
@@ -202,9 +205,47 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
               album: Value(album),
               coverUrl: Value(coverUrl),
               picId: Value(picId),
+              lyricId: Value(lyricId),
             ),
           );
     }
+  }
+
+  /// 合并远端歌单歌曲到本地（服务端→客户端，本地优先）
+  /// 本地已存在同歌（含已删除）则跳过；新插入的歌直接标记已同步，避免再推回服务端
+  Future<void> mergeRemoteSong({
+    required String playlistId,
+    required String songId,
+    required String source,
+    required String songName,
+    required String artist,
+    String album = '',
+    String? coverUrl,
+    String? picId,
+    String? lyricId,
+    int sortOrder = 0,
+  }) async {
+    final existing = await (select(localPlaylistSongs)
+          ..where((t) =>
+              t.playlistId.equals(playlistId) &
+              t.songId.equals(songId) &
+              t.source.equals(source)))
+        .getSingleOrNull();
+    if (existing != null) return; // 已存在，本地优先
+    await into(localPlaylistSongs).insert(LocalPlaylistSongsCompanion.insert(
+      playlistId: playlistId,
+      songId: songId,
+      source: source,
+      songName: songName,
+      artist: artist,
+      album: Value(album),
+      coverUrl: Value(coverUrl),
+      picId: Value(picId),
+      lyricId: Value(lyricId),
+      sortOrder: Value(sortOrder),
+      isSynced: const Value(true),
+      syncedEver: const Value(true),
+    ));
   }
 
   /// 从歌单移除歌曲（soft delete，逻辑同收藏）

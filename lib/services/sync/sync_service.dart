@@ -109,12 +109,10 @@ class SyncService {
         f.songId,
         songName: f.name,
         artist: f.artist,
-        coverUrl: f.coverUrl,
         source: f.source,
-        audioUrl: f.audioUrl,
-        lyricsUrl: f.lyricsUrl,
         album: f.album.isNotEmpty ? f.album : null,
         picId: f.picId,
+        lyricId: f.lyricId,
       );
       if (ok?.success == true) {
         await _favoriteDao.markSynced(f.songId, f.source);
@@ -178,9 +176,9 @@ class SyncService {
         songName: s.songName,
         artist: s.artist,
         album: s.album.isEmpty ? null : s.album,
-        coverUrl: s.coverUrl,
         source: s.source,
         picId: s.picId,
+        lyricId: s.lyricId,
       );
       if (ok) {
         await _playlistDao.markSongSynced(s.id);
@@ -208,8 +206,9 @@ class SyncService {
         source: r.source,
         songName: r.songName,
         artist: r.artist,
-        coverUrl: r.coverUrl,
         album: r.album.isEmpty ? null : r.album,
+        picId: r.picId,
+        lyricId: r.lyricId,
       );
       if (ok) {
         await _playRecordDao.markSynced(r.id);
@@ -249,22 +248,46 @@ class SyncService {
     }
   }
 
-  /// 拉取远端歌单并合并到本地（本地优先：已有同 remoteId 的歌单跳过）
+  /// 拉取远端歌单并合并到本地（服务端→客户端）
+  /// 本地已有同 remoteId 的歌单则复用，否则新建；随后拉取该歌单的歌曲并入本地
   Future<void> _pullPlaylists() async {
     final remote = await _client.getUserPlaylists();
     final locals = await _playlistDao.getAll();
     for (final p in remote) {
-      final matched = locals.any((l) => l.remoteId == p.id);
-      if (matched) continue;
-      final localId = _newLocalId();
-      await _playlistDao.create(LocalPlaylistsCompanion.insert(
-        id: localId,
-        name: p.name,
-        description: drift.Value(p.description),
-        coverUrl: drift.Value(p.coverUrl),
-        isPublic: drift.Value(p.isPublic),
-      ));
-      await _playlistDao.markSynced(localId, remoteId: p.id);
+      final existing = locals.where((l) => l.remoteId == p.id).toList();
+      final localId = existing.isNotEmpty ? existing.first.id : _newLocalId();
+      if (existing.isEmpty) {
+        await _playlistDao.create(LocalPlaylistsCompanion.insert(
+          id: localId,
+          name: p.name,
+          description: drift.Value(p.description),
+          coverUrl: drift.Value(p.coverUrl),
+          isPublic: drift.Value(p.isPublic),
+        ));
+        await _playlistDao.markSynced(localId, remoteId: p.id);
+      }
+      // 拉取该歌单的歌曲并入本地（补齐"服务端→客户端"方向）
+      await _pullPlaylistSongs(localId, p.id);
+    }
+  }
+
+  /// 拉取单个远端歌单的歌曲并入本地（本地优先：已存在的本地歌曲跳过，不覆盖未同步新增）
+  Future<void> _pullPlaylistSongs(String localId, int remoteId) async {
+    final detail = await _client.getUserPlaylistDetail(remoteId);
+    if (detail == null) return;
+    var order = 0;
+    for (final s in detail.songs) {
+      await _playlistDao.mergeRemoteSong(
+        playlistId: localId,
+        songId: s.songId,
+        source: s.source,
+        songName: s.songName,
+        artist: s.artist,
+        album: s.album,
+        picId: s.picId.isNotEmpty ? s.picId : null,
+        lyricId: s.lyricId.isNotEmpty ? s.lyricId : null,
+        sortOrder: order++,
+      );
     }
   }
 

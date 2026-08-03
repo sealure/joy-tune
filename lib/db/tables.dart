@@ -91,6 +91,8 @@ class LocalPlaylistSongs extends Table {
   TextColumn get coverUrl => text().nullable()();
   /// 封面图 pic_id
   TextColumn get picId => text().nullable()();
+  /// 歌词 ID（音源原始歌词 ID，实时解析歌词）
+  TextColumn get lyricId => text().nullable()();
   /// 本地排序序号
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   /// 远端 playlist_songs 记录 id（同步后回填，reorder 增强用）
@@ -125,8 +127,12 @@ class LocalPlayRecords extends Table {
   TextColumn get artist => text().withDefault(const Constant(''))();
   /// 封面 URL
   TextColumn get coverUrl => text().nullable()();
+  /// 封面图 pic_id（音源原始封面 ID，实时解析封面）
+  TextColumn get picId => text().nullable()();
   /// 专辑
   TextColumn get album => text().withDefault(const Constant(''))();
+  /// 歌词 ID（音源原始歌词 ID，实时解析歌词）
+  TextColumn get lyricId => text().nullable()();
   /// 播放时间（本地记录时刻）
   DateTimeColumn get playedAt => dateTime().withDefault(currentDateAndTime)();
   /// 是否已同步到服务端

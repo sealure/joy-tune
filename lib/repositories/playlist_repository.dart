@@ -62,6 +62,8 @@ class LocalPlaylistSongInfo {
   final String? coverUrl;
   /// 封面 pic_id
   final String? picId;
+  /// 歌词 ID（音源原始歌词 ID，实时解析歌词）
+  final String? lyricId;
   /// 本地排序序号
   final int sortOrder;
 
@@ -75,6 +77,7 @@ class LocalPlaylistSongInfo {
     this.album = '',
     this.coverUrl,
     this.picId,
+    this.lyricId,
     this.sortOrder = 0,
   });
 
@@ -87,6 +90,7 @@ class LocalPlaylistSongInfo {
         album: album,
         coverUrl: coverUrl,
         picId: picId,
+        lyricId: lyricId,
       );
 }
 
@@ -179,6 +183,7 @@ class PlaylistRepository {
       album: song.album,
       coverUrl: song.coverUrl,
       picId: song.picId,
+      lyricId: song.lyricId,
     );
   }
 
@@ -232,6 +237,7 @@ class PlaylistRepository {
         album: s.album,
         coverUrl: s.coverUrl,
         picId: s.picId,
+        lyricId: s.lyricId,
         sortOrder: s.sortOrder,
       );
 }

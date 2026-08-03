@@ -148,7 +148,7 @@ final recommendPlaylistSongsProvider =
   final detail = await client.getRecommendPlaylistDetail(playlistId);
   if (detail == null) return [];
 
-  // 将后端歌曲信息转换为前端 Song 模型（保留封面/图片ID，供列表/播放使用）
+  // 将后端歌曲信息转换为前端 Song 模型（保留 pic_id/lyric_id，供列表/播放实时解析）
   return detail.songs.map((s) => Song(
     id: s.songId,
     name: s.songName,
@@ -157,7 +157,7 @@ final recommendPlaylistSongsProvider =
     source: s.source,
     coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
     picId: s.picId.isNotEmpty ? s.picId : null,
-    lyricId: null,
+    lyricId: s.lyricId.isNotEmpty ? s.lyricId : null,
   )).toList();
 });
 

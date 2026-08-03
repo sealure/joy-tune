@@ -211,15 +211,15 @@ class BackendClient {
     }
   }
 
-  /// 往歌单添加歌曲
+  /// 往歌单添加歌曲（只上报音源原始 ID，客户端按 ID 实时解析资源）
   Future<bool> addSongToPlaylist(int playlistId, {
     required String songId,
     required String songName,
     required String artist,
     String? album,
-    String? coverUrl,
     String? source,
     String? picId,
+    String? lyricId,
   }) async {
     try {
       final dio = await _authedDio;
@@ -228,9 +228,9 @@ class BackendClient {
         'song_name': songName,
         'artist': artist,
         if (album != null) 'album': album,
-        if (coverUrl != null) 'cover_url': coverUrl,
         if (source != null) 'source': source,
         if (picId != null) 'pic_id': picId,
+        if (lyricId != null) 'lyric_id': lyricId,
       });
       return true;
     } on DioException catch (e) {
@@ -311,16 +311,14 @@ class BackendClient {
   // 喜欢（收藏）
   // ══════════════════════════════════════════
 
-  /// 喜欢一首歌
+  /// 喜欢一首歌（只上报音源原始 ID，客户端按 ID 实时解析资源）
   Future<LikeResult?> likeSong(String songId, {
     String? songName,
     String? artist,
-    String? coverUrl,
     String? source,
-    String? audioUrl,
-    String? lyricsUrl,
     String? album,
     String? picId,
+    String? lyricId,
   }) async {
     debugPrint('[BACKEND] likeSong: songId=$songId, songName=$songName');
     try {
@@ -329,12 +327,10 @@ class BackendClient {
       final response = await dio.post('/songs/$songId/like', data: {
         if (songName != null) 'song_name': songName,
         if (artist != null) 'artist': artist,
-        if (coverUrl != null) 'cover_url': coverUrl,
         if (source != null) 'source': source,
-        if (audioUrl != null) 'audio_url': audioUrl,
-        if (lyricsUrl != null) 'lyrics_url': lyricsUrl,
         if (album != null) 'album': album,
         if (picId != null) 'pic_id': picId,
+        if (lyricId != null) 'lyric_id': lyricId,
       });
       debugPrint('[BACKEND] likeSong 响应: status=${response.statusCode}, data=${response.data}');
       return LikeResult(
@@ -414,8 +410,7 @@ class BackendClient {
       debugPrint('[BACKEND] getUserLikedSongs 原始数据: ${response.data}');
       final result = songs.map((s) {
         final json = s as Map<String, dynamic>;
-        final audioUrl = json['audio_url']?.toString();
-        debugPrint('[BACKEND] 解析收藏歌曲: id=${json['song_id']}, name=${json['song_name']}, audioUrl=$audioUrl');
+        debugPrint('[BACKEND] 解析收藏歌曲: id=${json['song_id']}, name=${json['song_name']}');
         final song = Song(
           id: json['song_id']?.toString() ?? '',
           name: json['song_name']?.toString() ?? '',
@@ -423,9 +418,7 @@ class BackendClient {
           source: json['source']?.toString() ?? 'netease',
           album: json['album']?.toString() ?? '',
           picId: json['pic_id']?.toString(),
-          audioUrl: audioUrl,
-          coverUrl: json['cover_url']?.toString(),
-          lyricsUrl: json['lyrics_url']?.toString(),
+          lyricId: json['lyric_id']?.toString(),
         );
         debugPrint('[BACKEND] 解析后: id=${song.id}, name=${song.name}');
         return song;
@@ -442,14 +435,15 @@ class BackendClient {
   // 播放记录（听歌总数）
   // ══════════════════════════════════════════
 
-  /// 上报一次播放（登录用户开始播放时调用）
+  /// 上报一次播放（登录用户开始播放时调用，上报音源原始 ID 供历史解析资源）
   Future<bool> reportPlay(String songId, {
     String? source,
     int? playDuration,
     String? songName,
     String? artist,
-    String? coverUrl,
     String? album,
+    String? picId,
+    String? lyricId,
   }) async {
     debugPrint('[BACKEND] reportPlay: songId=$songId, source=$source, songName=$songName');
     try {
@@ -458,11 +452,12 @@ class BackendClient {
         'song_id': songId,
         if (source != null) 'source': source,
         if (playDuration != null) 'play_duration': playDuration,
-        // 歌曲元信息写入后端 songs 表，供播放历史展示
+        // 歌曲元信息写入后端 songs 表，供播放历史展示与实时解析
         if (songName != null) 'song_name': songName,
         if (artist != null) 'artist': artist,
-        if (coverUrl != null) 'cover_url': coverUrl,
         if (album != null) 'album': album,
+        if (picId != null) 'pic_id': picId,
+        if (lyricId != null) 'lyric_id': lyricId,
       });
       return true;
     } on DioException catch (e) {
@@ -687,6 +682,7 @@ class PlaylistSongInfo {
   final String coverUrl;
   final String source;
   final String picId;
+  final String lyricId;
 
   const PlaylistSongInfo({
     required this.id,
@@ -697,6 +693,7 @@ class PlaylistSongInfo {
     this.coverUrl = '',
     this.source = '',
     this.picId = '',
+    this.lyricId = '',
   });
 
   factory PlaylistSongInfo.fromJson(Map<String, dynamic> json) {
@@ -709,6 +706,7 @@ class PlaylistSongInfo {
       coverUrl: json['cover_url'] as String? ?? '',
       source: json['source'] as String? ?? '',
       picId: json['pic_id'] as String? ?? '',
+      lyricId: json['lyric_id'] as String? ?? '',
     );
   }
 }
@@ -842,6 +840,7 @@ class PlayHistoryItem {
   final String coverUrl;
   final String source;
   final String album;
+  final String lyricId;
   final DateTime? playedAt;
 
   const PlayHistoryItem({
@@ -851,6 +850,7 @@ class PlayHistoryItem {
     this.coverUrl = '',
     this.source = '',
     this.album = '',
+    this.lyricId = '',
     this.playedAt,
   });
 
@@ -862,6 +862,7 @@ class PlayHistoryItem {
       coverUrl: json['cover_url']?.toString() ?? '',
       source: json['source']?.toString() ?? '',
       album: json['album']?.toString() ?? '',
+      lyricId: json['lyric_id']?.toString() ?? '',
       playedAt: DateTime.tryParse(json['played_at']?.toString() ?? ''),
     );
   }

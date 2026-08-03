@@ -21,6 +21,8 @@ class PlayRecordDao extends DatabaseAccessor<AppDatabase>
       artist: Value(song.artist),
       album: Value(song.album),
       coverUrl: Value(song.coverUrl),
+      picId: Value(song.picId),
+      lyricId: Value(song.lyricId),
     ));
   }
 

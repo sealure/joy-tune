@@ -26,12 +26,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async => m.createAll(),
-        // v2 起在此迁移
-        onUpgrade: (m, from, to) async {},
+        onUpgrade: (m, from, to) async {
+          // v2：歌单歌曲/播放记录新增 lyric_id、播放记录新增 pic_id（音源原始 ID，供实时解析歌词/封面）
+          if (from < 2) {
+            await m.addColumn(localPlaylistSongs, localPlaylistSongs.lyricId);
+            await m.addColumn(localPlayRecords, localPlayRecords.lyricId);
+            await m.addColumn(localPlayRecords, localPlayRecords.picId);
+          }
+        },
       );
 }
