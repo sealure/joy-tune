@@ -11,6 +11,7 @@ import '../../db/daos/favorite_dao.dart';
 import '../../db/daos/play_record_dao.dart';
 import '../../db/daos/playlist_dao.dart';
 import '../../db/daos/settings_dao.dart';
+import '../../db/daos/song_meta_dao.dart';
 import '../auth_service.dart';
 
 /// 后台同步服务
@@ -25,6 +26,7 @@ class SyncService {
   final PlaylistDao _playlistDao;
   final PlayRecordDao _playRecordDao;
   final SettingsDao _settingsDao;
+  final SongMetaDao _songMetaDao;
 
   /// 非重入锁，防止并发同步
   bool _running = false;
@@ -41,12 +43,14 @@ class SyncService {
     required PlaylistDao playlistDao,
     required PlayRecordDao playRecordDao,
     required SettingsDao settingsDao,
+    required SongMetaDao songMetaDao,
   })  : _client = client,
         _auth = auth,
         _favoriteDao = favoriteDao,
         _playlistDao = playlistDao,
         _playRecordDao = playRecordDao,
-        _settingsDao = settingsDao;
+        _settingsDao = settingsDao,
+        _songMetaDao = songMetaDao;
 
   /// 启动后台同步任务：立即首扫 + 定时 + 网络恢复时
   void start({Duration interval = const Duration(minutes: 10)}) {
@@ -201,6 +205,13 @@ class SyncService {
   Future<void> _pushPlayRecords() async {
     final pending = await _playRecordDao.pendingToPush();
     for (final r in pending) {
+      // lyric_id 兜底：本地播放记录为空时，从歌曲元数据缓存取（播放时已解析回填过）
+      var lyricId = r.lyricId;
+      if (lyricId == null || lyricId.isEmpty) {
+        final meta = await _songMetaDao.get(r.songId, r.source);
+        lyricId = meta?.lyricId;
+      }
+      print('[SyncService] 上报播放: song=${r.songId} source=${r.source} lyricId=${lyricId ?? "空"}');
       final ok = await _client.reportPlay(
         r.songId,
         source: r.source,
@@ -208,7 +219,7 @@ class SyncService {
         artist: r.artist,
         album: r.album.isEmpty ? null : r.album,
         picId: r.picId,
-        lyricId: r.lyricId,
+        lyricId: lyricId,
       );
       if (ok) {
         await _playRecordDao.markSynced(r.id);

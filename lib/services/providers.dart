@@ -129,6 +129,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     playlistDao: ref.watch(playlistDaoProvider),
     playRecordDao: ref.watch(playRecordDaoProvider),
     settingsDao: ref.watch(settingsDaoProvider),
+    songMetaDao: ref.watch(songMetaDaoProvider),
   );
   return service;
 });

@@ -305,6 +305,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       final cached = await songMetaDao.getLyrics(song.id, song.source);
       if (cached != null) {
         if (mounted) setState(() => _lyrics = parseLrc(cached));
+        // 即使命中缓存，也确保 lyric_id 回填到本地播放/收藏/歌单（歌曲自带时），供同步服务端
+        if (song.lyricId != null && song.lyricId!.isNotEmpty) {
+          unawaited(_backfillLyricId(song.id, song.source, song.lyricId!));
+        }
         return;
       }
     } catch (_) {
@@ -340,6 +344,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   /// 把 lyric_id 回填到本地播放记录 / 收藏 / 歌单歌曲对应行（为空才补，不覆盖），
   /// 并标记待同步，使下次 likeSong / addSongToPlaylist / reportPlay 能补传 lyric_id 到服务端
   Future<void> _backfillLyricId(String songId, String source, String lyricId) async {
+    print('[Player] 回填 lyric_id: song=$songId source=$source lyric=$lyricId');
     try {
       await ref.read(playRecordDaoProvider).backfillLyricId(songId, source, lyricId);
       await ref.read(favoriteDaoProvider).backfillLyricId(songId, source, lyricId);

@@ -10,6 +10,7 @@ import 'package:via_music/db/daos/favorite_dao.dart';
 import 'package:via_music/db/daos/play_record_dao.dart';
 import 'package:via_music/db/daos/playlist_dao.dart';
 import 'package:via_music/db/daos/settings_dao.dart';
+import 'package:via_music/db/daos/song_meta_dao.dart';
 import 'package:via_music/models/song.dart';
 import 'package:via_music/services/auth_service.dart';
 import 'package:via_music/services/sync/sync_service.dart';
@@ -97,6 +98,7 @@ void main() {
   late PlaylistDao playlistDao;
   late PlayRecordDao playRecordDao;
   late SettingsDao settingsDao;
+  late SongMetaDao songMetaDao;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -104,6 +106,7 @@ void main() {
     playlistDao = PlaylistDao(db);
     playRecordDao = PlayRecordDao(db);
     settingsDao = SettingsDao(db);
+    songMetaDao = SongMetaDao(db);
     client = _FakeBackendClient();
   });
 
@@ -120,6 +123,7 @@ void main() {
         playlistDao: playlistDao,
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
+        songMetaDao: songMetaDao,
       );
       await favoriteDao.insertFavorite(song('a'));
       await playRecordDao.addRecord(song('b'));
@@ -139,6 +143,7 @@ void main() {
         playlistDao: playlistDao,
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
+        songMetaDao: songMetaDao,
       );
     });
 
@@ -202,6 +207,7 @@ void main() {
         playlistDao: playlistDao,
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
+        songMetaDao: songMetaDao,
       );
       await settingsDao.set('pending_clear_play_history', 'true');
       await service.syncNow();
