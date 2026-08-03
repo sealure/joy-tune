@@ -89,6 +89,11 @@ class FavoriteDao extends DatabaseAccessor<AppDatabase> with _$FavoriteDaoMixin 
     return (select(localFavorites)..where((t) => t.songId.equals(songId))).get();
   }
 
+  /// 按 (songId, source) 查询收藏行（含已删除），无则 null
+  Future<LocalFavorite?> queryByKey(String songId, String source) async {
+    return _findByKey(songId, source);
+  }
+
   /// 待推送的收藏（未删除且未同步）
   Future<List<LocalFavorite>> pendingToPush() async {
     return (select(localFavorites)
@@ -112,6 +117,18 @@ class FavoriteDao extends DatabaseAccessor<AppDatabase> with _$FavoriteDaoMixin 
           LocalFavoritesCompanion(
             isSynced: const Value(true),
             syncedEver: const Value(true),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+  }
+
+  /// 回填收藏的可播放音频地址（播放解析成功后调用，避免下次重新解析）
+  Future<void> updateAudioUrl(String songId, String source, String? audioUrl) async {
+    await (update(localFavorites)
+          ..where((t) => t.songId.equals(songId) & t.source.equals(source)))
+        .write(
+          LocalFavoritesCompanion(
+            audioUrl: Value(audioUrl),
             updatedAt: Value(DateTime.now()),
           ),
         );

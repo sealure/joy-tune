@@ -62,6 +62,17 @@ class DriftFavoriteRepository implements FavoriteRepository {
   @override
   Future<int> count() async => _dao.count();
 
+  /// 回填收藏的可播放音频地址（播放解析成功后调用，下次收藏点击直接用本地 audio_url 播放）
+  Future<void> cacheAudioUrl(String songId, String source, String? audioUrl) {
+    return _dao.updateAudioUrl(songId, source, audioUrl);
+  }
+
+  /// 收藏源（供判断是否回填 localAudio）
+  Future<bool> isFavoritePair(String songId, String source) async {
+    final row = await _dao.queryByKey(songId, source);
+    return row != null && !row.deleted;
+  }
+
   /// LocalFavorite 数据行 → Song 模型
   Song _toSong(LocalFavorite f) => Song(
         id: f.songId,

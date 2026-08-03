@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
@@ -185,37 +184,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       return;
     }
 
-    // 无缓存 → 优先使用后端返回的 audioUrl（收藏页歌曲已被 songs 表填充此字段）
-    if (song.audioUrl != null && song.audioUrl!.isNotEmpty) {
-      print('[Player] 使用后端 audioUrl: ${song.audioUrl}');
-      try {
-        // 直接使用后端返回的封面 URL，无需再调外部 API 解析
-        if (mounted) {
-          if (song.coverUrl != null) {
-            setState(() => _coverUrl = song.coverUrl);
-            cache.saveMetadata(cacheKey, {'coverUrl': song.coverUrl});
-          }
-          // 歌词 URL 需异步获取后解析（非阻塞）
-          if (song.lyricsUrl != null && song.lyricsUrl!.isNotEmpty) {
-            _loadLyricsFromUrl(song.lyricsUrl!, cache, cacheKey);
-          } else {
-            _loadSongMetadata(song);
-          }
-        }
-
-        _checkFavorite(song);
-        if (!mounted) return;
-        await audio.play(song.audioUrl!, songId: song.id, song: song);
-        if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
-        _fetchPrefetchNext(audio);
-        return;
-      } catch (e) {
-        // 后端 audioUrl 已失效（播放 URL 有过期时间）：降级到下方按 song_id 重新解析
-        print('[Player] 后端 audioUrl 播放失败，降级重新解析: $e');
-      }
-    }
-
-    // 无 audioUrl 或 audioUrl 失效 → 用已有 ID 解析（不重新搜索，避免匹配到翻唱/Live版本）
+    // 无缓存 → 直接用 song_id 现解析最新播放地址（不依赖后端 audio_url：
+    // joox 等带 vkey 的地址会过期，song_id 每次拿新签名最可靠）
     _loadSongMetadata(song);
     _checkFavorite(song);
 
@@ -235,7 +205,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       print('[Player] url: ${playUrl.url.isNotEmpty ? "有" : "空"}, mounted=$mounted');
       if (!mounted) return;
       print('[Player] 调用audio.play');
-      await audio.play(playUrl.url, songId: result.playable.id, song: result.playable);
+      await audio
+          .play(playUrl.url, songId: result.playable.id, song: result.playable)
+          .timeout(const Duration(seconds: 15));
       // 恢复播放位置
       if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
       // 播放成功后预缓存下一首
@@ -332,23 +304,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         setState(() => _lyrics = parseLrc(lyric.lyric!));
       }
     } catch (_) {}
-  }
-
-  /// 从歌词 API URL 获取歌词文本并解析、缓存
-  Future<void> _loadLyricsFromUrl(String url, AudioCache cache, String cacheKey) async {
-    try {
-      print('[Player] 从 lyricsUrl 获取歌词: $url');
-      final response = await Dio().get(url);
-      final data = response.data;
-      if (data is Map && data['lyric'] is String && mounted) {
-        final text = data['lyric'] as String;
-        print('[Player] 歌词从 lyricsUrl 获取成功: ${text.length}字');
-        setState(() => _lyrics = parseLrc(text));
-        cache.saveMetadata(cacheKey, {'lyrics': text});
-      }
-    } catch (_) {
-      debugPrint('[Player] 从 lyricsUrl 获取歌词失败');
-    }
   }
 
   // ── 歌词同步 ──
