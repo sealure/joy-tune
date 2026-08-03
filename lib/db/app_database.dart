@@ -17,6 +17,7 @@ part 'app_database.g.dart';
   LocalSearchHistory,
   LocalPlaySessions,
   LocalSettings,
+  LocalLyricsCache,
 ])
 class AppDatabase extends _$AppDatabase {
   /// 默认构造：drift_flutter 统一移动端原生 + 桌面端 ffi
@@ -26,7 +27,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -37,6 +38,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(localPlaylistSongs, localPlaylistSongs.lyricId);
             await m.addColumn(localPlayRecords, localPlayRecords.lyricId);
             await m.addColumn(localPlayRecords, localPlayRecords.picId);
+          }
+          // v3：新增本地歌词缓存表（播放后回填歌词）
+          if (from < 3) {
+            await m.createTable(localLyricsCache);
           }
         },
       );

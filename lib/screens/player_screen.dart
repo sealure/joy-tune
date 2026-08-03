@@ -224,6 +224,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           'lyrics': result.lyricsText,
         });
       }
+      // 回填歌词到本地 db（播放后缓存，离线可看）
+      if (result.lyricsText != null) {
+        unawaited(_backfillLyrics(result.playable, result.lyricsText!));
+      }
     } catch (e) {
       print('[Player] 播放异常: $e');
       audio.playNext();
@@ -295,12 +299,35 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   Future<void> _loadLyrics(Song song) async {
-    // 歌词：优先 song.lyricId，缺失（历史数据）时按歌名搜索兜底
+    // 歌词：优先读本地 db 缓存（播放过即回填，离线可看）；未命中则解析并回填
+    final lyricsDao = ref.read(lyricsCacheDaoProvider);
+    try {
+      final cached = await lyricsDao.get(song.id, song.source);
+      if (cached != null && cached.isNotEmpty) {
+        if (mounted) setState(() => _lyrics = parseLrc(cached));
+        return;
+      }
+    } catch (_) {
+      // 缓存不可达时忽略，走解析
+    }
+
+    // 无缓存：优先 song.lyricId，缺失（历史数据）时按歌名搜索兜底
     final resolver = ref.read(songResolverProvider);
     final text = await resolver.searchLyricsText(song);
     if (mounted && text != null && text.isNotEmpty) {
       setState(() => _lyrics = parseLrc(text));
+      // 回填歌词到本地 db（播放后缓存，清理缓存才清除）
+      try {
+        await lyricsDao.save(song.id, song.source, text);
+      } catch (_) {}
     }
+  }
+
+  /// 回填歌词到本地 db（resolveDirectly 解析到歌词后调用）
+  Future<void> _backfillLyrics(Song song, String text) async {
+    try {
+      await ref.read(lyricsCacheDaoProvider).save(song.id, song.source, text);
+    } catch (_) {}
   }
 
   // ── 歌词同步 ──

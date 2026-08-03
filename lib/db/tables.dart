@@ -182,3 +182,19 @@ class LocalSettings extends Table {
   @override
   Set<Column> get primaryKey => {key};
 }
+
+/// 本地歌词缓存表（纯本地，不同步）
+/// 播放过的歌解析到歌词后回填，下次播放直接读，避免重复请求；清理缓存时一并清除
+class LocalLyricsCache extends Table {
+  /// 歌曲 ID
+  TextColumn get songId => text()();
+  /// 音源
+  TextColumn get source => text()();
+  /// LRC 歌词文本
+  TextColumn get lyrics => text()();
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {songId, source};
+}

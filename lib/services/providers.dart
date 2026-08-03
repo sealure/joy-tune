@@ -7,6 +7,7 @@ import '../api/gdmusic_client.dart';
 import '../api/backend_client.dart';
 import '../db/app_database.dart';
 import '../db/daos/favorite_dao.dart';
+import '../db/daos/lyrics_cache_dao.dart';
 import '../db/daos/play_record_dao.dart';
 import '../db/daos/playlist_dao.dart';
 import '../db/daos/search_history_dao.dart';
@@ -56,6 +57,11 @@ final sessionDaoProvider = Provider<SessionDao>((ref) => SessionDao(ref.watch(da
 
 /// 设置数据访问对象
 final settingsDaoProvider = Provider<SettingsDao>((ref) => SettingsDao(ref.watch(databaseProvider)));
+
+/// 歌词缓存数据访问对象（播放后回填歌词，纯本地）
+final lyricsCacheDaoProvider = Provider<LyricsCacheDao>((ref) {
+  return LyricsCacheDao(ref.watch(databaseProvider));
+});
 
 /// 歌单仓库（本地 SQLite）
 final playlistRepositoryProvider = Provider<PlaylistRepository>((ref) {

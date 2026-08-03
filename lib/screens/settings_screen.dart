@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/audio_cache.dart';
+import '../services/providers.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _defaultBitrate = 320;
 
   @override
@@ -89,8 +91,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text('当前缓存：$sizeStr'),
                   trailing: TextButton(
                     onPressed: () async {
-                      // 清音频/封面URL缓存 + 封面图片字节缓存（CachedNetworkImage 磁盘缓存）
+                      // 清音频/封面URL缓存 + 封面图片字节缓存（CachedNetworkImage 磁盘缓存）+ 歌词缓存表
                       await AudioCache.instance.clear();
+                      try {
+                        await ref.read(lyricsCacheDaoProvider).clearAll();
+                      } catch (_) {}
                       try {
                         await DefaultCacheManager().emptyCache();
                       } catch (_) {

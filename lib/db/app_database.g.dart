@@ -3455,6 +3455,284 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   }
 }
 
+class $LocalLyricsCacheTable extends LocalLyricsCache
+    with TableInfo<$LocalLyricsCacheTable, LocalLyricsCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalLyricsCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _songIdMeta = const VerificationMeta('songId');
+  @override
+  late final GeneratedColumn<String> songId = GeneratedColumn<String>(
+      'song_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _lyricsMeta = const VerificationMeta('lyrics');
+  @override
+  late final GeneratedColumn<String> lyrics = GeneratedColumn<String>(
+      'lyrics', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [songId, source, lyrics, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_lyrics_cache';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalLyricsCacheData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('song_id')) {
+      context.handle(_songIdMeta,
+          songId.isAcceptableOrUnknown(data['song_id']!, _songIdMeta));
+    } else if (isInserting) {
+      context.missing(_songIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('lyrics')) {
+      context.handle(_lyricsMeta,
+          lyrics.isAcceptableOrUnknown(data['lyrics']!, _lyricsMeta));
+    } else if (isInserting) {
+      context.missing(_lyricsMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {songId, source};
+  @override
+  LocalLyricsCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalLyricsCacheData(
+      songId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}song_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      lyrics: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyrics'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $LocalLyricsCacheTable createAlias(String alias) {
+    return $LocalLyricsCacheTable(attachedDatabase, alias);
+  }
+}
+
+class LocalLyricsCacheData extends DataClass
+    implements Insertable<LocalLyricsCacheData> {
+  /// 歌曲 ID
+  final String songId;
+
+  /// 音源
+  final String source;
+
+  /// LRC 歌词文本
+  final String lyrics;
+
+  /// 更新时间
+  final DateTime updatedAt;
+  const LocalLyricsCacheData(
+      {required this.songId,
+      required this.source,
+      required this.lyrics,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['song_id'] = Variable<String>(songId);
+    map['source'] = Variable<String>(source);
+    map['lyrics'] = Variable<String>(lyrics);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LocalLyricsCacheCompanion toCompanion(bool nullToAbsent) {
+    return LocalLyricsCacheCompanion(
+      songId: Value(songId),
+      source: Value(source),
+      lyrics: Value(lyrics),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LocalLyricsCacheData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalLyricsCacheData(
+      songId: serializer.fromJson<String>(json['songId']),
+      source: serializer.fromJson<String>(json['source']),
+      lyrics: serializer.fromJson<String>(json['lyrics']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'songId': serializer.toJson<String>(songId),
+      'source': serializer.toJson<String>(source),
+      'lyrics': serializer.toJson<String>(lyrics),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LocalLyricsCacheData copyWith(
+          {String? songId,
+          String? source,
+          String? lyrics,
+          DateTime? updatedAt}) =>
+      LocalLyricsCacheData(
+        songId: songId ?? this.songId,
+        source: source ?? this.source,
+        lyrics: lyrics ?? this.lyrics,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  LocalLyricsCacheData copyWithCompanion(LocalLyricsCacheCompanion data) {
+    return LocalLyricsCacheData(
+      songId: data.songId.present ? data.songId.value : this.songId,
+      source: data.source.present ? data.source.value : this.source,
+      lyrics: data.lyrics.present ? data.lyrics.value : this.lyrics,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalLyricsCacheData(')
+          ..write('songId: $songId, ')
+          ..write('source: $source, ')
+          ..write('lyrics: $lyrics, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(songId, source, lyrics, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalLyricsCacheData &&
+          other.songId == this.songId &&
+          other.source == this.source &&
+          other.lyrics == this.lyrics &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LocalLyricsCacheCompanion extends UpdateCompanion<LocalLyricsCacheData> {
+  final Value<String> songId;
+  final Value<String> source;
+  final Value<String> lyrics;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LocalLyricsCacheCompanion({
+    this.songId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.lyrics = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalLyricsCacheCompanion.insert({
+    required String songId,
+    required String source,
+    required String lyrics,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : songId = Value(songId),
+        source = Value(source),
+        lyrics = Value(lyrics);
+  static Insertable<LocalLyricsCacheData> custom({
+    Expression<String>? songId,
+    Expression<String>? source,
+    Expression<String>? lyrics,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (songId != null) 'song_id': songId,
+      if (source != null) 'source': source,
+      if (lyrics != null) 'lyrics': lyrics,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalLyricsCacheCompanion copyWith(
+      {Value<String>? songId,
+      Value<String>? source,
+      Value<String>? lyrics,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return LocalLyricsCacheCompanion(
+      songId: songId ?? this.songId,
+      source: source ?? this.source,
+      lyrics: lyrics ?? this.lyrics,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (songId.present) {
+      map['song_id'] = Variable<String>(songId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (lyrics.present) {
+      map['lyrics'] = Variable<String>(lyrics.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalLyricsCacheCompanion(')
+          ..write('songId: $songId, ')
+          ..write('source: $source, ')
+          ..write('lyrics: $lyrics, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3469,6 +3747,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalPlaySessionsTable localPlaySessions =
       $LocalPlaySessionsTable(this);
   late final $LocalSettingsTable localSettings = $LocalSettingsTable(this);
+  late final $LocalLyricsCacheTable localLyricsCache =
+      $LocalLyricsCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3480,7 +3760,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localPlayRecords,
         localSearchHistory,
         localPlaySessions,
-        localSettings
+        localSettings,
+        localLyricsCache
       ];
 }
 
@@ -5326,6 +5607,167 @@ typedef $$LocalSettingsTableProcessedTableManager = ProcessedTableManager<
     ),
     LocalSetting,
     PrefetchHooks Function()>;
+typedef $$LocalLyricsCacheTableCreateCompanionBuilder
+    = LocalLyricsCacheCompanion Function({
+  required String songId,
+  required String source,
+  required String lyrics,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$LocalLyricsCacheTableUpdateCompanionBuilder
+    = LocalLyricsCacheCompanion Function({
+  Value<String> songId,
+  Value<String> source,
+  Value<String> lyrics,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$LocalLyricsCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalLyricsCacheTable> {
+  $$LocalLyricsCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get songId => $composableBuilder(
+      column: $table.songId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyrics => $composableBuilder(
+      column: $table.lyrics, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalLyricsCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalLyricsCacheTable> {
+  $$LocalLyricsCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get songId => $composableBuilder(
+      column: $table.songId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lyrics => $composableBuilder(
+      column: $table.lyrics, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalLyricsCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalLyricsCacheTable> {
+  $$LocalLyricsCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get songId =>
+      $composableBuilder(column: $table.songId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get lyrics =>
+      $composableBuilder(column: $table.lyrics, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LocalLyricsCacheTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalLyricsCacheTable,
+    LocalLyricsCacheData,
+    $$LocalLyricsCacheTableFilterComposer,
+    $$LocalLyricsCacheTableOrderingComposer,
+    $$LocalLyricsCacheTableAnnotationComposer,
+    $$LocalLyricsCacheTableCreateCompanionBuilder,
+    $$LocalLyricsCacheTableUpdateCompanionBuilder,
+    (
+      LocalLyricsCacheData,
+      BaseReferences<_$AppDatabase, $LocalLyricsCacheTable,
+          LocalLyricsCacheData>
+    ),
+    LocalLyricsCacheData,
+    PrefetchHooks Function()> {
+  $$LocalLyricsCacheTableTableManager(
+      _$AppDatabase db, $LocalLyricsCacheTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalLyricsCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalLyricsCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalLyricsCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> songId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String> lyrics = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalLyricsCacheCompanion(
+            songId: songId,
+            source: source,
+            lyrics: lyrics,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String songId,
+            required String source,
+            required String lyrics,
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalLyricsCacheCompanion.insert(
+            songId: songId,
+            source: source,
+            lyrics: lyrics,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalLyricsCacheTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $LocalLyricsCacheTable,
+    LocalLyricsCacheData,
+    $$LocalLyricsCacheTableFilterComposer,
+    $$LocalLyricsCacheTableOrderingComposer,
+    $$LocalLyricsCacheTableAnnotationComposer,
+    $$LocalLyricsCacheTableCreateCompanionBuilder,
+    $$LocalLyricsCacheTableUpdateCompanionBuilder,
+    (
+      LocalLyricsCacheData,
+      BaseReferences<_$AppDatabase, $LocalLyricsCacheTable,
+          LocalLyricsCacheData>
+    ),
+    LocalLyricsCacheData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5344,4 +5786,6 @@ class $AppDatabaseManager {
       $$LocalPlaySessionsTableTableManager(_db, _db.localPlaySessions);
   $$LocalSettingsTableTableManager get localSettings =>
       $$LocalSettingsTableTableManager(_db, _db.localSettings);
+  $$LocalLyricsCacheTableTableManager get localLyricsCache =>
+      $$LocalLyricsCacheTableTableManager(_db, _db.localLyricsCache);
 }
