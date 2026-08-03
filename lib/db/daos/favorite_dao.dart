@@ -134,6 +134,22 @@ class FavoriteDao extends DatabaseAccessor<AppDatabase> with _$FavoriteDaoMixin 
         );
   }
 
+  /// 回填收藏的 lyric_id（为空才补），并标记待同步（供 likeSong 补传 lyric_id）
+  Future<void> backfillLyricId(String songId, String source, String lyricId) async {
+    await (update(localFavorites)
+          ..where((t) =>
+              t.songId.equals(songId) &
+              t.source.equals(source) &
+              t.lyricId.isNull()))
+        .write(
+          LocalFavoritesCompanion(
+            lyricId: Value(lyricId),
+            isSynced: const Value(false),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+  }
+
   /// 物理删除一条收藏（同步删除成功后调用）
   Future<void> removeRow(String songId, String source) async {
     await (delete(localFavorites)

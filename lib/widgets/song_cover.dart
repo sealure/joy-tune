@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/song.dart';
-import '../services/audio_cache.dart';
 import '../services/providers.dart';
 import 'cover_image.dart';
 
@@ -96,9 +95,9 @@ class _SongCoverState extends ConsumerState<SongCover> {
 
     try {
       String? url;
-      // 优先读磁盘缓存的封面 URL（拉过一次即持久化）
+      // 优先读本地 sqlite 缓存（local_song_meta，key=song_id+source）
       try {
-        url = await AudioCache.instance.getCachedCoverUrl(_cacheKey);
+        url = await ref.read(songMetaDaoProvider).getCoverUrl(widget.song.id, widget.song.source);
       } catch (_) {
         // 缓存不可达时忽略，走实时解析
       }
@@ -108,7 +107,13 @@ class _SongCoverState extends ConsumerState<SongCover> {
         if (resolved.isNotEmpty) {
           url = resolved;
           try {
-            await AudioCache.instance.cacheCoverUrl(_cacheKey, resolved);
+            await ref.read(songMetaDaoProvider).upsert(
+                  songId: widget.song.id,
+                  source: widget.song.source,
+                  picId: picId,
+                  lyricId: widget.song.lyricId,
+                  coverUrl: resolved,
+                );
           } catch (_) {
             // 持久化失败不影响本次显示
           }
@@ -125,7 +130,7 @@ class _SongCoverState extends ConsumerState<SongCover> {
     }
   }
 
-  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带（内存/磁盘）缓存与去重）
+  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带（本地 sqlite/内存）缓存与去重）
   Future<void> _resolveCoverBySearch() async {
     if (_coverUrlCache.containsKey(_cacheKey)) {
       final url = _coverUrlCache[_cacheKey];
@@ -139,9 +144,9 @@ class _SongCoverState extends ConsumerState<SongCover> {
 
     try {
       String? url;
-      // 优先读磁盘缓存
+      // 优先读本地 sqlite 缓存
       try {
-        url = await AudioCache.instance.getCachedCoverUrl(_cacheKey);
+        url = await ref.read(songMetaDaoProvider).getCoverUrl(widget.song.id, widget.song.source);
       } catch (_) {
         url = null;
       }
@@ -150,7 +155,11 @@ class _SongCoverState extends ConsumerState<SongCover> {
         url = await resolver.searchCoverUrl(widget.song);
         if (url != null && url.isNotEmpty) {
           try {
-            await AudioCache.instance.cacheCoverUrl(_cacheKey, url);
+            await ref.read(songMetaDaoProvider).upsert(
+                  songId: widget.song.id,
+                  source: widget.song.source,
+                  coverUrl: url,
+                );
           } catch (_) {}
         }
       }

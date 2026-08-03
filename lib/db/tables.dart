@@ -185,6 +185,7 @@ class LocalSettings extends Table {
 
 /// 本地歌词缓存表（纯本地，不同步）
 /// 播放过的歌解析到歌词后回填，下次播放直接读，避免重复请求；清理缓存时一并清除
+/// ⚠️ 已并入 LocalSongMeta（统一歌曲元数据缓存），此表废弃保留声明以兼容旧库迁移
 class LocalLyricsCache extends Table {
   /// 歌曲 ID
   TextColumn get songId => text()();
@@ -192,6 +193,35 @@ class LocalLyricsCache extends Table {
   TextColumn get source => text()();
   /// LRC 歌词文本
   TextColumn get lyrics => text()();
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {songId, source};
+}
+
+/// 本地歌曲元数据缓存表（纯本地，不同步）
+/// 统一缓存歌曲解析结果：封面 URL / 歌词 ID / 歌词全文（key = song_id + source）。
+/// 封面/歌词读取统一走此表；播放解析出的 lyric_id 回填此表并经业务表同步服务端。
+class LocalSongMeta extends Table {
+  /// 歌曲 ID（原始音源 ID）
+  TextColumn get songId => text()();
+  /// 音源标识
+  TextColumn get source => text()();
+  /// 歌曲名
+  TextColumn get name => text().withDefault(const Constant(''))();
+  /// 歌手
+  TextColumn get artist => text().withDefault(const Constant(''))();
+  /// 专辑
+  TextColumn get album => text().withDefault(const Constant(''))();
+  /// 封面图 ID（音源原始图片 ID）
+  TextColumn get picId => text().nullable()();
+  /// 歌词 ID（音源原始歌词 ID）
+  TextColumn get lyricId => text().nullable()();
+  /// 封面 URL（解析结果）
+  TextColumn get coverUrl => text().nullable()();
+  /// LRC 歌词全文（播放后回填）
+  TextColumn get lyrics => text().nullable()();
   /// 更新时间
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 

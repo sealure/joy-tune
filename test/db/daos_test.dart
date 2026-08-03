@@ -9,6 +9,7 @@ import 'package:via_music/db/daos/playlist_dao.dart';
 import 'package:via_music/db/daos/search_history_dao.dart';
 import 'package:via_music/db/daos/session_dao.dart';
 import 'package:via_music/db/daos/settings_dao.dart';
+import 'package:via_music/db/daos/song_meta_dao.dart';
 import 'package:via_music/models/song.dart';
 
 void main() {
@@ -19,6 +20,7 @@ void main() {
   late SearchHistoryDao searchHistoryDao;
   late SessionDao sessionDao;
   late SettingsDao settingsDao;
+  late SongMetaDao songMetaDao;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -28,6 +30,7 @@ void main() {
     searchHistoryDao = SearchHistoryDao(db);
     sessionDao = SessionDao(db);
     settingsDao = SettingsDao(db);
+    songMetaDao = SongMetaDao(db);
   });
 
   tearDown(() => db.close());
@@ -219,6 +222,39 @@ void main() {
       expect(await settingsDao.get('device_id'), 'abc');
       await settingsDao.remove('device_id');
       expect(await settingsDao.get('device_id'), isNull);
+    });
+  });
+
+  group('歌曲元数据缓存 DAO (song_meta)', () {
+    test('upsert 后按 song_id+source 读取歌词/封面', () async {
+      await songMetaDao.upsert(
+        songId: 'abc123',
+        source: 'joox',
+        name: '晴天',
+        artist: '周杰伦',
+        picId: 'pic-1',
+        lyricId: 'lyric-1',
+        coverUrl: 'https://cover/x.jpg',
+        lyrics: '[00:00.00]晴天',
+      );
+      expect(await songMetaDao.getLyrics('abc123', 'joox'), '[00:00.00]晴天');
+      expect(await songMetaDao.getCoverUrl('abc123', 'joox'), 'https://cover/x.jpg');
+      final row = await songMetaDao.get('abc123', 'joox');
+      expect(row!.lyricId, 'lyric-1');
+      expect(row.picId, 'pic-1');
+    });
+
+    test('不同音源同 song_id 独立缓存', () async {
+      await songMetaDao.upsert(songId: '1', source: 'joox', lyrics: 'joox歌词');
+      await songMetaDao.upsert(songId: '1', source: 'netease', lyrics: 'netease歌词');
+      expect(await songMetaDao.getLyrics('1', 'joox'), 'joox歌词');
+      expect(await songMetaDao.getLyrics('1', 'netease'), 'netease歌词');
+    });
+
+    test('clearAll 清空', () async {
+      await songMetaDao.upsert(songId: '1', source: 'joox', lyrics: 'x');
+      await songMetaDao.clearAll();
+      expect(await songMetaDao.getLyrics('1', 'joox'), isNull);
     });
   });
 }

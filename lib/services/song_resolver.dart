@@ -18,6 +18,14 @@ class SongResolveResult {
   });
 }
 
+/// 歌词解析结果（文本 + 实际使用的 lyric_id）
+class LyricsInfo {
+  final String text;
+  final String? lyricId;
+
+  const LyricsInfo({required this.text, this.lyricId});
+}
+
 /// 多源搜索 + 元数据获取服务
 class SongResolver {
   final Ref _ref;
@@ -156,18 +164,32 @@ class SongResolver {
     }
   }
 
-  /// 获取歌词文本（带兜底）：优先用 song.lyricId；缺失（历史数据只存过 lyrics_url 未存 lyric_id）
-  /// 或解析失败时，按歌名+歌手多源搜索匹配歌曲，用匹配结果的 lyric_id 再取歌词
+  /// 歌词解析结果（文本 + 实际使用的 lyric_id）
   Future<String?> searchLyricsText(Song song) async {
-    final direct = await fetchLyricsText(song);
-    if (direct != null && direct.isNotEmpty) return direct;
+    final info = await searchLyricsInfo(song);
+    return info?.text;
+  }
+
+  /// 解析歌词并返回文本 + 实际 lyric_id（优先 song.lyricId；缺失时搜索匹配的 lyric_id）
+  /// 供播放页回填本地缓存并同步服务端
+  Future<LyricsInfo?> searchLyricsInfo(Song song) async {
+    // 有 lyricId 直接取歌词
+    if (song.lyricId != null && song.lyricId!.isNotEmpty) {
+      final text = await fetchLyricsText(song);
+      if (text != null && text.isNotEmpty) {
+        return LyricsInfo(text: text, lyricId: song.lyricId);
+      }
+    }
+    // 缺失或取不到：多源搜索匹配，用匹配结果的 lyric_id 再取歌词
     try {
       final all = await _searchAllSources(song);
       final matched = _findBestMatch(song, all);
       if (matched != null && matched.lyricId != null && matched.lyricId!.isNotEmpty) {
         final client = _ref.read(gdMusicClientProvider);
         final lyric = await client.getLyric(lyricId: matched.lyricId!, source: matched.source);
-        return lyric?.lyric;
+        if (lyric?.lyric != null && lyric!.lyric!.isNotEmpty) {
+          return LyricsInfo(text: lyric.lyric!, lyricId: matched.lyricId);
+        }
       }
     } catch (_) {
       // 搜索兜底失败则无歌词

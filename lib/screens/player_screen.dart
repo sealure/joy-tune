@@ -299,11 +299,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   Future<void> _loadLyrics(Song song) async {
-    // 歌词：优先读本地 db 缓存（播放过即回填，离线可看）；未命中则解析并回填
-    final lyricsDao = ref.read(lyricsCacheDaoProvider);
+    // 歌词：优先读本地 sqlite 缓存（local_song_meta，播放过即回填）；未命中则解析并回填
+    final songMetaDao = ref.read(songMetaDaoProvider);
     try {
-      final cached = await lyricsDao.get(song.id, song.source);
-      if (cached != null && cached.isNotEmpty) {
+      final cached = await songMetaDao.getLyrics(song.id, song.source);
+      if (cached != null) {
         if (mounted) setState(() => _lyrics = parseLrc(cached));
         return;
       }
@@ -311,22 +311,59 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // 缓存不可达时忽略，走解析
     }
 
-    // 无缓存：优先 song.lyricId，缺失（历史数据）时按歌名搜索兜底
+    // 无缓存：优先 song.lyricId，缺失（历史数据）时按歌名搜索兜底；并拿回实际 lyric_id
     final resolver = ref.read(songResolverProvider);
-    final text = await resolver.searchLyricsText(song);
-    if (mounted && text != null && text.isNotEmpty) {
-      setState(() => _lyrics = parseLrc(text));
-      // 回填歌词到本地 db（播放后缓存，清理缓存才清除）
+    final info = await resolver.searchLyricsInfo(song);
+    if (mounted && info != null && info.text.isNotEmpty) {
+      setState(() => _lyrics = parseLrc(info.text));
+      // 回填到本地歌曲元数据缓存（歌词 + 元数据 + lyric_id）
+      final effectiveLyricId = info.lyricId ?? song.lyricId;
       try {
-        await lyricsDao.save(song.id, song.source, text);
+        await songMetaDao.upsert(
+          songId: song.id,
+          source: song.source,
+          name: song.name,
+          artist: song.artist,
+          album: song.album,
+          picId: song.picId,
+          lyricId: effectiveLyricId,
+          lyrics: info.text,
+        );
       } catch (_) {}
+      // lyric_id 回填到本地播放记录/收藏/歌单（为空才补），供同步服务端
+      if (effectiveLyricId != null && effectiveLyricId.isNotEmpty) {
+        unawaited(_backfillLyricId(song.id, song.source, effectiveLyricId));
+      }
     }
   }
 
-  /// 回填歌词到本地 db（resolveDirectly 解析到歌词后调用）
+  /// 把 lyric_id 回填到本地播放记录 / 收藏 / 歌单歌曲对应行（为空才补，不覆盖），
+  /// 并标记待同步，使下次 likeSong / addSongToPlaylist / reportPlay 能补传 lyric_id 到服务端
+  Future<void> _backfillLyricId(String songId, String source, String lyricId) async {
+    try {
+      await ref.read(playRecordDaoProvider).backfillLyricId(songId, source, lyricId);
+      await ref.read(favoriteDaoProvider).backfillLyricId(songId, source, lyricId);
+      await ref.read(playlistDaoProvider).backfillSongLyricId(songId, source, lyricId);
+    } catch (_) {
+      // 回填失败不影响播放
+    }
+  }
+
+  /// 回填歌曲元数据到本地缓存（resolveDirectly 解析到歌词后调用；保留已有 lyric_id 防覆盖）
   Future<void> _backfillLyrics(Song song, String text) async {
     try {
-      await ref.read(lyricsCacheDaoProvider).save(song.id, song.source, text);
+      final dao = ref.read(songMetaDaoProvider);
+      final existing = await dao.get(song.id, song.source);
+      await dao.upsert(
+        songId: song.id,
+        source: song.source,
+        name: song.name,
+        artist: song.artist,
+        album: song.album,
+        picId: song.picId ?? existing?.picId,
+        lyricId: song.lyricId ?? existing?.lyricId,
+        lyrics: text,
+      );
     } catch (_) {}
   }
 

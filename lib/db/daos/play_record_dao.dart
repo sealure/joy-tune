@@ -65,6 +65,16 @@ class PlayRecordDao extends DatabaseAccessor<AppDatabase>
         );
   }
 
+  /// 回填播放记录的 lyric_id（为空才补；reportPlay 同步时携带 lyric_id 到服务端）
+  Future<void> backfillLyricId(String songId, String source, String lyricId) async {
+    await (update(localPlayRecords)
+          ..where((t) =>
+              t.songId.equals(songId) &
+              t.source.equals(source) &
+              t.lyricId.isNull()))
+        .write(LocalPlayRecordsCompanion(lyricId: Value(lyricId)));
+  }
+
   /// 清空全部播放记录
   Future<void> clearAll() async {
     await (delete(localPlayRecords)).go();

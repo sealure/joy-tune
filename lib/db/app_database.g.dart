@@ -3455,12 +3455,12 @@ class LocalSettingsCompanion extends UpdateCompanion<LocalSetting> {
   }
 }
 
-class $LocalLyricsCacheTable extends LocalLyricsCache
-    with TableInfo<$LocalLyricsCacheTable, LocalLyricsCacheData> {
+class $LocalSongMetaTable extends LocalSongMeta
+    with TableInfo<$LocalSongMetaTable, LocalSongMetaData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $LocalLyricsCacheTable(this.attachedDatabase, [this._alias]);
+  $LocalSongMetaTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _songIdMeta = const VerificationMeta('songId');
   @override
   late final GeneratedColumn<String> songId = GeneratedColumn<String>(
@@ -3471,11 +3471,49 @@ class $LocalLyricsCacheTable extends LocalLyricsCache
   late final GeneratedColumn<String> source = GeneratedColumn<String>(
       'source', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _artistMeta = const VerificationMeta('artist');
+  @override
+  late final GeneratedColumn<String> artist = GeneratedColumn<String>(
+      'artist', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _albumMeta = const VerificationMeta('album');
+  @override
+  late final GeneratedColumn<String> album = GeneratedColumn<String>(
+      'album', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _picIdMeta = const VerificationMeta('picId');
+  @override
+  late final GeneratedColumn<String> picId = GeneratedColumn<String>(
+      'pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lyricIdMeta =
+      const VerificationMeta('lyricId');
+  @override
+  late final GeneratedColumn<String> lyricId = GeneratedColumn<String>(
+      'lyric_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverUrlMeta =
+      const VerificationMeta('coverUrl');
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+      'cover_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _lyricsMeta = const VerificationMeta('lyrics');
   @override
   late final GeneratedColumn<String> lyrics = GeneratedColumn<String>(
-      'lyrics', aliasedName, false,
-      type: DriftSqlType.string, requiredDuringInsert: true);
+      'lyrics', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -3485,15 +3523,25 @@ class $LocalLyricsCacheTable extends LocalLyricsCache
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns => [songId, source, lyrics, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        songId,
+        source,
+        name,
+        artist,
+        album,
+        picId,
+        lyricId,
+        coverUrl,
+        lyrics,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'local_lyrics_cache';
+  static const String $name = 'local_song_meta';
   @override
-  VerificationContext validateIntegrity(
-      Insertable<LocalLyricsCacheData> instance,
+  VerificationContext validateIntegrity(Insertable<LocalSongMetaData> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -3509,11 +3557,33 @@ class $LocalLyricsCacheTable extends LocalLyricsCache
     } else if (isInserting) {
       context.missing(_sourceMeta);
     }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('artist')) {
+      context.handle(_artistMeta,
+          artist.isAcceptableOrUnknown(data['artist']!, _artistMeta));
+    }
+    if (data.containsKey('album')) {
+      context.handle(
+          _albumMeta, album.isAcceptableOrUnknown(data['album']!, _albumMeta));
+    }
+    if (data.containsKey('pic_id')) {
+      context.handle(
+          _picIdMeta, picId.isAcceptableOrUnknown(data['pic_id']!, _picIdMeta));
+    }
+    if (data.containsKey('lyric_id')) {
+      context.handle(_lyricIdMeta,
+          lyricId.isAcceptableOrUnknown(data['lyric_id']!, _lyricIdMeta));
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(_coverUrlMeta,
+          coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
     if (data.containsKey('lyrics')) {
       context.handle(_lyricsMeta,
           lyrics.isAcceptableOrUnknown(data['lyrics']!, _lyricsMeta));
-    } else if (isInserting) {
-      context.missing(_lyricsMeta);
     }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
@@ -3525,70 +3595,138 @@ class $LocalLyricsCacheTable extends LocalLyricsCache
   @override
   Set<GeneratedColumn> get $primaryKey => {songId, source};
   @override
-  LocalLyricsCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+  LocalSongMetaData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return LocalLyricsCacheData(
+    return LocalSongMetaData(
       songId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}song_id'])!,
       source: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      artist: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}artist'])!,
+      album: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}album'])!,
+      picId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pic_id']),
+      lyricId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyric_id']),
+      coverUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_url']),
       lyrics: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}lyrics'])!,
+          .read(DriftSqlType.string, data['${effectivePrefix}lyrics']),
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
     );
   }
 
   @override
-  $LocalLyricsCacheTable createAlias(String alias) {
-    return $LocalLyricsCacheTable(attachedDatabase, alias);
+  $LocalSongMetaTable createAlias(String alias) {
+    return $LocalSongMetaTable(attachedDatabase, alias);
   }
 }
 
-class LocalLyricsCacheData extends DataClass
-    implements Insertable<LocalLyricsCacheData> {
-  /// 歌曲 ID
+class LocalSongMetaData extends DataClass
+    implements Insertable<LocalSongMetaData> {
+  /// 歌曲 ID（原始音源 ID）
   final String songId;
 
-  /// 音源
+  /// 音源标识
   final String source;
 
-  /// LRC 歌词文本
-  final String lyrics;
+  /// 歌曲名
+  final String name;
+
+  /// 歌手
+  final String artist;
+
+  /// 专辑
+  final String album;
+
+  /// 封面图 ID（音源原始图片 ID）
+  final String? picId;
+
+  /// 歌词 ID（音源原始歌词 ID）
+  final String? lyricId;
+
+  /// 封面 URL（解析结果）
+  final String? coverUrl;
+
+  /// LRC 歌词全文（播放后回填）
+  final String? lyrics;
 
   /// 更新时间
   final DateTime updatedAt;
-  const LocalLyricsCacheData(
+  const LocalSongMetaData(
       {required this.songId,
       required this.source,
-      required this.lyrics,
+      required this.name,
+      required this.artist,
+      required this.album,
+      this.picId,
+      this.lyricId,
+      this.coverUrl,
+      this.lyrics,
       required this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['song_id'] = Variable<String>(songId);
     map['source'] = Variable<String>(source);
-    map['lyrics'] = Variable<String>(lyrics);
+    map['name'] = Variable<String>(name);
+    map['artist'] = Variable<String>(artist);
+    map['album'] = Variable<String>(album);
+    if (!nullToAbsent || picId != null) {
+      map['pic_id'] = Variable<String>(picId);
+    }
+    if (!nullToAbsent || lyricId != null) {
+      map['lyric_id'] = Variable<String>(lyricId);
+    }
+    if (!nullToAbsent || coverUrl != null) {
+      map['cover_url'] = Variable<String>(coverUrl);
+    }
+    if (!nullToAbsent || lyrics != null) {
+      map['lyrics'] = Variable<String>(lyrics);
+    }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
 
-  LocalLyricsCacheCompanion toCompanion(bool nullToAbsent) {
-    return LocalLyricsCacheCompanion(
+  LocalSongMetaCompanion toCompanion(bool nullToAbsent) {
+    return LocalSongMetaCompanion(
       songId: Value(songId),
       source: Value(source),
-      lyrics: Value(lyrics),
+      name: Value(name),
+      artist: Value(artist),
+      album: Value(album),
+      picId:
+          picId == null && nullToAbsent ? const Value.absent() : Value(picId),
+      lyricId: lyricId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lyricId),
+      coverUrl: coverUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverUrl),
+      lyrics:
+          lyrics == null && nullToAbsent ? const Value.absent() : Value(lyrics),
       updatedAt: Value(updatedAt),
     );
   }
 
-  factory LocalLyricsCacheData.fromJson(Map<String, dynamic> json,
+  factory LocalSongMetaData.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return LocalLyricsCacheData(
+    return LocalSongMetaData(
       songId: serializer.fromJson<String>(json['songId']),
       source: serializer.fromJson<String>(json['source']),
-      lyrics: serializer.fromJson<String>(json['lyrics']),
+      name: serializer.fromJson<String>(json['name']),
+      artist: serializer.fromJson<String>(json['artist']),
+      album: serializer.fromJson<String>(json['album']),
+      picId: serializer.fromJson<String?>(json['picId']),
+      lyricId: serializer.fromJson<String?>(json['lyricId']),
+      coverUrl: serializer.fromJson<String?>(json['coverUrl']),
+      lyrics: serializer.fromJson<String?>(json['lyrics']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -3598,26 +3736,50 @@ class LocalLyricsCacheData extends DataClass
     return <String, dynamic>{
       'songId': serializer.toJson<String>(songId),
       'source': serializer.toJson<String>(source),
-      'lyrics': serializer.toJson<String>(lyrics),
+      'name': serializer.toJson<String>(name),
+      'artist': serializer.toJson<String>(artist),
+      'album': serializer.toJson<String>(album),
+      'picId': serializer.toJson<String?>(picId),
+      'lyricId': serializer.toJson<String?>(lyricId),
+      'coverUrl': serializer.toJson<String?>(coverUrl),
+      'lyrics': serializer.toJson<String?>(lyrics),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
 
-  LocalLyricsCacheData copyWith(
+  LocalSongMetaData copyWith(
           {String? songId,
           String? source,
-          String? lyrics,
+          String? name,
+          String? artist,
+          String? album,
+          Value<String?> picId = const Value.absent(),
+          Value<String?> lyricId = const Value.absent(),
+          Value<String?> coverUrl = const Value.absent(),
+          Value<String?> lyrics = const Value.absent(),
           DateTime? updatedAt}) =>
-      LocalLyricsCacheData(
+      LocalSongMetaData(
         songId: songId ?? this.songId,
         source: source ?? this.source,
-        lyrics: lyrics ?? this.lyrics,
+        name: name ?? this.name,
+        artist: artist ?? this.artist,
+        album: album ?? this.album,
+        picId: picId.present ? picId.value : this.picId,
+        lyricId: lyricId.present ? lyricId.value : this.lyricId,
+        coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
+        lyrics: lyrics.present ? lyrics.value : this.lyrics,
         updatedAt: updatedAt ?? this.updatedAt,
       );
-  LocalLyricsCacheData copyWithCompanion(LocalLyricsCacheCompanion data) {
-    return LocalLyricsCacheData(
+  LocalSongMetaData copyWithCompanion(LocalSongMetaCompanion data) {
+    return LocalSongMetaData(
       songId: data.songId.present ? data.songId.value : this.songId,
       source: data.source.present ? data.source.value : this.source,
+      name: data.name.present ? data.name.value : this.name,
+      artist: data.artist.present ? data.artist.value : this.artist,
+      album: data.album.present ? data.album.value : this.album,
+      picId: data.picId.present ? data.picId.value : this.picId,
+      lyricId: data.lyricId.present ? data.lyricId.value : this.lyricId,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
       lyrics: data.lyrics.present ? data.lyrics.value : this.lyrics,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3625,9 +3787,15 @@ class LocalLyricsCacheData extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('LocalLyricsCacheData(')
+    return (StringBuffer('LocalSongMetaData(')
           ..write('songId: $songId, ')
           ..write('source: $source, ')
+          ..write('name: $name, ')
+          ..write('artist: $artist, ')
+          ..write('album: $album, ')
+          ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
+          ..write('coverUrl: $coverUrl, ')
           ..write('lyrics: $lyrics, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3635,42 +3803,72 @@ class LocalLyricsCacheData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(songId, source, lyrics, updatedAt);
+  int get hashCode => Object.hash(songId, source, name, artist, album, picId,
+      lyricId, coverUrl, lyrics, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is LocalLyricsCacheData &&
+      (other is LocalSongMetaData &&
           other.songId == this.songId &&
           other.source == this.source &&
+          other.name == this.name &&
+          other.artist == this.artist &&
+          other.album == this.album &&
+          other.picId == this.picId &&
+          other.lyricId == this.lyricId &&
+          other.coverUrl == this.coverUrl &&
           other.lyrics == this.lyrics &&
           other.updatedAt == this.updatedAt);
 }
 
-class LocalLyricsCacheCompanion extends UpdateCompanion<LocalLyricsCacheData> {
+class LocalSongMetaCompanion extends UpdateCompanion<LocalSongMetaData> {
   final Value<String> songId;
   final Value<String> source;
-  final Value<String> lyrics;
+  final Value<String> name;
+  final Value<String> artist;
+  final Value<String> album;
+  final Value<String?> picId;
+  final Value<String?> lyricId;
+  final Value<String?> coverUrl;
+  final Value<String?> lyrics;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
-  const LocalLyricsCacheCompanion({
+  const LocalSongMetaCompanion({
     this.songId = const Value.absent(),
     this.source = const Value.absent(),
+    this.name = const Value.absent(),
+    this.artist = const Value.absent(),
+    this.album = const Value.absent(),
+    this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
+    this.coverUrl = const Value.absent(),
     this.lyrics = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
-  LocalLyricsCacheCompanion.insert({
+  LocalSongMetaCompanion.insert({
     required String songId,
     required String source,
-    required String lyrics,
+    this.name = const Value.absent(),
+    this.artist = const Value.absent(),
+    this.album = const Value.absent(),
+    this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.lyrics = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : songId = Value(songId),
-        source = Value(source),
-        lyrics = Value(lyrics);
-  static Insertable<LocalLyricsCacheData> custom({
+        source = Value(source);
+  static Insertable<LocalSongMetaData> custom({
     Expression<String>? songId,
     Expression<String>? source,
+    Expression<String>? name,
+    Expression<String>? artist,
+    Expression<String>? album,
+    Expression<String>? picId,
+    Expression<String>? lyricId,
+    Expression<String>? coverUrl,
     Expression<String>? lyrics,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -3678,21 +3876,39 @@ class LocalLyricsCacheCompanion extends UpdateCompanion<LocalLyricsCacheData> {
     return RawValuesInsertable({
       if (songId != null) 'song_id': songId,
       if (source != null) 'source': source,
+      if (name != null) 'name': name,
+      if (artist != null) 'artist': artist,
+      if (album != null) 'album': album,
+      if (picId != null) 'pic_id': picId,
+      if (lyricId != null) 'lyric_id': lyricId,
+      if (coverUrl != null) 'cover_url': coverUrl,
       if (lyrics != null) 'lyrics': lyrics,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
 
-  LocalLyricsCacheCompanion copyWith(
+  LocalSongMetaCompanion copyWith(
       {Value<String>? songId,
       Value<String>? source,
-      Value<String>? lyrics,
+      Value<String>? name,
+      Value<String>? artist,
+      Value<String>? album,
+      Value<String?>? picId,
+      Value<String?>? lyricId,
+      Value<String?>? coverUrl,
+      Value<String?>? lyrics,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
-    return LocalLyricsCacheCompanion(
+    return LocalSongMetaCompanion(
       songId: songId ?? this.songId,
       source: source ?? this.source,
+      name: name ?? this.name,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      picId: picId ?? this.picId,
+      lyricId: lyricId ?? this.lyricId,
+      coverUrl: coverUrl ?? this.coverUrl,
       lyrics: lyrics ?? this.lyrics,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -3708,6 +3924,24 @@ class LocalLyricsCacheCompanion extends UpdateCompanion<LocalLyricsCacheData> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (artist.present) {
+      map['artist'] = Variable<String>(artist.value);
+    }
+    if (album.present) {
+      map['album'] = Variable<String>(album.value);
+    }
+    if (picId.present) {
+      map['pic_id'] = Variable<String>(picId.value);
+    }
+    if (lyricId.present) {
+      map['lyric_id'] = Variable<String>(lyricId.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
     if (lyrics.present) {
       map['lyrics'] = Variable<String>(lyrics.value);
     }
@@ -3722,9 +3956,15 @@ class LocalLyricsCacheCompanion extends UpdateCompanion<LocalLyricsCacheData> {
 
   @override
   String toString() {
-    return (StringBuffer('LocalLyricsCacheCompanion(')
+    return (StringBuffer('LocalSongMetaCompanion(')
           ..write('songId: $songId, ')
           ..write('source: $source, ')
+          ..write('name: $name, ')
+          ..write('artist: $artist, ')
+          ..write('album: $album, ')
+          ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
+          ..write('coverUrl: $coverUrl, ')
           ..write('lyrics: $lyrics, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -3747,8 +3987,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalPlaySessionsTable localPlaySessions =
       $LocalPlaySessionsTable(this);
   late final $LocalSettingsTable localSettings = $LocalSettingsTable(this);
-  late final $LocalLyricsCacheTable localLyricsCache =
-      $LocalLyricsCacheTable(this);
+  late final $LocalSongMetaTable localSongMeta = $LocalSongMetaTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3761,7 +4000,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localSearchHistory,
         localPlaySessions,
         localSettings,
-        localLyricsCache
+        localSongMeta
       ];
 }
 
@@ -5607,26 +5846,38 @@ typedef $$LocalSettingsTableProcessedTableManager = ProcessedTableManager<
     ),
     LocalSetting,
     PrefetchHooks Function()>;
-typedef $$LocalLyricsCacheTableCreateCompanionBuilder
-    = LocalLyricsCacheCompanion Function({
+typedef $$LocalSongMetaTableCreateCompanionBuilder = LocalSongMetaCompanion
+    Function({
   required String songId,
   required String source,
-  required String lyrics,
+  Value<String> name,
+  Value<String> artist,
+  Value<String> album,
+  Value<String?> picId,
+  Value<String?> lyricId,
+  Value<String?> coverUrl,
+  Value<String?> lyrics,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
-typedef $$LocalLyricsCacheTableUpdateCompanionBuilder
-    = LocalLyricsCacheCompanion Function({
+typedef $$LocalSongMetaTableUpdateCompanionBuilder = LocalSongMetaCompanion
+    Function({
   Value<String> songId,
   Value<String> source,
-  Value<String> lyrics,
+  Value<String> name,
+  Value<String> artist,
+  Value<String> album,
+  Value<String?> picId,
+  Value<String?> lyricId,
+  Value<String?> coverUrl,
+  Value<String?> lyrics,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
 
-class $$LocalLyricsCacheTableFilterComposer
-    extends Composer<_$AppDatabase, $LocalLyricsCacheTable> {
-  $$LocalLyricsCacheTableFilterComposer({
+class $$LocalSongMetaTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalSongMetaTable> {
+  $$LocalSongMetaTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -5639,6 +5890,24 @@ class $$LocalLyricsCacheTableFilterComposer
   ColumnFilters<String> get source => $composableBuilder(
       column: $table.source, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get artist => $composableBuilder(
+      column: $table.artist, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get album => $composableBuilder(
+      column: $table.album, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get lyrics => $composableBuilder(
       column: $table.lyrics, builder: (column) => ColumnFilters(column));
 
@@ -5646,9 +5915,9 @@ class $$LocalLyricsCacheTableFilterComposer
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 }
 
-class $$LocalLyricsCacheTableOrderingComposer
-    extends Composer<_$AppDatabase, $LocalLyricsCacheTable> {
-  $$LocalLyricsCacheTableOrderingComposer({
+class $$LocalSongMetaTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalSongMetaTable> {
+  $$LocalSongMetaTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -5661,6 +5930,24 @@ class $$LocalLyricsCacheTableOrderingComposer
   ColumnOrderings<String> get source => $composableBuilder(
       column: $table.source, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get artist => $composableBuilder(
+      column: $table.artist, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get album => $composableBuilder(
+      column: $table.album, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get lyrics => $composableBuilder(
       column: $table.lyrics, builder: (column) => ColumnOrderings(column));
 
@@ -5668,9 +5955,9 @@ class $$LocalLyricsCacheTableOrderingComposer
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
 
-class $$LocalLyricsCacheTableAnnotationComposer
-    extends Composer<_$AppDatabase, $LocalLyricsCacheTable> {
-  $$LocalLyricsCacheTableAnnotationComposer({
+class $$LocalSongMetaTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalSongMetaTable> {
+  $$LocalSongMetaTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -5683,6 +5970,24 @@ class $$LocalLyricsCacheTableAnnotationComposer
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
 
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get artist =>
+      $composableBuilder(column: $table.artist, builder: (column) => column);
+
+  GeneratedColumn<String> get album =>
+      $composableBuilder(column: $table.album, builder: (column) => column);
+
+  GeneratedColumn<String> get picId =>
+      $composableBuilder(column: $table.picId, builder: (column) => column);
+
+  GeneratedColumn<String> get lyricId =>
+      $composableBuilder(column: $table.lyricId, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
   GeneratedColumn<String> get lyrics =>
       $composableBuilder(column: $table.lyrics, builder: (column) => column);
 
@@ -5690,43 +5995,53 @@ class $$LocalLyricsCacheTableAnnotationComposer
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
 
-class $$LocalLyricsCacheTableTableManager extends RootTableManager<
+class $$LocalSongMetaTableTableManager extends RootTableManager<
     _$AppDatabase,
-    $LocalLyricsCacheTable,
-    LocalLyricsCacheData,
-    $$LocalLyricsCacheTableFilterComposer,
-    $$LocalLyricsCacheTableOrderingComposer,
-    $$LocalLyricsCacheTableAnnotationComposer,
-    $$LocalLyricsCacheTableCreateCompanionBuilder,
-    $$LocalLyricsCacheTableUpdateCompanionBuilder,
+    $LocalSongMetaTable,
+    LocalSongMetaData,
+    $$LocalSongMetaTableFilterComposer,
+    $$LocalSongMetaTableOrderingComposer,
+    $$LocalSongMetaTableAnnotationComposer,
+    $$LocalSongMetaTableCreateCompanionBuilder,
+    $$LocalSongMetaTableUpdateCompanionBuilder,
     (
-      LocalLyricsCacheData,
-      BaseReferences<_$AppDatabase, $LocalLyricsCacheTable,
-          LocalLyricsCacheData>
+      LocalSongMetaData,
+      BaseReferences<_$AppDatabase, $LocalSongMetaTable, LocalSongMetaData>
     ),
-    LocalLyricsCacheData,
+    LocalSongMetaData,
     PrefetchHooks Function()> {
-  $$LocalLyricsCacheTableTableManager(
-      _$AppDatabase db, $LocalLyricsCacheTable table)
+  $$LocalSongMetaTableTableManager(_$AppDatabase db, $LocalSongMetaTable table)
       : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$LocalLyricsCacheTableFilterComposer($db: db, $table: table),
+              $$LocalSongMetaTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$LocalLyricsCacheTableOrderingComposer($db: db, $table: table),
+              $$LocalSongMetaTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$LocalLyricsCacheTableAnnotationComposer($db: db, $table: table),
+              $$LocalSongMetaTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> songId = const Value.absent(),
             Value<String> source = const Value.absent(),
-            Value<String> lyrics = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> artist = const Value.absent(),
+            Value<String> album = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
+            Value<String?> coverUrl = const Value.absent(),
+            Value<String?> lyrics = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
-              LocalLyricsCacheCompanion(
+              LocalSongMetaCompanion(
             songId: songId,
             source: source,
+            name: name,
+            artist: artist,
+            album: album,
+            picId: picId,
+            lyricId: lyricId,
+            coverUrl: coverUrl,
             lyrics: lyrics,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -5734,13 +6049,25 @@ class $$LocalLyricsCacheTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             required String songId,
             required String source,
-            required String lyrics,
+            Value<String> name = const Value.absent(),
+            Value<String> artist = const Value.absent(),
+            Value<String> album = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
+            Value<String?> coverUrl = const Value.absent(),
+            Value<String?> lyrics = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
-              LocalLyricsCacheCompanion.insert(
+              LocalSongMetaCompanion.insert(
             songId: songId,
             source: source,
+            name: name,
+            artist: artist,
+            album: album,
+            picId: picId,
+            lyricId: lyricId,
+            coverUrl: coverUrl,
             lyrics: lyrics,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -5752,21 +6079,20 @@ class $$LocalLyricsCacheTableTableManager extends RootTableManager<
         ));
 }
 
-typedef $$LocalLyricsCacheTableProcessedTableManager = ProcessedTableManager<
+typedef $$LocalSongMetaTableProcessedTableManager = ProcessedTableManager<
     _$AppDatabase,
-    $LocalLyricsCacheTable,
-    LocalLyricsCacheData,
-    $$LocalLyricsCacheTableFilterComposer,
-    $$LocalLyricsCacheTableOrderingComposer,
-    $$LocalLyricsCacheTableAnnotationComposer,
-    $$LocalLyricsCacheTableCreateCompanionBuilder,
-    $$LocalLyricsCacheTableUpdateCompanionBuilder,
+    $LocalSongMetaTable,
+    LocalSongMetaData,
+    $$LocalSongMetaTableFilterComposer,
+    $$LocalSongMetaTableOrderingComposer,
+    $$LocalSongMetaTableAnnotationComposer,
+    $$LocalSongMetaTableCreateCompanionBuilder,
+    $$LocalSongMetaTableUpdateCompanionBuilder,
     (
-      LocalLyricsCacheData,
-      BaseReferences<_$AppDatabase, $LocalLyricsCacheTable,
-          LocalLyricsCacheData>
+      LocalSongMetaData,
+      BaseReferences<_$AppDatabase, $LocalSongMetaTable, LocalSongMetaData>
     ),
-    LocalLyricsCacheData,
+    LocalSongMetaData,
     PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
@@ -5786,6 +6112,6 @@ class $AppDatabaseManager {
       $$LocalPlaySessionsTableTableManager(_db, _db.localPlaySessions);
   $$LocalSettingsTableTableManager get localSettings =>
       $$LocalSettingsTableTableManager(_db, _db.localSettings);
-  $$LocalLyricsCacheTableTableManager get localLyricsCache =>
-      $$LocalLyricsCacheTableTableManager(_db, _db.localLyricsCache);
+  $$LocalSongMetaTableTableManager get localSongMeta =>
+      $$LocalSongMetaTableTableManager(_db, _db.localSongMeta);
 }

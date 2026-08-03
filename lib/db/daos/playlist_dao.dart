@@ -358,6 +358,21 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
         );
   }
 
+  /// 回填歌单歌曲的 lyric_id（为空才补），并标记待同步（供 addSongToPlaylist 补传 lyric_id）
+  Future<void> backfillSongLyricId(String songId, String source, String lyricId) async {
+    await (update(localPlaylistSongs)
+          ..where((t) =>
+              t.songId.equals(songId) &
+              t.source.equals(source) &
+              t.lyricId.isNull()))
+        .write(
+          LocalPlaylistSongsCompanion(
+            lyricId: Value(lyricId),
+            isSynced: const Value(false),
+          ),
+        );
+  }
+
   /// 物理删除歌单歌曲（同步删除成功后调用）
   Future<void> removeSongRow(int id) async {
     await (delete(localPlaylistSongs)..where((t) => t.id.equals(id))).go();
