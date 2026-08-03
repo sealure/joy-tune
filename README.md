@@ -1,13 +1,10 @@
-# Via Music
+# JoyTune
 
-极简跨平台音乐播放器，基于 [GD Music API](docs/AlgerMusicPlayer/gdmusic-api-reference.md)。
+JoyTune悦听，一款极简音乐播放器
 
 ## 快速开始
 
 ```bash
-# 进入项目目录
-cd apps/via-music
-
 # 获取依赖
 flutter pub get
 
