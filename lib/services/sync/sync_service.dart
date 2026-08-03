@@ -212,14 +212,17 @@ class SyncService {
     final toDelete = await _playlistFollowDao.pendingToDelete();
     for (final f in toDelete) {
       final ok = await _client.unfollowPlaylist(f.playlistId);
+      debugPrint('[SyncService] 取消收藏歌单 unfollowPlaylist(${f.playlistId}) => $ok');
       if (ok) {
         await _playlistFollowDao.removeRow(f.playlistId);
       }
     }
     // 再推送新增收藏
     final toPush = await _playlistFollowDao.pendingToPush();
+    debugPrint('[SyncService] 收藏歌单待推送: ${toPush.map((f) => f.playlistId).toList()}');
     for (final f in toPush) {
       final ok = await _client.followPlaylist(f.playlistId);
+      debugPrint('[SyncService] 收藏歌单 followPlaylist(${f.playlistId}) => $ok');
       if (ok) {
         await _playlistFollowDao.markSynced(f.playlistId);
       }

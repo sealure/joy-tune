@@ -80,9 +80,17 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                   const Spacer(),
                   // 更多菜单：复制到我的歌单（MP-11）
                   SizedBox(
-                    width: 48,
+                    width: 46,
                     child: PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEDE9FE),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.more_vert_rounded,
+                            color: Color(0xFF8B5CF6), size: 20),
+                      ),
                       onSelected: (value) {
                         if (value == 'copy') _onCopyPlaylist(context, ref);
                       },
@@ -323,6 +331,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     final repo = ref.read(playlistFollowRepositoryProvider);
     if (isFollowed) {
       await repo.remove(backendId);
+      // 取消收藏后立即触发同步（后台 DELETE 清算，不必等 30s 定时）
+      ref.read(syncServiceProvider).syncNow();
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已取消收藏')),
@@ -333,6 +343,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       final name = extra?['name'] as String? ?? '歌单';
       final coverUrl = (extra?['coverUrl'] as String?) ?? '';
       await repo.follow(playlistId: backendId, name: name, coverUrl: coverUrl);
+      // 收藏成功后立即触发同步（后台 POST /playlists/{id}/follow）
+      ref.read(syncServiceProvider).syncNow();
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已收藏到 我的歌单 → 收藏的歌单')),

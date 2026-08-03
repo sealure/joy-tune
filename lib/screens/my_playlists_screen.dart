@@ -324,6 +324,8 @@ class _MyPlaylistsScreenState extends ConsumerState<MyPlaylistsScreen>
     );
     if (ok != true) return;
     await ref.read(playlistFollowRepositoryProvider).remove(followed.playlistId);
+    // 取消收藏后立即触发同步（后台 DELETE 清算，不必等 30s 定时）
+    ref.read(syncServiceProvider).syncNow();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('已取消收藏「${followed.name}」')),
