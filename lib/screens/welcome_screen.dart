@@ -150,7 +150,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
               left: 24,
               bottom: 40,
               child: Text(
-                'v0.1.0',
+                'v0.0.1',
                 style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.15)),
               ),
             ),

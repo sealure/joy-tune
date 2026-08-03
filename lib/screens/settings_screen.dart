@@ -110,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Card(
             child: Column(
               children: [
-                _aboutTile('版本', '0.1.0'),
+                _aboutTile('版本', '0.0.1'),
                 const Divider(height: 1),
                 _aboutTile('技术栈', 'Flutter + SharedPreferences'),
               ],
