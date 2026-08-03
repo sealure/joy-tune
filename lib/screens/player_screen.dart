@@ -9,7 +9,6 @@ import '../services/providers.dart';
 import '../services/audio_cache.dart';
 import '../services/audio_service.dart';
 import '../services/prefetch_service.dart';
-import '../api/gdmusic_client.dart';
 import '../theme/player_colors.dart';
 import '../utils/lyric_utils.dart';
 import '../widgets/player_seek_bar.dart';
@@ -273,7 +272,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   // ── 元数据加载 ──
 
   Future<void> _loadSongMetadata(Song song) async {
-    final client = ref.read(gdMusicClientProvider);
     setState(() {
       // 优先立即显示已带封面（如收藏/歌单的歌），缺失时 _loadCover 再异步解析
       _coverUrl = song.coverUrl;
@@ -283,7 +281,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     });
     await Future.wait([
       _loadCover(song),
-      _loadLyrics(client, song),
+      _loadLyrics(song),
     ]);
   }
 
@@ -296,14 +294,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
   }
 
-  Future<void> _loadLyrics(GdMusicClient client, Song song) async {
-    if (song.lyricId == null || song.lyricId!.isEmpty) return;
-    try {
-      final lyric = await client.getLyric(lyricId: song.lyricId!, source: song.source);
-      if (mounted && lyric != null && lyric.lyric != null && lyric.lyric!.isNotEmpty) {
-        setState(() => _lyrics = parseLrc(lyric.lyric!));
-      }
-    } catch (_) {}
+  Future<void> _loadLyrics(Song song) async {
+    // 歌词：优先 song.lyricId，缺失（历史数据）时按歌名搜索兜底
+    final resolver = ref.read(songResolverProvider);
+    final text = await resolver.searchLyricsText(song);
+    if (mounted && text != null && text.isNotEmpty) {
+      setState(() => _lyrics = parseLrc(text));
+    }
   }
 
   // ── 歌词同步 ──

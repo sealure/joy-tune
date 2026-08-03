@@ -104,10 +104,10 @@ class SongResolver {
       if (playUrl.url.isEmpty) {
         return resolve(song);
       }
-      // 并发加载封面 + 歌词（封面用 searchCoverUrl：优先已带 URL，无则搜索兜底）
+      // 并发加载封面 + 歌词（歌词带"缺 lyricId 搜索兜底"）
       final results = await Future.wait([
         searchCoverUrl(song),
-        fetchLyricsText(song),
+        searchLyricsText(song),
       ]);
       return SongResolveResult(
         playable: song,
@@ -154,6 +154,25 @@ class SongResolver {
     } catch (_) {
       return null;
     }
+  }
+
+  /// 获取歌词文本（带兜底）：优先用 song.lyricId；缺失（历史数据只存过 lyrics_url 未存 lyric_id）
+  /// 或解析失败时，按歌名+歌手多源搜索匹配歌曲，用匹配结果的 lyric_id 再取歌词
+  Future<String?> searchLyricsText(Song song) async {
+    final direct = await fetchLyricsText(song);
+    if (direct != null && direct.isNotEmpty) return direct;
+    try {
+      final all = await _searchAllSources(song);
+      final matched = _findBestMatch(song, all);
+      if (matched != null && matched.lyricId != null && matched.lyricId!.isNotEmpty) {
+        final client = _ref.read(gdMusicClientProvider);
+        final lyric = await client.getLyric(lyricId: matched.lyricId!, source: matched.source);
+        return lyric?.lyric;
+      }
+    } catch (_) {
+      // 搜索兜底失败则无歌词
+    }
+    return null;
   }
 
   /// 多源并发搜索 + 精确匹配，返回可播放的歌曲及元数据
