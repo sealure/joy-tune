@@ -3973,6 +3973,584 @@ class LocalSongMetaCompanion extends UpdateCompanion<LocalSongMetaData> {
   }
 }
 
+class $LocalPlaylistFollowsTable extends LocalPlaylistFollows
+    with TableInfo<$LocalPlaylistFollowsTable, LocalPlaylistFollow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalPlaylistFollowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _playlistIdMeta =
+      const VerificationMeta('playlistId');
+  @override
+  late final GeneratedColumn<int> playlistId = GeneratedColumn<int>(
+      'playlist_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _coverUrlMeta =
+      const VerificationMeta('coverUrl');
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+      'cover_url', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _ownerNicknameMeta =
+      const VerificationMeta('ownerNickname');
+  @override
+  late final GeneratedColumn<String> ownerNickname = GeneratedColumn<String>(
+      'owner_nickname', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _ownerAvatarUrlMeta =
+      const VerificationMeta('ownerAvatarUrl');
+  @override
+  late final GeneratedColumn<String> ownerAvatarUrl = GeneratedColumn<String>(
+      'owner_avatar_url', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _songCountMeta =
+      const VerificationMeta('songCount');
+  @override
+  late final GeneratedColumn<int> songCount = GeneratedColumn<int>(
+      'song_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _deletedMeta =
+      const VerificationMeta('deleted');
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+      'deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _syncedEverMeta =
+      const VerificationMeta('syncedEver');
+  @override
+  late final GeneratedColumn<bool> syncedEver = GeneratedColumn<bool>(
+      'synced_ever', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("synced_ever" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        playlistId,
+        name,
+        description,
+        coverUrl,
+        ownerNickname,
+        ownerAvatarUrl,
+        songCount,
+        deleted,
+        isSynced,
+        syncedEver,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_playlist_follows';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalPlaylistFollow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('playlist_id')) {
+      context.handle(
+          _playlistIdMeta,
+          playlistId.isAcceptableOrUnknown(
+              data['playlist_id']!, _playlistIdMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(_coverUrlMeta,
+          coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('owner_nickname')) {
+      context.handle(
+          _ownerNicknameMeta,
+          ownerNickname.isAcceptableOrUnknown(
+              data['owner_nickname']!, _ownerNicknameMeta));
+    }
+    if (data.containsKey('owner_avatar_url')) {
+      context.handle(
+          _ownerAvatarUrlMeta,
+          ownerAvatarUrl.isAcceptableOrUnknown(
+              data['owner_avatar_url']!, _ownerAvatarUrlMeta));
+    }
+    if (data.containsKey('song_count')) {
+      context.handle(_songCountMeta,
+          songCount.isAcceptableOrUnknown(data['song_count']!, _songCountMeta));
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(_deletedMeta,
+          deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta));
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    if (data.containsKey('synced_ever')) {
+      context.handle(
+          _syncedEverMeta,
+          syncedEver.isAcceptableOrUnknown(
+              data['synced_ever']!, _syncedEverMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {playlistId};
+  @override
+  LocalPlaylistFollow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalPlaylistFollow(
+      playlistId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}playlist_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      coverUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_url'])!,
+      ownerNickname: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_nickname'])!,
+      ownerAvatarUrl: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}owner_avatar_url'])!,
+      songCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}song_count'])!,
+      deleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}deleted'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      syncedEver: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}synced_ever'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $LocalPlaylistFollowsTable createAlias(String alias) {
+    return $LocalPlaylistFollowsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalPlaylistFollow extends DataClass
+    implements Insertable<LocalPlaylistFollow> {
+  /// 服务端歌单 ID（唯一，收藏的源歌单）
+  final int playlistId;
+
+  /// 歌单名称
+  final String name;
+
+  /// 歌单描述
+  final String description;
+
+  /// 封面 URL
+  final String coverUrl;
+
+  /// 创建者昵称（同步拉取后补全）
+  final String ownerNickname;
+
+  /// 创建者头像 URL（同步拉取后补全）
+  final String ownerAvatarUrl;
+
+  /// 歌曲数（收藏时快照，同步拉取后刷新）
+  final int songCount;
+
+  /// soft delete 标记（取消收藏=1 待同步删除）
+  final bool deleted;
+
+  /// 是否已同步到服务端（0=待同步）
+  final bool isSynced;
+
+  /// 是否曾成功同步过（用于取消收藏的删除同步判定）
+  final bool syncedEver;
+
+  /// 收藏时间
+  final DateTime createdAt;
+  const LocalPlaylistFollow(
+      {required this.playlistId,
+      required this.name,
+      required this.description,
+      required this.coverUrl,
+      required this.ownerNickname,
+      required this.ownerAvatarUrl,
+      required this.songCount,
+      required this.deleted,
+      required this.isSynced,
+      required this.syncedEver,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['playlist_id'] = Variable<int>(playlistId);
+    map['name'] = Variable<String>(name);
+    map['description'] = Variable<String>(description);
+    map['cover_url'] = Variable<String>(coverUrl);
+    map['owner_nickname'] = Variable<String>(ownerNickname);
+    map['owner_avatar_url'] = Variable<String>(ownerAvatarUrl);
+    map['song_count'] = Variable<int>(songCount);
+    map['deleted'] = Variable<bool>(deleted);
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['synced_ever'] = Variable<bool>(syncedEver);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LocalPlaylistFollowsCompanion toCompanion(bool nullToAbsent) {
+    return LocalPlaylistFollowsCompanion(
+      playlistId: Value(playlistId),
+      name: Value(name),
+      description: Value(description),
+      coverUrl: Value(coverUrl),
+      ownerNickname: Value(ownerNickname),
+      ownerAvatarUrl: Value(ownerAvatarUrl),
+      songCount: Value(songCount),
+      deleted: Value(deleted),
+      isSynced: Value(isSynced),
+      syncedEver: Value(syncedEver),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalPlaylistFollow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalPlaylistFollow(
+      playlistId: serializer.fromJson<int>(json['playlistId']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String>(json['description']),
+      coverUrl: serializer.fromJson<String>(json['coverUrl']),
+      ownerNickname: serializer.fromJson<String>(json['ownerNickname']),
+      ownerAvatarUrl: serializer.fromJson<String>(json['ownerAvatarUrl']),
+      songCount: serializer.fromJson<int>(json['songCount']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      syncedEver: serializer.fromJson<bool>(json['syncedEver']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'playlistId': serializer.toJson<int>(playlistId),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String>(description),
+      'coverUrl': serializer.toJson<String>(coverUrl),
+      'ownerNickname': serializer.toJson<String>(ownerNickname),
+      'ownerAvatarUrl': serializer.toJson<String>(ownerAvatarUrl),
+      'songCount': serializer.toJson<int>(songCount),
+      'deleted': serializer.toJson<bool>(deleted),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'syncedEver': serializer.toJson<bool>(syncedEver),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LocalPlaylistFollow copyWith(
+          {int? playlistId,
+          String? name,
+          String? description,
+          String? coverUrl,
+          String? ownerNickname,
+          String? ownerAvatarUrl,
+          int? songCount,
+          bool? deleted,
+          bool? isSynced,
+          bool? syncedEver,
+          DateTime? createdAt}) =>
+      LocalPlaylistFollow(
+        playlistId: playlistId ?? this.playlistId,
+        name: name ?? this.name,
+        description: description ?? this.description,
+        coverUrl: coverUrl ?? this.coverUrl,
+        ownerNickname: ownerNickname ?? this.ownerNickname,
+        ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
+        songCount: songCount ?? this.songCount,
+        deleted: deleted ?? this.deleted,
+        isSynced: isSynced ?? this.isSynced,
+        syncedEver: syncedEver ?? this.syncedEver,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  LocalPlaylistFollow copyWithCompanion(LocalPlaylistFollowsCompanion data) {
+    return LocalPlaylistFollow(
+      playlistId:
+          data.playlistId.present ? data.playlistId.value : this.playlistId,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      ownerNickname: data.ownerNickname.present
+          ? data.ownerNickname.value
+          : this.ownerNickname,
+      ownerAvatarUrl: data.ownerAvatarUrl.present
+          ? data.ownerAvatarUrl.value
+          : this.ownerAvatarUrl,
+      songCount: data.songCount.present ? data.songCount.value : this.songCount,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      syncedEver:
+          data.syncedEver.present ? data.syncedEver.value : this.syncedEver,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPlaylistFollow(')
+          ..write('playlistId: $playlistId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('ownerNickname: $ownerNickname, ')
+          ..write('ownerAvatarUrl: $ownerAvatarUrl, ')
+          ..write('songCount: $songCount, ')
+          ..write('deleted: $deleted, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('syncedEver: $syncedEver, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      playlistId,
+      name,
+      description,
+      coverUrl,
+      ownerNickname,
+      ownerAvatarUrl,
+      songCount,
+      deleted,
+      isSynced,
+      syncedEver,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalPlaylistFollow &&
+          other.playlistId == this.playlistId &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.coverUrl == this.coverUrl &&
+          other.ownerNickname == this.ownerNickname &&
+          other.ownerAvatarUrl == this.ownerAvatarUrl &&
+          other.songCount == this.songCount &&
+          other.deleted == this.deleted &&
+          other.isSynced == this.isSynced &&
+          other.syncedEver == this.syncedEver &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalPlaylistFollowsCompanion
+    extends UpdateCompanion<LocalPlaylistFollow> {
+  final Value<int> playlistId;
+  final Value<String> name;
+  final Value<String> description;
+  final Value<String> coverUrl;
+  final Value<String> ownerNickname;
+  final Value<String> ownerAvatarUrl;
+  final Value<int> songCount;
+  final Value<bool> deleted;
+  final Value<bool> isSynced;
+  final Value<bool> syncedEver;
+  final Value<DateTime> createdAt;
+  const LocalPlaylistFollowsCompanion({
+    this.playlistId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.ownerNickname = const Value.absent(),
+    this.ownerAvatarUrl = const Value.absent(),
+    this.songCount = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.syncedEver = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  LocalPlaylistFollowsCompanion.insert({
+    this.playlistId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.ownerNickname = const Value.absent(),
+    this.ownerAvatarUrl = const Value.absent(),
+    this.songCount = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.syncedEver = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  static Insertable<LocalPlaylistFollow> custom({
+    Expression<int>? playlistId,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<String>? coverUrl,
+    Expression<String>? ownerNickname,
+    Expression<String>? ownerAvatarUrl,
+    Expression<int>? songCount,
+    Expression<bool>? deleted,
+    Expression<bool>? isSynced,
+    Expression<bool>? syncedEver,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (playlistId != null) 'playlist_id': playlistId,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (coverUrl != null) 'cover_url': coverUrl,
+      if (ownerNickname != null) 'owner_nickname': ownerNickname,
+      if (ownerAvatarUrl != null) 'owner_avatar_url': ownerAvatarUrl,
+      if (songCount != null) 'song_count': songCount,
+      if (deleted != null) 'deleted': deleted,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (syncedEver != null) 'synced_ever': syncedEver,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  LocalPlaylistFollowsCompanion copyWith(
+      {Value<int>? playlistId,
+      Value<String>? name,
+      Value<String>? description,
+      Value<String>? coverUrl,
+      Value<String>? ownerNickname,
+      Value<String>? ownerAvatarUrl,
+      Value<int>? songCount,
+      Value<bool>? deleted,
+      Value<bool>? isSynced,
+      Value<bool>? syncedEver,
+      Value<DateTime>? createdAt}) {
+    return LocalPlaylistFollowsCompanion(
+      playlistId: playlistId ?? this.playlistId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      coverUrl: coverUrl ?? this.coverUrl,
+      ownerNickname: ownerNickname ?? this.ownerNickname,
+      ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
+      songCount: songCount ?? this.songCount,
+      deleted: deleted ?? this.deleted,
+      isSynced: isSynced ?? this.isSynced,
+      syncedEver: syncedEver ?? this.syncedEver,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (playlistId.present) {
+      map['playlist_id'] = Variable<int>(playlistId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (ownerNickname.present) {
+      map['owner_nickname'] = Variable<String>(ownerNickname.value);
+    }
+    if (ownerAvatarUrl.present) {
+      map['owner_avatar_url'] = Variable<String>(ownerAvatarUrl.value);
+    }
+    if (songCount.present) {
+      map['song_count'] = Variable<int>(songCount.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (syncedEver.present) {
+      map['synced_ever'] = Variable<bool>(syncedEver.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPlaylistFollowsCompanion(')
+          ..write('playlistId: $playlistId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('ownerNickname: $ownerNickname, ')
+          ..write('ownerAvatarUrl: $ownerAvatarUrl, ')
+          ..write('songCount: $songCount, ')
+          ..write('deleted: $deleted, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('syncedEver: $syncedEver, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3988,6 +4566,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalPlaySessionsTable(this);
   late final $LocalSettingsTable localSettings = $LocalSettingsTable(this);
   late final $LocalSongMetaTable localSongMeta = $LocalSongMetaTable(this);
+  late final $LocalPlaylistFollowsTable localPlaylistFollows =
+      $LocalPlaylistFollowsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4000,7 +4580,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localSearchHistory,
         localPlaySessions,
         localSettings,
-        localSongMeta
+        localSongMeta,
+        localPlaylistFollows
       ];
 }
 
@@ -6094,6 +6675,272 @@ typedef $$LocalSongMetaTableProcessedTableManager = ProcessedTableManager<
     ),
     LocalSongMetaData,
     PrefetchHooks Function()>;
+typedef $$LocalPlaylistFollowsTableCreateCompanionBuilder
+    = LocalPlaylistFollowsCompanion Function({
+  Value<int> playlistId,
+  Value<String> name,
+  Value<String> description,
+  Value<String> coverUrl,
+  Value<String> ownerNickname,
+  Value<String> ownerAvatarUrl,
+  Value<int> songCount,
+  Value<bool> deleted,
+  Value<bool> isSynced,
+  Value<bool> syncedEver,
+  Value<DateTime> createdAt,
+});
+typedef $$LocalPlaylistFollowsTableUpdateCompanionBuilder
+    = LocalPlaylistFollowsCompanion Function({
+  Value<int> playlistId,
+  Value<String> name,
+  Value<String> description,
+  Value<String> coverUrl,
+  Value<String> ownerNickname,
+  Value<String> ownerAvatarUrl,
+  Value<int> songCount,
+  Value<bool> deleted,
+  Value<bool> isSynced,
+  Value<bool> syncedEver,
+  Value<DateTime> createdAt,
+});
+
+class $$LocalPlaylistFollowsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalPlaylistFollowsTable> {
+  $$LocalPlaylistFollowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get playlistId => $composableBuilder(
+      column: $table.playlistId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerNickname => $composableBuilder(
+      column: $table.ownerNickname, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerAvatarUrl => $composableBuilder(
+      column: $table.ownerAvatarUrl,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get songCount => $composableBuilder(
+      column: $table.songCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+      column: $table.deleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get syncedEver => $composableBuilder(
+      column: $table.syncedEver, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalPlaylistFollowsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalPlaylistFollowsTable> {
+  $$LocalPlaylistFollowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get playlistId => $composableBuilder(
+      column: $table.playlistId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerNickname => $composableBuilder(
+      column: $table.ownerNickname,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerAvatarUrl => $composableBuilder(
+      column: $table.ownerAvatarUrl,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get songCount => $composableBuilder(
+      column: $table.songCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+      column: $table.deleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get syncedEver => $composableBuilder(
+      column: $table.syncedEver, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalPlaylistFollowsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalPlaylistFollowsTable> {
+  $$LocalPlaylistFollowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get playlistId => $composableBuilder(
+      column: $table.playlistId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerNickname => $composableBuilder(
+      column: $table.ownerNickname, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerAvatarUrl => $composableBuilder(
+      column: $table.ownerAvatarUrl, builder: (column) => column);
+
+  GeneratedColumn<int> get songCount =>
+      $composableBuilder(column: $table.songCount, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get syncedEver => $composableBuilder(
+      column: $table.syncedEver, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$LocalPlaylistFollowsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalPlaylistFollowsTable,
+    LocalPlaylistFollow,
+    $$LocalPlaylistFollowsTableFilterComposer,
+    $$LocalPlaylistFollowsTableOrderingComposer,
+    $$LocalPlaylistFollowsTableAnnotationComposer,
+    $$LocalPlaylistFollowsTableCreateCompanionBuilder,
+    $$LocalPlaylistFollowsTableUpdateCompanionBuilder,
+    (
+      LocalPlaylistFollow,
+      BaseReferences<_$AppDatabase, $LocalPlaylistFollowsTable,
+          LocalPlaylistFollow>
+    ),
+    LocalPlaylistFollow,
+    PrefetchHooks Function()> {
+  $$LocalPlaylistFollowsTableTableManager(
+      _$AppDatabase db, $LocalPlaylistFollowsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalPlaylistFollowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalPlaylistFollowsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalPlaylistFollowsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> playlistId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> coverUrl = const Value.absent(),
+            Value<String> ownerNickname = const Value.absent(),
+            Value<String> ownerAvatarUrl = const Value.absent(),
+            Value<int> songCount = const Value.absent(),
+            Value<bool> deleted = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<bool> syncedEver = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              LocalPlaylistFollowsCompanion(
+            playlistId: playlistId,
+            name: name,
+            description: description,
+            coverUrl: coverUrl,
+            ownerNickname: ownerNickname,
+            ownerAvatarUrl: ownerAvatarUrl,
+            songCount: songCount,
+            deleted: deleted,
+            isSynced: isSynced,
+            syncedEver: syncedEver,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> playlistId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> coverUrl = const Value.absent(),
+            Value<String> ownerNickname = const Value.absent(),
+            Value<String> ownerAvatarUrl = const Value.absent(),
+            Value<int> songCount = const Value.absent(),
+            Value<bool> deleted = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<bool> syncedEver = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              LocalPlaylistFollowsCompanion.insert(
+            playlistId: playlistId,
+            name: name,
+            description: description,
+            coverUrl: coverUrl,
+            ownerNickname: ownerNickname,
+            ownerAvatarUrl: ownerAvatarUrl,
+            songCount: songCount,
+            deleted: deleted,
+            isSynced: isSynced,
+            syncedEver: syncedEver,
+            createdAt: createdAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalPlaylistFollowsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $LocalPlaylistFollowsTable,
+        LocalPlaylistFollow,
+        $$LocalPlaylistFollowsTableFilterComposer,
+        $$LocalPlaylistFollowsTableOrderingComposer,
+        $$LocalPlaylistFollowsTableAnnotationComposer,
+        $$LocalPlaylistFollowsTableCreateCompanionBuilder,
+        $$LocalPlaylistFollowsTableUpdateCompanionBuilder,
+        (
+          LocalPlaylistFollow,
+          BaseReferences<_$AppDatabase, $LocalPlaylistFollowsTable,
+              LocalPlaylistFollow>
+        ),
+        LocalPlaylistFollow,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6114,4 +6961,6 @@ class $AppDatabaseManager {
       $$LocalSettingsTableTableManager(_db, _db.localSettings);
   $$LocalSongMetaTableTableManager get localSongMeta =>
       $$LocalSongMetaTableTableManager(_db, _db.localSongMeta);
+  $$LocalPlaylistFollowsTableTableManager get localPlaylistFollows =>
+      $$LocalPlaylistFollowsTableTableManager(_db, _db.localPlaylistFollows);
 }

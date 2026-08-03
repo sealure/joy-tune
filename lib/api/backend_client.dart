@@ -300,6 +300,63 @@ class BackendClient {
     }
   }
 
+  // ══════════════════════════════════════════
+  // 收藏歌单 / 复制歌单（MP-10 / MP-11）
+  // ══════════════════════════════════════════
+
+  /// 收藏歌单（订阅引用，跟随创建者更新）
+  Future<bool> followPlaylist(int id) async {
+    try {
+      final dio = await _authedDio;
+      await dio.post('/playlists/$id/follow');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('>>> [FOLLOW] 收藏歌单失败: ${e.message}');
+      return false;
+    }
+  }
+
+  /// 取消收藏歌单
+  Future<bool> unfollowPlaylist(int id) async {
+    try {
+      final dio = await _authedDio;
+      await dio.delete('/playlists/$id/follow');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('>>> [FOLLOW] 取消收藏歌单失败: ${e.message}');
+      return false;
+    }
+  }
+
+  /// 获取我收藏的歌单列表（含创建者信息、实时歌曲数）
+  Future<List<FollowedPlaylist>> getFollowedPlaylists() async {
+    try {
+      final dio = await _authedDio;
+      final response = await dio.get('/playlists/followed');
+      final playlists = (response.data['playlists'] as List? ?? [])
+          .map((p) => FollowedPlaylist.fromJson(p as Map<String, dynamic>))
+          .toList();
+      return playlists;
+    } on DioException catch (e) {
+      debugPrint('>>> [FOLLOW] 获取收藏歌单列表失败: ${e.message}');
+      return [];
+    }
+  }
+
+  /// 复制歌单到我的歌单（克隆副本，返回新歌单）
+  Future<UserPlaylist?> copyPlaylist(int sourceId, {String? name}) async {
+    try {
+      final dio = await _authedDio;
+      final response = await dio.post('/playlists/$sourceId/copy', data: {
+        if (name != null) 'name': name,
+      });
+      return UserPlaylist.fromJson(response.data['playlist'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      debugPrint('>>> [FOLLOW] 复制歌单失败: ${e.message}');
+      return null;
+    }
+  }
+
   /// 安全解析 proto uint64 字段（JSON 中可能为数字或字符串）
   static int _parseUint64(dynamic value) {
     if (value is int) return value;
@@ -670,6 +727,40 @@ class RecommendPlaylistsResult {
   final List<RecommendPlaylist> playlists;
   final int total;
   const RecommendPlaylistsResult({required this.playlists, required this.total});
+}
+
+/// 收藏的歌单信息（我收藏的公开歌单，带创建者信息）
+class FollowedPlaylist {
+  final int id;
+  final String name;
+  final String description;
+  final String coverUrl;
+  final String ownerNickname;
+  final String ownerAvatarUrl;
+  final int songCount;
+
+  const FollowedPlaylist({
+    required this.id,
+    required this.name,
+    this.description = '',
+    this.coverUrl = '',
+    this.ownerNickname = '',
+    this.ownerAvatarUrl = '',
+    this.songCount = 0,
+  });
+
+  factory FollowedPlaylist.fromJson(Map<String, dynamic> json) {
+    final user = json['user'] as Map<String, dynamic>?;
+    return FollowedPlaylist(
+      id: BackendClient._parseUint64(json['id']),
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      coverUrl: json['cover_url'] as String? ?? '',
+      songCount: BackendClient._parseUint64(json['song_count']),
+      ownerNickname: user?['nickname'] as String? ?? '',
+      ownerAvatarUrl: user?['avatar_url'] as String? ?? '',
+    );
+  }
 }
 
 /// 歌单歌曲信息

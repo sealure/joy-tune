@@ -10,6 +10,7 @@ import '../../db/app_database.dart';
 import '../../db/daos/favorite_dao.dart';
 import '../../db/daos/play_record_dao.dart';
 import '../../db/daos/playlist_dao.dart';
+import '../../db/daos/playlist_follow_dao.dart';
 import '../../db/daos/settings_dao.dart';
 import '../../db/daos/song_meta_dao.dart';
 import '../auth_service.dart';
@@ -24,6 +25,7 @@ class SyncService {
   final AuthService _auth;
   final FavoriteDao _favoriteDao;
   final PlaylistDao _playlistDao;
+  final PlaylistFollowDao _playlistFollowDao;
   final PlayRecordDao _playRecordDao;
   final SettingsDao _settingsDao;
   final SongMetaDao _songMetaDao;
@@ -41,6 +43,7 @@ class SyncService {
     required AuthService auth,
     required FavoriteDao favoriteDao,
     required PlaylistDao playlistDao,
+    required PlaylistFollowDao playlistFollowDao,
     required PlayRecordDao playRecordDao,
     required SettingsDao settingsDao,
     required SongMetaDao songMetaDao,
@@ -48,6 +51,7 @@ class SyncService {
         _auth = auth,
         _favoriteDao = favoriteDao,
         _playlistDao = playlistDao,
+        _playlistFollowDao = playlistFollowDao,
         _playRecordDao = playRecordDao,
         _settingsDao = settingsDao,
         _songMetaDao = songMetaDao;
@@ -86,6 +90,7 @@ class SyncService {
       await _pushFavorites();
       await _pushPlaylists();
       await _pushPlaylistSongs();
+      await _pushPlaylistFollows();
       await _pushPlayRecords();
       await _handleClearHistory();
     } catch (e) {
@@ -200,6 +205,27 @@ class SyncService {
     }
   }
 
+  // ── 推送收藏歌单（订阅引用）──
+
+  Future<void> _pushPlaylistFollows() async {
+    // 先处理取消收藏（soft delete 且曾同步过的）
+    final toDelete = await _playlistFollowDao.pendingToDelete();
+    for (final f in toDelete) {
+      final ok = await _client.unfollowPlaylist(f.playlistId);
+      if (ok) {
+        await _playlistFollowDao.removeRow(f.playlistId);
+      }
+    }
+    // 再推送新增收藏
+    final toPush = await _playlistFollowDao.pendingToPush();
+    for (final f in toPush) {
+      final ok = await _client.followPlaylist(f.playlistId);
+      if (ok) {
+        await _playlistFollowDao.markSynced(f.playlistId);
+      }
+    }
+  }
+
   // ── 推送播放记录 ──
 
   Future<void> _pushPlayRecords() async {
@@ -245,6 +271,24 @@ class SyncService {
   Future<void> _pullRemote() async {
     await _pullFavorites();
     await _pullPlaylists();
+    await _pullFollowedPlaylists();
+  }
+
+  /// 拉取远端收藏歌单并合并到本地（幂等更新元信息：创建者/歌曲数/封面跟随服务端）
+  Future<void> _pullFollowedPlaylists() async {
+    final remote = await _client.getFollowedPlaylists();
+    for (final p in remote) {
+      await _playlistFollowDao.insertFollow(
+        playlistId: p.id,
+        name: p.name,
+        description: p.description,
+        coverUrl: p.coverUrl,
+        ownerNickname: p.ownerNickname,
+        ownerAvatarUrl: p.ownerAvatarUrl,
+        songCount: p.songCount,
+      );
+      await _playlistFollowDao.markSynced(p.id);
+    }
   }
 
   /// 拉取远端收藏并合并到本地（本地优先：已存在的本地收藏不覆盖）

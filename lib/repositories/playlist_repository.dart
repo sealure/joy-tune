@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:uuid/uuid.dart';
 
+import '../api/backend_client.dart';
 import '../db/app_database.dart';
 import '../db/daos/playlist_dao.dart';
 import '../models/song.dart';
@@ -100,8 +101,9 @@ class LocalPlaylistSongInfo {
 /// 创建成功回填 remoteId。分享等依赖 remoteId 的操作需在 synced 后可用。
 class PlaylistRepository {
   final PlaylistDao _dao;
+  final BackendClient _client;
 
-  PlaylistRepository(this._dao);
+  PlaylistRepository(this._dao, this._client);
 
   /// 流式监听全部未删除歌单（带歌曲数）
   Stream<List<LocalPlaylistInfo>> watchAll() {
@@ -169,6 +171,49 @@ class PlaylistRepository {
   Future<void> delete(String localId) {
     debugPrint('[PlaylistRepo] delete: localId=$localId');
     return _dao.softDelete(localId);
+  }
+
+  /// 创建"已同步"歌单（复制歌单功能用）：服务端已创建副本，本地直接建行并回填 remoteId
+  Future<String> createSynced({
+    required int remoteId,
+    required String name,
+    String description = '',
+    String coverUrl = '',
+    bool isPublic = false,
+  }) async {
+    final localId = const Uuid().v4();
+    debugPrint('[PlaylistRepo] createSynced: localId=$localId, remoteId=$remoteId, name=$name');
+    await _dao.create(LocalPlaylistsCompanion.insert(
+      id: localId,
+      name: name,
+      description: drift.Value(description),
+      coverUrl: drift.Value(coverUrl),
+      isPublic: drift.Value(isPublic),
+      remoteId: drift.Value(remoteId),
+      isSynced: const drift.Value(true),
+      syncedEver: const drift.Value(true),
+    ));
+    return localId;
+  }
+
+  /// 拉取远端歌单歌曲并入本地（复制歌单功能用：副本已建行，拉歌曲灌入，本地优先）
+  Future<void> pullRemoteSongs(String localId, int remoteId) async {
+    final detail = await _client.getUserPlaylistDetail(remoteId);
+    if (detail == null) return;
+    var order = 0;
+    for (final s in detail.songs) {
+      await _dao.mergeRemoteSong(
+        playlistId: localId,
+        songId: s.songId,
+        source: s.source,
+        songName: s.songName,
+        artist: s.artist,
+        album: s.album,
+        picId: s.picId.isNotEmpty ? s.picId : null,
+        lyricId: s.lyricId.isNotEmpty ? s.lyricId : null,
+        sortOrder: order++,
+      );
+    }
   }
 
   /// 往歌单添加歌曲

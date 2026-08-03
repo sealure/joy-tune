@@ -228,3 +228,35 @@ class LocalSongMeta extends Table {
   @override
   Set<Column> get primaryKey => {songId, source};
 }
+
+/// 本地收藏歌单表（需同步）：主键 = 服务端歌单 id（引用/订阅，非副本）
+/// 收藏的是对源歌单的引用：收藏动作先写本地（is_synced=0），
+/// SyncService 登录后推送 POST /playlists/{id}/follow，取消走 DELETE /playlists/{id}/follow。
+/// 列表元信息（创建者/歌曲数）在同步拉取 /playlists/followed 时补全，跟随创建者更新。
+class LocalPlaylistFollows extends Table {
+  /// 服务端歌单 ID（唯一，收藏的源歌单）
+  IntColumn get playlistId => integer()();
+  /// 歌单名称
+  TextColumn get name => text().withDefault(const Constant(''))();
+  /// 歌单描述
+  TextColumn get description => text().withDefault(const Constant(''))();
+  /// 封面 URL
+  TextColumn get coverUrl => text().withDefault(const Constant(''))();
+  /// 创建者昵称（同步拉取后补全）
+  TextColumn get ownerNickname => text().withDefault(const Constant(''))();
+  /// 创建者头像 URL（同步拉取后补全）
+  TextColumn get ownerAvatarUrl => text().withDefault(const Constant(''))();
+  /// 歌曲数（收藏时快照，同步拉取后刷新）
+  IntColumn get songCount => integer().withDefault(const Constant(0))();
+  /// soft delete 标记（取消收藏=1 待同步删除）
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  /// 是否已同步到服务端（0=待同步）
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  /// 是否曾成功同步过（用于取消收藏的删除同步判定）
+  BoolColumn get syncedEver => boolean().withDefault(const Constant(false))();
+  /// 收藏时间
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {playlistId};
+}

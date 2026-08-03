@@ -4,17 +4,27 @@ import 'package:go_router/go_router.dart';
 
 import '../models/mock_data.dart';
 import '../models/song.dart';
+import '../repositories/playlist_follow_repository.dart';
 import '../services/providers.dart';
 import '../utils/player_utils.dart';
 import '../widgets/song_cover.dart';
 
-class PlaylistDetailScreen extends ConsumerWidget {
+/// 公开歌单详情页（推荐/分享/收藏歌单共用，走 recommend 接口实时读取）
+///
+/// 收藏歌单（MP-10）：Hero 操作区"播放全部"旁新增"收藏/已收藏"按钮，订阅引用，跟随创建者更新；
+/// 复制到我的歌单（MP-11）：顶栏 ⋮ 菜单，克隆为当前用户的独立副本。
+class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final String playlistId;
 
   const PlaylistDetailScreen({super.key, required this.playlistId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
+}
+
+class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     // 从路由 extra 获取歌单元数据（Map 格式）
@@ -28,9 +38,9 @@ class PlaylistDetailScreen extends ConsumerWidget {
 
     // 根据 playlistId 找到对应的 MockPlaylist
     final playlist = recommendedPlaylists.firstWhere(
-      (p) => p.id == playlistId,
+      (p) => p.id == widget.playlistId,
       orElse: () => MockPlaylist(
-        id: playlistId,
+        id: widget.playlistId,
         name: playlistName,
         subtitle: playlistSubtitle ?? '',
       ),
@@ -41,14 +51,19 @@ class PlaylistDetailScreen extends ConsumerWidget {
     if (isBackend && backendId > 0) {
       songsAsync = ref.watch(recommendPlaylistSongsProvider(backendId));
     } else {
-      songsAsync = ref.watch(playlistSongsProvider(playlistId));
+      songsAsync = ref.watch(playlistSongsProvider(widget.playlistId));
     }
+
+    // 已收藏状态：本地收藏歌单集合（订阅引用，登录后 SyncService 同步服务端）
+    final followedList = ref.watch(myFollowedPlaylistsProvider).value ??
+        const <LocalPlaylistFollowInfo>[];
+    final isFollowed = isBackend && followedList.any((f) => f.playlistId == backendId);
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            // 顶栏
+            // 顶栏（左侧返回，中间标题，右侧 ⋮ 更多）
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
               child: Row(
@@ -63,13 +78,26 @@ class PlaylistDetailScreen extends ConsumerWidget {
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                   ),
                   const Spacer(),
-                  const SizedBox(width: 48),
+                  // 更多菜单：复制到我的歌单（MP-11）
+                  SizedBox(
+                    width: 48,
+                    child: PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                      onSelected: (value) {
+                        if (value == 'copy') _onCopyPlaylist(context, ref);
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'copy', child: Text('复制到我的歌单')),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            // 头部区域
-            _buildHeader(theme, playlist, songsAsync, context, ref, coverUrl),
+            // 头部区域（含收藏按钮）
+            _buildHeader(theme, playlist, songsAsync, context, ref, coverUrl,
+                isBackend, backendId, isFollowed),
 
             // 歌曲列表（支持加载中/错误状态）
             Expanded(
@@ -96,7 +124,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
                       Text('加载失败: $error', style: const TextStyle(color: Colors.white70)),
                       const SizedBox(height: 16),
                       FilledButton.tonal(
-                        onPressed: () => ref.invalidate(playlistSongsProvider(playlistId)),
+                        onPressed: () => ref.invalidate(playlistSongsProvider(widget.playlistId)),
                         child: const Text('重试'),
                       ),
                     ],
@@ -118,6 +146,9 @@ class PlaylistDetailScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     String coverUrl,
+    bool isBackend,
+    int backendId,
+    bool isFollowed,
   ) {
     // 歌曲数量：加载中显示占位，加载完成显示实际数量
     final songCountText = songsAsync.when(
@@ -172,62 +203,196 @@ class PlaylistDetailScreen extends ConsumerWidget {
                   '悦听 · 共 $songCountText',
                   style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7)),
                 ),
-                // 仅在加载完成后显示"播放全部"按钮
+                // 仅在加载完成后显示"播放全部 + 收藏"按钮
                 songsAsync.when(
                   data: (songs) {
                     if (songs.isEmpty) return const SizedBox.shrink();
                     return Padding(
                       padding: const EdgeInsets.only(top: 16),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.15),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                      child: Row(
+                        children: [
+                          // 播放全部（渐变主按钮）
+                          Expanded(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.15),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(24),
-                              onTap: () {
-                                final audio = ref.read(audioServiceProvider);
-                                audio.stop();
-                                audio.setQueue(songs, startIndex: 0);
-                                context.push('/player', extra: songs[0]);
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
-                                    SizedBox(width: 6),
-                                    Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
-                                  ],
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(24),
+                                  onTap: () {
+                                    final audio = ref.read(audioServiceProvider);
+                                    audio.stop();
+                                    audio.setQueue(songs, startIndex: 0);
+                                    context.push('/player', extra: songs[0]);
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.play_arrow_rounded, color: Color(0xFF6366F1), size: 22),
+                                        SizedBox(width: 6),
+                                        Text('播放全部', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
+                          // 收藏歌单按钮（仅后端公开歌单显示）
+                          if (isBackend && backendId > 0) ...[
+                            const SizedBox(width: 10),
+                            _buildFollowButton(context, ref, backendId, isFollowed),
+                          ],
+                        ],
                       ),
                     );
                   },
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 收藏歌单按钮（收藏 = 订阅引用，跟随创建者更新）
+  Widget _buildFollowButton(
+      BuildContext context, WidgetRef ref, int backendId, bool isFollowed) {
+    return GestureDetector(
+      onTap: () => _onToggleFollow(context, ref, backendId, isFollowed),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isFollowed ? const Color(0xFFF43F5E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isFollowed ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              size: 18,
+              color: isFollowed ? Colors.white : const Color(0xFFF43F5E),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              isFollowed ? '已收藏' : '收藏',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isFollowed ? Colors.white : const Color(0xFF6366F1),
+              ),
             ),
           ],
         ),
       ),
-        ],
+    );
+  }
+
+  /// 收藏 / 取消收藏（写本地，SyncService 后台同步服务端）
+  Future<void> _onToggleFollow(
+      BuildContext context, WidgetRef ref, int backendId, bool isFollowed) async {
+    if (!ref.read(isLoggedInProvider)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先登录')),
+      );
+      return;
+    }
+    final repo = ref.read(playlistFollowRepositoryProvider);
+    if (isFollowed) {
+      await repo.remove(backendId);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已取消收藏')),
+      );
+    } else {
+      // 收藏时写入歌单名/封面，创建者信息由同步拉取补全
+      final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
+      final name = extra?['name'] as String? ?? '歌单';
+      final coverUrl = (extra?['coverUrl'] as String?) ?? '';
+      await repo.follow(playlistId: backendId, name: name, coverUrl: coverUrl);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已收藏到 我的歌单 → 收藏的歌单')),
+      );
+    }
+  }
+
+  /// 复制到我的歌单（MP-11）：弹底部表单输入副本名 → 后端克隆 → 本地建行 + 拉歌曲 → 进入副本详情
+  Future<void> _onCopyPlaylist(BuildContext context, WidgetRef ref) async {
+    if (!ref.read(isLoggedInProvider)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先登录')),
+      );
+      return;
+    }
+    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
+    final backendId = ((extra?['backendId'] as num?)?.toInt() ?? 0);
+    if (backendId <= 0) return;
+    final name = extra?['name'] as String? ?? '歌单';
+
+    // 底部弹窗：输入副本歌单名
+    final controller = TextEditingController(text: '$name 的副本');
+    final copyName = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: _CopySheet(controller: controller),
       ),
     );
+    if (copyName == null || copyName.isEmpty || !context.mounted) return;
+
+    // 调用后端克隆副本
+    final client = ref.read(backendClientProvider);
+    final copied = await client.copyPlaylist(backendId, name: copyName);
+    if (copied == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('复制失败，请稍后重试')),
+      );
+      return;
+    }
+
+    // 本地建立已同步歌单行并拉取副本歌曲（走本地 SQLite 流式，与自建歌单一致）
+    final repo = ref.read(playlistRepositoryProvider);
+    final localId = await repo.createSynced(
+      remoteId: copied.id,
+      name: copied.name,
+      description: copied.description,
+      coverUrl: copied.coverUrl,
+      isPublic: copied.isPublic,
+    );
+    await repo.pullRemoteSongs(localId, copied.id);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已复制到我的歌单')),
+    );
+    // 进入副本详情页（可自由编辑）
+    context.push('/my-playlist/$localId');
   }
 
   Widget _buildSongList(BuildContext context, WidgetRef ref, List<Song> songs) {
@@ -263,6 +428,80 @@ class PlaylistDetailScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Text('请稍后再试', style: TextStyle(fontSize: 12, color: theme.colorScheme.secondary)),
         ],
+      ),
+    );
+  }
+}
+
+/// 复制到我的歌单底部弹窗（输入副本名 + 取消/复制）
+class _CopySheet extends StatelessWidget {
+  final TextEditingController controller;
+  const _CopySheet({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 顶部把手
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text('复制到我的歌单',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text('将复制为你的独立歌单，与源歌单互不影响，可自由编辑',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                labelText: '歌单名称',
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('取消'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                    ),
+                    onPressed: () => Navigator.pop(context, controller.text.trim()),
+                    child: const Text('复制歌单'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

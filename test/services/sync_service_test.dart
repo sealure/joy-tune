@@ -9,6 +9,7 @@ import 'package:via_music/db/app_database.dart';
 import 'package:via_music/db/daos/favorite_dao.dart';
 import 'package:via_music/db/daos/play_record_dao.dart';
 import 'package:via_music/db/daos/playlist_dao.dart';
+import 'package:via_music/db/daos/playlist_follow_dao.dart';
 import 'package:via_music/db/daos/settings_dao.dart';
 import 'package:via_music/db/daos/song_meta_dao.dart';
 import 'package:via_music/models/song.dart';
@@ -88,6 +89,23 @@ class _FakeBackendClient extends BackendClient {
 
   @override
   Future<List<Song>> getUserLikedSongs() async => [];
+
+  bool followSuccess = true;
+
+  @override
+  Future<bool> followPlaylist(int id) async {
+    calls.add(['followPlaylist', '$id']);
+    return followSuccess;
+  }
+
+  @override
+  Future<bool> unfollowPlaylist(int id) async {
+    calls.add(['unfollowPlaylist', '$id']);
+    return true;
+  }
+
+  @override
+  Future<List<FollowedPlaylist>> getFollowedPlaylists() async => [];
 }
 
 void main() {
@@ -99,6 +117,7 @@ void main() {
   late PlayRecordDao playRecordDao;
   late SettingsDao settingsDao;
   late SongMetaDao songMetaDao;
+  late PlaylistFollowDao playlistFollowDao;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -107,6 +126,7 @@ void main() {
     playRecordDao = PlayRecordDao(db);
     settingsDao = SettingsDao(db);
     songMetaDao = SongMetaDao(db);
+    playlistFollowDao = PlaylistFollowDao(db);
     client = _FakeBackendClient();
   });
 
@@ -121,6 +141,7 @@ void main() {
         auth: _FakeAuth(false),
         favoriteDao: favoriteDao,
         playlistDao: playlistDao,
+        playlistFollowDao: playlistFollowDao,
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
         songMetaDao: songMetaDao,
@@ -141,6 +162,7 @@ void main() {
         auth: _FakeAuth(true),
         favoriteDao: favoriteDao,
         playlistDao: playlistDao,
+        playlistFollowDao: playlistFollowDao,
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
         songMetaDao: songMetaDao,
@@ -196,6 +218,31 @@ void main() {
       expect(pending, hasLength(1));
       expect(pending.first.attemptCount, 1);
     });
+
+    test('收藏歌单推送 follow 并置 is_synced', () async {
+      await playlistFollowDao.insertFollow(playlistId: 1, name: '通勤BGM');
+      await service.syncNow();
+      expect(client.calls.map((c) => c[0]), contains('followPlaylist'));
+      expect(await playlistFollowDao.pendingToPush(), isEmpty);
+      expect(await playlistFollowDao.isFollowed(1), isTrue);
+    });
+
+    test('收藏歌单失败保持待同步（下次重试）', () async {
+      client.followSuccess = false;
+      await playlistFollowDao.insertFollow(playlistId: 1, name: '通勤BGM');
+      await service.syncNow();
+      expect(await playlistFollowDao.pendingToPush(), hasLength(1));
+    });
+
+    test('取消收藏推送 unfollow（soft delete 且曾同步）', () async {
+      await playlistFollowDao.insertFollow(playlistId: 1, name: '通勤BGM');
+      await playlistFollowDao.markSynced(1);
+      await playlistFollowDao.softDelete(1);
+      await service.syncNow();
+      expect(client.calls.map((c) => c[0]), contains('unfollowPlaylist'));
+      expect(await playlistFollowDao.pendingToDelete(), isEmpty);
+      expect(await playlistFollowDao.isFollowed(1), isFalse);
+    });
   });
 
   group('清空历史标记', () {
@@ -205,6 +252,7 @@ void main() {
         auth: _FakeAuth(true),
         favoriteDao: favoriteDao,
         playlistDao: playlistDao,
+        playlistFollowDao: playlistFollowDao,
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
         songMetaDao: songMetaDao,

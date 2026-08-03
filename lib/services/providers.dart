@@ -9,6 +9,7 @@ import '../db/app_database.dart';
 import '../db/daos/favorite_dao.dart';
 import '../db/daos/play_record_dao.dart';
 import '../db/daos/playlist_dao.dart';
+import '../db/daos/playlist_follow_dao.dart';
 import '../db/daos/search_history_dao.dart';
 import '../db/daos/session_dao.dart';
 import '../db/daos/settings_dao.dart';
@@ -17,6 +18,7 @@ import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../repositories/drift_favorite_repository.dart';
 import '../repositories/play_record_repository.dart';
+import '../repositories/playlist_follow_repository.dart';
 import '../repositories/playlist_repository.dart';
 import '../services/search_service.dart';
 import '../services/favorite_service.dart';
@@ -45,6 +47,10 @@ final favoriteDaoProvider = Provider<FavoriteDao>((ref) => FavoriteDao(ref.watch
 /// 歌单数据访问对象
 final playlistDaoProvider = Provider<PlaylistDao>((ref) => PlaylistDao(ref.watch(databaseProvider)));
 
+/// 收藏歌单数据访问对象（订阅他人公开歌单）
+final playlistFollowDaoProvider =
+    Provider<PlaylistFollowDao>((ref) => PlaylistFollowDao(ref.watch(databaseProvider)));
+
 /// 播放记录数据访问对象
 final playRecordDaoProvider = Provider<PlayRecordDao>((ref) => PlayRecordDao(ref.watch(databaseProvider)));
 
@@ -65,7 +71,15 @@ final songMetaDaoProvider = Provider<SongMetaDao>((ref) {
 
 /// 歌单仓库（本地 SQLite）
 final playlistRepositoryProvider = Provider<PlaylistRepository>((ref) {
-  return PlaylistRepository(ref.watch(playlistDaoProvider));
+  return PlaylistRepository(
+    ref.watch(playlistDaoProvider),
+    ref.watch(backendClientProvider),
+  );
+});
+
+/// 收藏歌单仓库（本地 SQLite，订阅他人公开歌单）
+final playlistFollowRepositoryProvider = Provider<PlaylistFollowRepository>((ref) {
+  return PlaylistFollowRepository(ref.watch(playlistFollowDaoProvider));
 });
 
 /// 播放记录仓库（本地 SQLite）
@@ -127,6 +141,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     auth: ref.watch(authServiceProvider),
     favoriteDao: ref.watch(favoriteDaoProvider),
     playlistDao: ref.watch(playlistDaoProvider),
+    playlistFollowDao: ref.watch(playlistFollowDaoProvider),
     playRecordDao: ref.watch(playRecordDaoProvider),
     settingsDao: ref.watch(settingsDaoProvider),
     songMetaDao: ref.watch(songMetaDaoProvider),
@@ -222,6 +237,12 @@ final myPlaylistProvider =
 final myPlaylistSongsProvider =
     StreamProvider.family<List<LocalPlaylistSongInfo>, String>((ref, localId) {
   return ref.watch(playlistRepositoryProvider).watchSongs(localId);
+});
+
+/// 我收藏的歌单列表（本地 SQLite 流式，订阅他人公开歌单；登录后 SyncService 同步服务端）
+final myFollowedPlaylistsProvider =
+    StreamProvider<List<LocalPlaylistFollowInfo>>((ref) {
+  return ref.watch(playlistFollowRepositoryProvider).watchAll();
 });
 
 // ── 听歌总数 Provider ──
