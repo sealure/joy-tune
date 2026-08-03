@@ -98,7 +98,7 @@ final favoriteServiceProvider = Provider<FavoriteService>((ref) {
 final audioServiceProvider = Provider<AudioService>((ref) {
   final audio = AudioService(sessionDao: ref.watch(sessionDaoProvider));
   // 播放上报：无论登录与否先写本地播放记录（is_synced=0），
-  // 登录后由 SyncService 同步上报到后端 play-records
+  // 登录后由 SyncService 定时（30s）同步上报到后端 play-records
   audio.onSongPlayed = (song) async {
     await ref.read(playRecordRepositoryProvider).addRecord(song);
   };

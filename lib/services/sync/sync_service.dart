@@ -52,8 +52,8 @@ class SyncService {
         _settingsDao = settingsDao,
         _songMetaDao = songMetaDao;
 
-  /// 启动后台同步任务：立即首扫 + 定时 + 网络恢复时
-  void start({Duration interval = const Duration(minutes: 10)}) {
+  /// 启动后台同步任务：立即首扫 + 定时（30 秒，保证播放/收藏等写操作尽快同步）+ 网络恢复时
+  void start({Duration interval = const Duration(seconds: 30)}) {
     // 立即首扫（不阻塞启动）
     syncNow();
     // 周期扫描
