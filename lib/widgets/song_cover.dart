@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/song.dart';
+import '../services/audio_cache.dart';
 import '../services/providers.dart';
 import 'cover_image.dart';
 
@@ -67,7 +68,8 @@ class _SongCoverState extends ConsumerState<SongCover> {
     }
   }
 
-  /// 解析封面 URL：已有 URL 或命中缓存直接使用，否则懒加载调外部 API
+  /// 解析封面 URL：已有 URL 或命中（内存/磁盘）缓存直接使用，否则懒加载调外部 API
+  /// 首次解析并行持久化到磁盘缓存，之后复用，减少重复网络请求（手动清理缓存才清除）
   Future<void> _resolveCoverUrl() async {
     // 已有完整 URL 时无需解析
     if (_coverUrl != null && _coverUrl!.isNotEmpty) return;
@@ -93,10 +95,27 @@ class _SongCoverState extends ConsumerState<SongCover> {
     _coverUrlInFlight.add(_cacheKey);
 
     try {
-      final client = ref.read(gdMusicClientProvider);
-      final url = await client.getCoverUrl(picId: picId, source: widget.song.source);
+      String? url;
+      // 优先读磁盘缓存的封面 URL（拉过一次即持久化）
+      try {
+        url = await AudioCache.instance.getCachedCoverUrl(_cacheKey);
+      } catch (_) {
+        // 缓存不可达时忽略，走实时解析
+      }
+      if (url == null || url.isEmpty) {
+        final client = ref.read(gdMusicClientProvider);
+        final resolved = await client.getCoverUrl(picId: picId, source: widget.song.source);
+        if (resolved.isNotEmpty) {
+          url = resolved;
+          try {
+            await AudioCache.instance.cacheCoverUrl(_cacheKey, resolved);
+          } catch (_) {
+            // 持久化失败不影响本次显示
+          }
+        }
+      }
       _coverUrlCache[_cacheKey] = url;
-      if (mounted && url.isNotEmpty) {
+      if (mounted && url != null && url.isNotEmpty) {
         setState(() => _coverUrl = url);
       }
     } catch (_) {
@@ -106,7 +125,7 @@ class _SongCoverState extends ConsumerState<SongCover> {
     }
   }
 
-  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带缓存与去重）
+  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带（内存/磁盘）缓存与去重）
   Future<void> _resolveCoverBySearch() async {
     if (_coverUrlCache.containsKey(_cacheKey)) {
       final url = _coverUrlCache[_cacheKey];
@@ -119,8 +138,22 @@ class _SongCoverState extends ConsumerState<SongCover> {
     _coverUrlInFlight.add(_cacheKey);
 
     try {
-      final resolver = ref.read(songResolverProvider);
-      final url = await resolver.searchCoverUrl(widget.song);
+      String? url;
+      // 优先读磁盘缓存
+      try {
+        url = await AudioCache.instance.getCachedCoverUrl(_cacheKey);
+      } catch (_) {
+        url = null;
+      }
+      if (url == null || url.isEmpty) {
+        final resolver = ref.read(songResolverProvider);
+        url = await resolver.searchCoverUrl(widget.song);
+        if (url != null && url.isNotEmpty) {
+          try {
+            await AudioCache.instance.cacheCoverUrl(_cacheKey, url);
+          } catch (_) {}
+        }
+      }
       _coverUrlCache[_cacheKey] = url;
       if (mounted && url != null && url.isNotEmpty) {
         setState(() => _coverUrl = url);

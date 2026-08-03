@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../services/audio_cache.dart';
 
@@ -88,7 +89,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text('当前缓存：$sizeStr'),
                   trailing: TextButton(
                     onPressed: () async {
+                      // 清音频/封面URL缓存 + 封面图片字节缓存（CachedNetworkImage 磁盘缓存）
                       await AudioCache.instance.clear();
+                      try {
+                        await DefaultCacheManager().emptyCache();
+                      } catch (_) {
+                        // 图片缓存清理失败不影响其它缓存清除
+                      }
                       if (mounted) {
                         setState(() {});
                         ScaffoldMessenger.of(context).showSnackBar(

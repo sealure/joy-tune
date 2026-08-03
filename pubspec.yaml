@@ -41,6 +41,8 @@ dependencies:
 
   # 图片缓存
   cached_network_image: ^3.4.1
+  # 图片磁盘缓存管理器（清理缓存时一并清封面图片缓存）
+  flutter_cache_manager: ^3.4.1
 
   # 工具
   path_provider: ^2.1.5

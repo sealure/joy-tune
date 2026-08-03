@@ -75,6 +75,21 @@ class AudioCache {
     return null;
   }
 
+  // ── 封面 URL 持久化（key: `${source}_${picId}`）
+  // 拉过一次即存本地，避免每次列表/滚动反复调用外部解析接口；
+  // 图片字节由 CachedNetworkImage 在系统缓存目录落盘，此处持久化解析结果 URL。
+
+  /// 保存封面解析结果 URL
+  Future<void> cacheCoverUrl(String key, String url) async {
+    await saveMetadata('cover_$key', {'url': url});
+  }
+
+  /// 读取持久化的封面 URL，无则 null
+  Future<String?> getCachedCoverUrl(String key) async {
+    final meta = await loadMetadata('cover_$key');
+    return meta?['url'] as String?;
+  }
+
   /// 获取缓存大小
   Future<int> cacheSize() async {
     if (!_initialized) await init();
