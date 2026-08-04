@@ -4,12 +4,96 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/providers.dart';
 import '../services/update/update_models.dart';
 
 /// 弹窗内部状态机：初始 → 下载中 → 下载完成 / 失败
 enum _UpdatePhase { idle, downloading, downloaded, error }
+
+/// 字节数格式化（MB/GB，如 84 MB）
+String formatSize(int bytes) {
+  if (bytes >= (1 << 30)) {
+    return '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
+  }
+  if (bytes >= (1 << 20)) {
+    return '${(bytes / (1 << 20)).toStringAsFixed(0)} MB';
+  }
+  if (bytes >= (1 << 10)) {
+    return '${(bytes / (1 << 10)).toStringAsFixed(1)} KB';
+  }
+  return '$bytes B';
+}
+
+/// 更新选择框：发现新版本后让用户决定是否立即更新
+///
+/// - Android 有匹配产物：`[稍后再说] [立即更新]`，立即更新进入完整下载安装弹窗
+/// - 桌面端/ABI 无产物（noAsset）：`[取消] [前往下载]`，前往下载打开 Release 页
+Future<void> showUpdatePrompt(
+  BuildContext context,
+  WidgetRef ref, {
+  required UpdateCheckResult result,
+}) async {
+  final release = result.release;
+  if (release == null) return;
+
+  // 桌面端/ABI 无产物：跳转 Release 页手动下载
+  if (result.noAsset) {
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('发现新版本'),
+        content: Text('当前 v${result.currentVersion ?? ''} → 最新 v${release.version}\n'
+            '当前平台暂不支持自动安装，前往 GitHub Release 页手动下载？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('前往下载'),
+          ),
+        ],
+      ),
+    );
+    if (go == true) {
+      await launchUrl(Uri.parse(release.htmlUrl),
+          mode: LaunchMode.externalApplication);
+    }
+    return;
+  }
+
+  final asset = result.asset;
+  if (asset == null) return;
+
+  // Android：确认是否立即更新
+  final go = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('发现新版本'),
+      content: Text(
+          '当前 v${result.currentVersion ?? ''} → 最新 v${release.version}\n'
+          '约 ${formatSize(asset.size)}，是否立即更新？'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('稍后再说'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('立即更新'),
+        ),
+      ],
+    ),
+  );
+  if (go == true) {
+    // 确认框关闭后仍挂载才继续弹完整更新窗（防 context 失效）
+    if (!context.mounted) return;
+    await showUpdateDialog(context, ref, result: result);
+  }
+}
 
 /// 展示更新弹窗（只能通过「稍后再说」关闭）
 Future<void> showUpdateDialog(
@@ -102,20 +186,6 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
   void _dismiss() {
     _cancelToken?.cancel();
     Navigator.of(context).pop();
-  }
-
-  /// 字节数格式化（设计稿单位 MB，如 84 MB）
-  String _formatSize(int bytes) {
-    if (bytes >= (1 << 30)) {
-      return '${(bytes / (1 << 30)).toStringAsFixed(1)} GB';
-    }
-    if (bytes >= (1 << 20)) {
-      return '${(bytes / (1 << 20)).toStringAsFixed(0)} MB';
-    }
-    if (bytes >= (1 << 10)) {
-      return '${(bytes / (1 << 10)).toStringAsFixed(1)} KB';
-    }
-    return '$bytes B';
   }
 
   /// 主按钮文案（状态机）
@@ -227,7 +297,7 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
                                   color: Color(0xFF6366F1),
                                 ),
                               ),
-                              TextSpan(text: ' · 约 ${_formatSize(asset.size)}'),
+                              TextSpan(text: ' · 约 ${formatSize(asset.size)}'),
                             ],
                           ),
                         ),
@@ -311,7 +381,7 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
                                 ),
                               ),
                               Text(
-                                '${(_progress * 100).round()}% · ${_formatSize(_downloadedBytes)}',
+                                '${(_progress * 100).round()}% · ${formatSize(_downloadedBytes)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,

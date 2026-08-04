@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/providers.dart';
+import '../widgets/update_dialog.dart';
 
 /// 启动/欢迎页 — 深色靛蓝主题，Logo 呼吸动画，自动检测登录状态
 class WelcomeScreen extends ConsumerStatefulWidget {
@@ -33,14 +34,24 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
     Future.delayed(const Duration(milliseconds: 1800), _navigate);
   }
 
-  /// 检测登录状态，决定跳转目标
+  /// 检测登录状态 + 启动检查更新，决定跳转目标
   void _navigate() async {
     if (!mounted) return;
 
     try {
-      final authService = ref.read(authServiceProvider);
-      final hasToken = await authService.isLoggedIn;
+      // 并行：登录状态检测 + 更新检查（避免串行等待拖慢启动）
+      final authFuture = ref.read(authServiceProvider).isLoggedIn;
+      final updateFuture = ref.read(updateServiceProvider).checkForUpdates();
+      final hasToken = await authFuture;
       if (!mounted) return;
+
+      // 有新版时先弹选择框（立即更新 / 稍后再说），再继续跳转
+      final updateResult = await updateFuture;
+      if (!mounted) return;
+      if (updateResult.hasUpdate) {
+        await showUpdatePrompt(context, ref, result: updateResult);
+        if (!mounted) return;
+      }
 
       if (hasToken) {
         // 已登录，更新登录状态并跳转首页
@@ -150,7 +161,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
               left: 24,
               bottom: 40,
               child: Text(
-                'v0.0.1',
+                'v${ref.watch(currentVersionProvider).when(
+                  data: (v) => v,
+                  loading: () => '0.0.1',
+                  error: (_, __) => '0.0.1',
+                )}',
                 style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.15)),
               ),
             ),
