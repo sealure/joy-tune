@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 可共享路径：暴露应用内部 files/updates/ 目录下的 APK，
+     供系统安装器跨进程读取（自动更新下载产物） -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <files-path name="updates" path="updates/" />
+</paths>

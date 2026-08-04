@@ -27,6 +27,10 @@ import '../services/auth_service.dart';
 import '../services/song_resolver.dart';
 import '../services/sync/legacy_prefs_migrator.dart';
 import '../services/sync/sync_service.dart';
+import '../services/update/github_release_client.dart';
+import '../services/update/update_models.dart';
+import '../services/update/update_service.dart';
+import '../utils/app_info.dart';
 
 // ── 单例 Provider ──
 
@@ -261,3 +265,29 @@ final playCountProvider = FutureProvider<int>((ref) async {
 final playHistoryProvider = StreamProvider<List<PlayHistoryItem>>((ref) {
   return ref.watch(playRecordRepositoryProvider).watchAll();
 });
+
+// ── 自动更新 Provider ──
+
+/// 当前应用信息（缓存 package_info_plus 版本号，供设置页/自动更新/设备上报共用）
+final appInfoProvider = Provider<AppInfo>((ref) => AppInfo());
+
+/// 当前版本号（设置页「版本」行、自动更新本地版本比较共用）
+final currentVersionProvider = FutureProvider<String>((ref) async {
+  return ref.read(appInfoProvider).version;
+});
+
+/// GitHub Release API 客户端
+final githubReleaseClientProvider =
+    Provider<GitHubReleaseClient>((ref) => GitHubReleaseClient());
+
+/// 更新服务（检查更新 → 匹配 ABI → 下载 → 安装）
+final updateServiceProvider = Provider<UpdateService>((ref) {
+  return UpdateService(
+    client: ref.watch(githubReleaseClientProvider),
+    appInfo: ref.watch(appInfoProvider),
+  );
+});
+
+/// 更新检查结果（设置页红点角标 + 检查按钮状态；null=本会话尚未检查）
+final updateCheckStateProvider =
+    StateProvider<UpdateCheckResult?>((ref) => null);

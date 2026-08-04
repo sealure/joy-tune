@@ -47,6 +47,10 @@ dependencies:
   # 工具
   path_provider: ^2.1.5
   uuid: ^4.5.1
+  # 应用信息（当前版本号统一读取，供设置页展示与自动更新比较）
+  package_info_plus: ^8.3.1
+  # 打开外部链接（桌面端跳转 GitHub Release 页手动下载）
+  url_launcher: ^6.3.1
   media_kit: ^1.2.6
   media_kit_libs_linux: ^1.2.1
   media_kit_native_event_loop: ^1.0.9

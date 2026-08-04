@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'app.dart';
-import 'config/api_config.dart';
 import 'db/daos/settings_dao.dart';
 import 'db/legacy_prefs.dart';
 import 'services/providers.dart';
@@ -118,7 +117,8 @@ void main() async {
     await backendClient.reportDevice(
       deviceId: deviceId,
       platform: _platformName(),
-      appVersion: appVersion,
+      // 版本号统一从 package_info_plus 读取（与设置页/自动更新一致）
+      appVersion: await container.read(appInfoProvider).version,
     );
 
     // 检查停服开关（优先级最高）

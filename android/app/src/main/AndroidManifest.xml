@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release 构建也需要网络：后端 API + GitHub Release 查询 + APK 下载
+         （debug 由 flutter 工具注入，main manifest 必须显式声明） -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="悦听"
         android:name="${applicationName}"
@@ -31,6 +34,16 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- APK 安装：FileProvider 把 downloads/updates 目录下的 APK 授权给系统安装器读取 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.rh.joytune.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -41,6 +54,11 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Android 11+ 包可见性：确保系统能解析并响应"安装 APK"隐式 Intent（防 ActivityNotFoundException） -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="application/vnd.android.package-archive"/>
         </intent>
     </queries>
 </manifest>
