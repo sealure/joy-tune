@@ -32,15 +32,21 @@ object ApkInstaller {
                             result.error("bad_arg", "apk path is empty", null)
                             return@setMethodCallHandler
                         }
-                        installApk(context, path)
-                        result.success(null)
+                        // 安装失败（文件不存在/FileProvider 路径不匹配/无安装器）时通过 error 回传给 Flutter
+                        try {
+                            installApk(context, path)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "安装 APK 失败: ${e.message}", e)
+                            result.error("install_failed", e.message, null)
+                        }
                     }
                     else -> result.notImplemented()
                 }
             }
     }
 
-    /** 交给系统安装器安装 APK */
+    /** 交给系统安装器安装 APK；FileProvider 找不到文件/路径不匹配等异常向上抛出 */
     fun installApk(context: Context, apkPath: String) {
         val file = File(apkPath)
         if (!file.exists()) {

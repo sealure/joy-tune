@@ -175,11 +175,16 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
     }
   }
 
-  /// 拉起系统安装器安装 APK
+  /// 拉起系统安装器安装 APK（失败时提示，不静默）
   Future<void> _install() async {
     final path = _localPath;
     if (path == null) return;
-    await ref.read(updateServiceProvider).installApk(path);
+    final ok = await ref.read(updateServiceProvider).installApk(path);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('拉起安装器失败，请稍后重试或手动安装')),
+      );
+    }
   }
 
   /// 关闭弹窗（「稍后再说」：取消进行中的下载）

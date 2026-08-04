@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FileProvider 可共享路径：暴露应用内部 files/updates/ 目录下的 APK，
-     供系统安装器跨进程读取（自动更新下载产物） -->
+<!-- FileProvider 可共享路径：暴露自动更新下载的 APK 目录给系统安装器跨进程读取。
+     注意：getApplicationDocumentsDirectory() 在 Android 返回应用数据目录根
+     （/data/data/<package>，即 context.getDataDir()），因此需用 root-path 匹配根目录下的 updates/ 子目录，
+     而不是 files-path（那仅匹配 files/ 子目录）。 -->
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <files-path name="updates" path="updates/" />
+    <root-path name="updates" path="updates/" />
 </paths>
