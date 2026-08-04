@@ -108,12 +108,36 @@ class UpdateService {
           .invokeMethod('installApk', {'path': path});
       return true;
     } on PlatformException catch (e) {
-      // 原生侧安装失败（文件不存在/FileProvider 路径不匹配/无安装器），打印明细便于定位
+      // 原生侧安装失败（未授权/文件不存在/FileProvider 路径不匹配/无安装器），打印明细便于定位
       debugPrint('[Update] 拉起安装器失败: code=${e.code}, message=${e.message}');
       return false;
     } catch (e) {
       debugPrint('[Update] 拉起安装器异常: $e');
       return false;
+    }
+  }
+
+  /// 是否已授权"安装未知应用"（Android 8+ 安装 APK 的前提；非 Android 视为已授权）
+  Future<bool> hasUnknownSourcePermission() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      return await const MethodChannel('joy_tune/install')
+              .invokeMethod<bool>('hasUnknownSourcePermission') ??
+          true;
+    } catch (e) {
+      debugPrint('[Update] 查询安装授权失败: $e');
+      return true; // 查询失败不阻断，交给安装步骤实际判断
+    }
+  }
+
+  /// 跳转系统"允许安装未知应用"设置页让用户授权
+  Future<void> openUnknownSourceSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await const MethodChannel('joy_tune/install')
+          .invokeMethod('openUnknownSourceSettings');
+    } catch (e) {
+      debugPrint('[Update] 打开安装授权设置失败: $e');
     }
   }
 }

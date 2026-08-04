@@ -2,6 +2,9 @@
     <!-- Release 构建也需要网络：后端 API + GitHub Release 查询 + APK 下载
          （debug 由 flutter 工具注入，main manifest 必须显式声明） -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 自动更新：安装 APK 需要"安装未知应用"权限（Android 8+ 必须声明并授权，
+         否则拉起系统安装器会被拒绝并提示"没有权限安装"） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="悦听"
         android:name="${applicationName}"

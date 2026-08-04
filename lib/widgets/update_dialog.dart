@@ -175,11 +175,39 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
     }
   }
 
-  /// 拉起系统安装器安装 APK（失败时提示，不静默）
+  /// 拉起系统安装器安装 APK；未授权"安装未知应用"时先引导跳设置开启
   Future<void> _install() async {
     final path = _localPath;
     if (path == null) return;
-    final ok = await ref.read(updateServiceProvider).installApk(path);
+    final service = ref.read(updateServiceProvider);
+
+    // Android 8+ 需先授权"安装未知应用"，否则系统拒绝安装
+    if (!await service.hasUnknownSourcePermission()) {
+      if (!mounted) return;
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要允许安装应用'),
+          content: const Text('系统要求授权「允许安装未知应用」，请前往设置开启后再安装更新。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('前往设置'),
+            ),
+          ],
+        ),
+      );
+      if (go == true) {
+        await service.openUnknownSourceSettings();
+      }
+      return;
+    }
+
+    final ok = await service.installApk(path);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('拉起安装器失败，请稍后重试或手动安装')),
