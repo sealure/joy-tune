@@ -1,0 +1,97 @@
+# ============================================================
+# 构建并发布 Android Release APK
+#
+# 触发方式:
+#   - 推送形如 v0.0.1 的 tag 时自动触发(versionName 会自动同步为 0.0.1)
+#   - 产物以 via_music_<版本>.apk 上传到 GitHub Release
+#
+# 注意:
+#   - 当前仓库 release 构建使用 debug 签名(android/app/build.gradle.kts
+#     中 signingConfig = debug),生成的 APK 可安装但不可上架 Google Play;
+#     如需正式签名,需在仓库配置 keystore 相关 Secrets 并在 build.gradle.kts 中配置。
+# ============================================================
+name: 构建并发布 Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  # 固定 Flutter 版本以稳定命中缓存(与本地开发版本一致,3.44.7)
+  # 如需始终跟随最新 stable,删除下面这行并把 flutter-version 去掉即可
+  FLUTTER_VERSION: '3.44.7'
+
+jobs:
+  build-apk:
+    name: 构建 Release APK 并发布
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # 发布 Release 需要写权限
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # AGP 9 需要 JDK 17+,先用 temurin 17 保证稳定
+      - name: 配置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # --------------------------------------------------------
+      # 关键优化:安装 Flutter SDK 与拉取 pub 依赖极慢(几百 MB)
+      # subosito/flutter-action 的 cache: true 会同时缓存:
+      #   1. 整个 Flutter SDK(下载后的 toolcache)
+      #   2. pub 依赖缓存
+      # 首次运行全量下载,之后命中缓存秒级完成
+      # --------------------------------------------------------
+      - name: 安装 Flutter SDK(含 SDK 与 pub 依赖缓存)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      # Gradle 依赖(AGP/Kotlin/第三方库)下载同样很慢,单独缓存 ~/.gradle
+      - name: 缓存 Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: 获取依赖
+        run: flutter pub get
+
+      # 把 pubspec.yaml 的 version 同步为 tag(tag v0.0.1 -> version 0.0.1+1),
+      # 这样 APK 的 versionName 与发布版本一致;非 tag 触发时跳过
+      - name: 同步版本号到 tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
+          echo "当前版本: $(grep '^version:' pubspec.yaml)"
+
+      - name: 构建 Release APK
+        run: flutter build apk --release
+
+      # 复制成带版本号的文件名,便于在 Release 中区分
+      - name: 整理构建产物
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/via_music_${VERSION}.apk"
+          ls -lh dist/
+
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
