@@ -21,6 +21,10 @@ env:
   # 固定 Flutter 版本以稳定命中缓存(与本地开发版本一致,3.44.7)
   # 如需始终跟随最新 stable,删除下面这行并把 flutter-version 去掉即可
   FLUTTER_VERSION: '3.44.7'
+  # 正式环境后端地址(CF 域名 + 后端 /api/v1 前缀)
+  # 构建时通过 --dart-define 注入,替代代码里的 dev 局域网默认值;
+  # 本地 flutter run 不传此参数,走 lib/config/api_config.dart 里的 dev 地址
+  API_BASE_URL: 'https://va.1hub.ccwu.cc/api/v1'
 
 jobs:
   build-apk:
@@ -80,7 +84,7 @@ jobs:
           echo "当前版本: $(grep '^version:' pubspec.yaml)"
 
       - name: 构建 Release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
 
       # 复制成带版本号的文件名,便于在 Release 中区分
       - name: 整理构建产物
