@@ -3,7 +3,7 @@
 #
 # 触发方式:
 #   - 推送形如 v0.0.1 的 tag 时自动触发(versionName 会自动同步为 0.0.1)
-#   - 产物以 via_music_<版本>.apk 上传到 GitHub Release
+#   - 产物按 ABI 拆分,以 joy-tune_<版本>_<abi>.apk 上传到 GitHub Release
 #
 # 注意:
 #   - 当前仓库 release 构建使用 debug 签名(android/app/build.gradle.kts
@@ -83,15 +83,21 @@ jobs:
           sed -i "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
           echo "当前版本: $(grep '^version:' pubspec.yaml)"
 
-      - name: 构建 Release APK
-        run: flutter build apk --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+      # --split-per-abi 按 CPU 架构拆分,避免单 APK 体积过大(84MB);
+      # 生成 app-{arm64-v8a,armeabi-v7a,x86_64}-release.apk 三个产物
+      - name: 构建 Release APK(按 ABI 拆分)
+        run: flutter build apk --release --split-per-abi --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
 
-      # 复制成带版本号的文件名,便于在 Release 中区分
+      # 按 ABI 循环复制产物,命名为 joy-tune_<版本>_<abi>.apk(与仓库名一致)
       - name: 整理构建产物
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk "dist/via_music_${VERSION}.apk"
+          for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
+            abi="${apk#build/app/outputs/flutter-apk/app-}"
+            abi="${abi%-release.apk}"
+            cp "$apk" "dist/joy-tune_${VERSION}_${abi}.apk"
+          done
           ls -lh dist/
 
       - name: 发布到 GitHub Release
