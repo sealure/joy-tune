@@ -32,6 +32,6 @@ class MainActivity : FlutterActivity() {
                 }
             }
         // 注册 APK 安装通道（独立类，保持 MainActivity 精简）
-        ApkInstaller.register(flutterEngine)
+        ApkInstaller.register(flutterEngine, applicationContext)
     }
 }

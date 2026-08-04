@@ -22,7 +22,7 @@ object ApkInstaller {
     private const val TAG = "ApkInstaller"
 
     /** 在 FlutterEngine 上注册安装通道（MainActivity.configureFlutterEngine 调用） */
-    fun register(flutterEngine: FlutterEngine) {
+    fun register(flutterEngine: FlutterEngine, context: Context) {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -32,7 +32,7 @@ object ApkInstaller {
                             result.error("bad_arg", "apk path is empty", null)
                             return@setMethodCallHandler
                         }
-                        installApk(flutterEngine.applicationContext, path)
+                        installApk(context, path)
                         result.success(null)
                     }
                     else -> result.notImplemented()
