@@ -2,15 +2,15 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:via_music/db/app_database.dart';
-import 'package:via_music/db/daos/favorite_dao.dart';
-import 'package:via_music/db/daos/play_record_dao.dart';
-import 'package:via_music/db/daos/playlist_dao.dart';
-import 'package:via_music/db/daos/search_history_dao.dart';
-import 'package:via_music/db/daos/session_dao.dart';
-import 'package:via_music/db/daos/settings_dao.dart';
-import 'package:via_music/db/daos/song_meta_dao.dart';
-import 'package:via_music/models/song.dart';
+import 'package:joy_tune/db/app_database.dart';
+import 'package:joy_tune/db/daos/favorite_dao.dart';
+import 'package:joy_tune/db/daos/play_record_dao.dart';
+import 'package:joy_tune/db/daos/playlist_dao.dart';
+import 'package:joy_tune/db/daos/search_history_dao.dart';
+import 'package:joy_tune/db/daos/session_dao.dart';
+import 'package:joy_tune/db/daos/settings_dao.dart';
+import 'package:joy_tune/db/daos/song_meta_dao.dart';
+import 'package:joy_tune/models/song.dart';
 
 void main() {
   late AppDatabase db;

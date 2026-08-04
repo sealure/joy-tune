@@ -293,7 +293,7 @@ class _ShareCardDialogState extends ConsumerState<_ShareCardDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Via Music · 好歌一起听',
+                      Text('JoyTune · 好歌一起听',
                           style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12)),
                       // 二维码占位
                       Container(

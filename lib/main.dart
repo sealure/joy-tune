@@ -60,7 +60,7 @@ Future<String> _getDeviceId(SettingsDao settingsDao) async {
 /// iOS 返回 identifierForVendor。取不到返回 null，由调用方回退到随机 UUID。
 Future<String?> _getSystemDeviceId() async {
   try {
-    const channel = MethodChannel('via_music/device_id');
+    const channel = MethodChannel('joy_tune/device_id');
     final id = await channel.invokeMethod<String>('getSystemDeviceId');
     // ANDROID_ID 过滤空值与已知的无效占位值 9774d56d682e549c
     if (id != null && id.isNotEmpty && id != '9774d56d682e549c') {

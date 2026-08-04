@@ -7,17 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:705656192509:android:d32f60b775e5dacab02d94",
+        "mobilesdk_app_id": "1:705656192509:android:2ffa634962cd62f3b02d94",
         "android_client_info": {
-          "package_name": "com.rh.viamusic"
+          "package_name": "com.rh.joytune"
         }
       },
       "oauth_client": [
         {
-          "client_id": "705656192509-bq0mcr38v0b3mv23ip1o9a9ahpdvhbb4.apps.googleusercontent.com",
+          "client_id": "705656192509-ocv8j9ttrlk6c0e78b56j8f35u62ofp0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.rh.viamusic",
+            "package_name": "com.rh.joytune",
             "certificate_hash": "aa5ab1e0d94dcf5bcce02bb50b78965ad825c317"
           }
         },
@@ -27,6 +27,12 @@
         }
       ],
       "api_key": [
+        {
+          "current_key": "AIzaSyDnhaS0OIlvxT5OT7gZBkyarGheMfcxDls"
+        },
+        {
+          "current_key": "AIzaSyDng0lNJN_7MyOuTkYHCIYH-fqx7Ddp_bQ"
+        },
         {
           "current_key": "AIzaSyC6QgEcWAWbLWNAZQRO8iokgOUOEPB36c8"
         }

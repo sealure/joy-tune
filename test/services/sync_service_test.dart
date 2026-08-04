@@ -4,17 +4,17 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:via_music/api/backend_client.dart';
-import 'package:via_music/db/app_database.dart';
-import 'package:via_music/db/daos/favorite_dao.dart';
-import 'package:via_music/db/daos/play_record_dao.dart';
-import 'package:via_music/db/daos/playlist_dao.dart';
-import 'package:via_music/db/daos/playlist_follow_dao.dart';
-import 'package:via_music/db/daos/settings_dao.dart';
-import 'package:via_music/db/daos/song_meta_dao.dart';
-import 'package:via_music/models/song.dart';
-import 'package:via_music/services/auth_service.dart';
-import 'package:via_music/services/sync/sync_service.dart';
+import 'package:joy_tune/api/backend_client.dart';
+import 'package:joy_tune/db/app_database.dart';
+import 'package:joy_tune/db/daos/favorite_dao.dart';
+import 'package:joy_tune/db/daos/play_record_dao.dart';
+import 'package:joy_tune/db/daos/playlist_dao.dart';
+import 'package:joy_tune/db/daos/playlist_follow_dao.dart';
+import 'package:joy_tune/db/daos/settings_dao.dart';
+import 'package:joy_tune/db/daos/song_meta_dao.dart';
+import 'package:joy_tune/models/song.dart';
+import 'package:joy_tune/services/auth_service.dart';
+import 'package:joy_tune/services/sync/sync_service.dart';
 
 /// fake 认证服务：固定登录态
 class _FakeAuth extends AuthService {

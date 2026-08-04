@@ -1,6 +1,6 @@
 {
-    "name": "via_music",
-    "short_name": "via_music",
+    "name": "JoyTune",
+    "short_name": "JoyTune",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

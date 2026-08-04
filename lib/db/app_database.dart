@@ -22,7 +22,7 @@ part 'app_database.g.dart';
 ])
 class AppDatabase extends _$AppDatabase {
   /// 默认构造：drift_flutter 统一移动端原生 + 桌面端 ffi
-  AppDatabase() : super(driftDatabase(name: 'via_music'));
+  AppDatabase() : super(driftDatabase(name: 'joy_tune'));
 
   /// 测试构造：使用内存数据库（纯 Dart VM，无需平台通道）
   AppDatabase.forTesting(super.executor);

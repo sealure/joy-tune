@@ -15,7 +15,7 @@ import UIKit
 
     // 设备 ID 通道：Flutter 侧通过此通道获取 iOS 系统稳定的 identifierForVendor
     let channel = FlutterMethodChannel(
-      name: "via_music/device_id",
+      name: "joy_tune/device_id",
       binaryMessenger: engineBridge.applicationBinaryMessenger
     )
     channel.setMethodCallHandler { call, result in
