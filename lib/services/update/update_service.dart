@@ -33,7 +33,8 @@ class UpdateService {
   })  : _client = client,
         _appInfo = appInfo ?? AppInfo(),
         _abiProvider = abiProvider ?? getDeviceAbi,
-        _downloadDirProvider = downloadDirProvider ?? getApplicationDocumentsDirectory;
+        _downloadDirProvider =
+            downloadDirProvider ?? getApplicationSupportDirectory;
 
   /// 检查更新：
   /// - 无 release / 网络失败 → failure
@@ -68,7 +69,10 @@ class UpdateService {
     return UpdateCheckResult.available(release, asset, current);
   }
 
-  /// 下载 APK 到 `应用文档目录/updates/<name>`；已存在完整文件（长度==size）则跳过
+  /// 下载 APK 到 `应用支持目录/updates/<name>`；已存在完整文件（长度==size）则跳过
+  ///
+  /// 说明：用 getApplicationSupportDirectory()（Android 返回 files 目录），
+  /// 与 file_paths.xml 的 `<files-path path="updates/">` 精确匹配，供 FileProvider 授权系统安装器读取。
   Future<String?> download(
     ReleaseAsset asset, {
     void Function(int received, int total)? onProgress,
@@ -103,8 +107,12 @@ class UpdateService {
       await const MethodChannel('joy_tune/install')
           .invokeMethod('installApk', {'path': path});
       return true;
+    } on PlatformException catch (e) {
+      // 原生侧安装失败（文件不存在/FileProvider 路径不匹配/无安装器），打印明细便于定位
+      debugPrint('[Update] 拉起安装器失败: code=${e.code}, message=${e.message}');
+      return false;
     } catch (e) {
-      debugPrint('[Update] 拉起安装器失败: $e');
+      debugPrint('[Update] 拉起安装器异常: $e');
       return false;
     }
   }
