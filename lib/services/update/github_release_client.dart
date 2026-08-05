@@ -27,13 +27,19 @@ class GitHubReleaseClient {
               },
             ));
 
-  /// 查询最新 release；无 release（404）或网络失败返回 null
+  /// 查询版本号最高的正式 release；无 release 或网络失败返回 null
+  ///
+  /// 不用 `/releases/latest`（其按发布时间取 latest，并行发版时可能指向旧版本号），
+  /// 改为拉取 release 列表后按版本号语义选出最高者（过滤 draft/prerelease）。
   Future<ReleaseInfo?> fetchLatestRelease() async {
     try {
-      final resp = await _dio.get('/repos/$_repo/releases/latest');
-      final data = resp.data;
-      if (data is! Map<String, dynamic>) return null;
-      return ReleaseInfo.fromJson(data);
+      final resp = await _dio.get('/repos/$_repo/releases', queryParameters: {
+        'per_page': 30,
+      });
+      final list = resp.data;
+      if (list is! List) return null;
+      // 过滤草稿/预发布，按版本号取最高（不依赖 /releases/latest 的发布时间语义）
+      return pickLatestRelease(list);
     } on DioException catch (e) {
       // 404 = 仓库尚无 release（当前状态）；其它网络错误同样静默降级
       debugPrint('[Update] 查询最新版本失败: ${e.message}, status=${e.response?.statusCode}');

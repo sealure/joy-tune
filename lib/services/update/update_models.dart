@@ -106,6 +106,24 @@ class ChangelogItem {
   }
 }
 
+/// 从 release 列表 JSON 中选出版本号最高的正式 release（过滤 draft/prerelease）
+///
+/// 不依赖 GitHub `/releases/latest`（其按发布时间取 latest，并行发版可能指向旧版本号），
+/// 按版本号语义选出最高者。列表为空或全部为草稿时返回 null。
+ReleaseInfo? pickLatestRelease(List<dynamic> releases) {
+  ReleaseInfo? best;
+  for (final item in releases) {
+    if (item is! Map<String, dynamic>) continue;
+    if (item['draft'] == true || item['prerelease'] == true) continue;
+    final info = ReleaseInfo.fromJson(item);
+    if (info.tagName.isEmpty) continue;
+    if (best == null || isNewer(info.version, best.version)) {
+      best = info;
+    }
+  }
+  return best;
+}
+
 /// 一次检查更新的结果
 class UpdateCheckResult {
   /// 是否有新版本

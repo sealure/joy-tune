@@ -72,4 +72,43 @@ void main() {
       ]);
     });
   });
+
+  group('pickLatestRelease', () {
+    // 构造一个 release JSON（字段与 GitHub API 一致）
+    Map<String, dynamic> _release(String tag,
+        {bool draft = false, bool prerelease = false}) {
+      return {
+        'tag_name': tag,
+        'html_url': 'https://github.com/sealure/joy-tune/releases/tag/$tag',
+        'body': '',
+        'draft': draft,
+        'prerelease': prerelease,
+        'assets': <dynamic>[],
+      };
+    }
+
+    test('并行发版时按版本号取最高（不依赖发布时间）', () {
+      final list = <dynamic>[_release('v0.0.8'), _release('v0.0.9')];
+      final latest = pickLatestRelease(list);
+      expect(latest?.version, '0.0.9');
+    });
+
+    test('过滤 draft 与 prerelease', () {
+      final list = <dynamic>[
+        _release('v0.0.10', draft: true),
+        _release('v0.0.11', prerelease: true),
+        _release('v0.0.9'),
+      ];
+      final latest = pickLatestRelease(list);
+      expect(latest?.version, '0.0.9');
+    });
+
+    test('空列表或全部草稿返回 null', () {
+      expect(pickLatestRelease(<dynamic>[]), isNull);
+      expect(
+        pickLatestRelease(<dynamic>[_release('v0.0.1', draft: true)]),
+        isNull,
+      );
+    });
+  });
 }
