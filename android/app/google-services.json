@@ -28,6 +28,10 @@
             "package_name": "com.rh.joytune",
             "certificate_hash": "aa5ab1e0d94dcf5bcce02bb50b78965ad825c317"
           }
+        },
+        {
+          "client_id": "705656192509-vs0nj9dqtc11k8acnjl7s81h9tmcp54b.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [
@@ -37,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "705656192509-vs0nj9dqtc11k8acnjl7s81h9tmcp54b.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "705656192509-hcic6kcjjpsqqduq688p17tilbmt8oco.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.rh.joytune"
+              }
+            }
+          ]
         }
       }
     }

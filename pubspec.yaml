@@ -26,6 +26,9 @@ dependencies:
 
   # Google OAuth 登录
   google_sign_in: ^6.2.1
+  # Firebase（统一 Google 登录，多端配置由 flutterfire 生成 firebase_options.dart 管理）
+  firebase_core: ^4.13.0
+  firebase_auth: ^6.5.7
 
   # 窗口管理
   window_manager: ^0.4.3

@@ -4,6 +4,8 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
+  firebase_auth
+  firebase_core
   flutter_secure_storage_windows
   media_kit_libs_windows_audio
   screen_retriever_windows

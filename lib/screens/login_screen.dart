@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../config/api_config.dart';
+import '../firebase_options.dart';
 import '../services/providers.dart';
 
 /// 登录页 — 深色背景 + 靛蓝/紫色光晕动画，GitHub / Google OAuth
@@ -25,16 +27,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       debugPrint('>>> [STEP 1] 调用 GoogleSignIn().signIn()');
-      // 1. 调用 Google Sign-In SDK
-      // Android: 使用 google-services.json 中的 Android 客户端
-      // iOS/macOS: 使用 iOS 客户端 ID
-      // serverClientId: 必须配 Web 客户端 ID，否则 Google 不签发 id_token（只有 accessToken）
+      // 1. 调用 Google Sign-In SDK 拿 Google 账号
+      // Android: firebase_auth 会自动用 google-services.json 的 Android client，无需手动配 serverClientId
+      // iOS/macOS: 使用 iOS 客户端 ID（firebase_options 的 iOS appId 对应）
       final googleUser = await GoogleSignIn(
         scopes: ['email', 'profile'],
         clientId: Platform.isAndroid
-            ? null  // Android 使用 google-services.json 自动配置
-            : '935635104003-gsk3jje3ge9nt3vsbcvv8a842m921v2u.apps.googleusercontent.com', // iOS/macOS 使用 iOS 客户端 ID
-        serverClientId: '705656192509-1iulckperi1g2fr5ki9ssv4smop1gm9o.apps.googleusercontent.com', // 与后端 google_client_id 对齐的 OAuth client
+            ? null  // Android 自动用 Firebase 项目配置
+            : DefaultFirebaseOptions.ios.appId,
       ).signIn();
 
       if (googleUser == null) {
@@ -57,21 +57,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         throw Exception('获取 Google Token 失败');
       }
 
-      // 3. 发送到后端验证
-      debugPrint('>>> [STEP 3] 发送 id_token 到后端 $apiBaseUrl/auth/google');
+      // 3. 用 Google 凭证换 Firebase 会话（firebase_auth 统一管理登录态）
+      debugPrint('>>> [STEP 3] Firebase signInWithCredential');
+      final credential = GoogleAuthProvider.credential(
+        accessToken: accessToken,
+        idToken: idToken,
+      );
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw Exception('Firebase 登录失败：未获取到用户');
+      }
+      debugPrint('>>> [STEP 3] Firebase 登录成功, uid=${firebaseUser.uid}');
+
+      // 4. 拿 Firebase 签发的 ID Token 发给后端（后端用 Admin SDK 验证）
+      final firebaseIdToken = await firebaseUser.getIdToken();
+      debugPrint('>>> [STEP 4] 发送 firebase id_token 到后端 $apiBaseUrl/auth/google');
       final authService = ref.read(authServiceProvider);
-      final result = await authService.googleLogin(idToken);
-      debugPrint('>>> [STEP 3] 后端返回成功, isNewUser=${result.isNewUser}, token长度=${result.token.length}');
+      final result = await authService.googleLogin(firebaseIdToken!);
+      debugPrint('>>> [STEP 4] 后端返回成功, isNewUser=${result.isNewUser}, token长度=${result.token.length}');
 
       if (!mounted) return;
 
-      // 4. 登录成功，跳转首页
+      // 5. 登录成功，跳转首页
       if (result.isNewUser) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('欢迎注册 悦听！')),
         );
       }
-      debugPrint('>>> [STEP 4] 跳转到首页');
+      debugPrint('>>> [STEP 5] 跳转到首页');
       ref.read(isLoggedInProvider.notifier).state = true;
       // 登录成功后触发同步：拉取服务端收藏/歌单合并到本地，并推送本地游客数据
       ref.read(syncServiceProvider).syncNow(forcePull: true);

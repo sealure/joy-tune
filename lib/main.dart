@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import 'package:uuid/uuid.dart';
 import 'app.dart';
 import 'db/daos/settings_dao.dart';
 import 'db/legacy_prefs.dart';
+import 'firebase_options.dart';
 import 'services/providers.dart';
 // 延迟导入桌面端模块（仅桌面平台使用）
 import 'desktop_init.dart' as desktop;
@@ -73,6 +75,14 @@ Future<String?> _getSystemDeviceId() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化 Firebase（flutterfire 生成的各平台统一配置；Google 登录依赖）
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  } catch (e) {
+    // 初始化失败不阻塞启动（登录功能不可用，其余功能正常）
+    debugPrint('>>> [STARTUP] Firebase 初始化失败: $e');
+  }
 
   // 初始化 media_kit（加载 libmpv）
   MediaKit.ensureInitialized();
