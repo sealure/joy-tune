@@ -34,7 +34,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         clientId: Platform.isAndroid
             ? null  // Android 使用 google-services.json 自动配置
             : '935635104003-gsk3jje3ge9nt3vsbcvv8a842m921v2u.apps.googleusercontent.com', // iOS/macOS 使用 iOS 客户端 ID
-        serverClientId: '705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com', // Web 客户端 ID
+        serverClientId: '705656192509-1iulckperi1g2fr5ki9ssv4smop1gm9o.apps.googleusercontent.com', // 与后端 google_client_id 对齐的 OAuth client
       ).signIn();
 
       if (googleUser == null) {
