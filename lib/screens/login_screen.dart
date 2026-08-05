@@ -28,11 +28,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // 1. 调用 Google Sign-In SDK
       // Android: 使用 google-services.json 中的 Android 客户端
       // iOS/macOS: 使用 iOS 客户端 ID
+      // serverClientId: 必须配 Web 客户端 ID，否则 Google 不签发 id_token（只有 accessToken）
       final googleUser = await GoogleSignIn(
         scopes: ['email', 'profile'],
         clientId: Platform.isAndroid
             ? null  // Android 使用 google-services.json 自动配置
             : '935635104003-gsk3jje3ge9nt3vsbcvv8a842m921v2u.apps.googleusercontent.com', // iOS/macOS 使用 iOS 客户端 ID
+        serverClientId: '705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com', // Web 客户端 ID
       ).signIn();
 
       if (googleUser == null) {

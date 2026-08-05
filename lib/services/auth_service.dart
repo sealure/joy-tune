@@ -62,7 +62,8 @@ class AuthService {
     try {
       final response = await _dio.post(
         '/auth/google',
-        data: {'idToken': idToken},
+        // 后端 proto 字段为 id_token（gRPC-gateway 使用 snake_case），不要用 camelCase
+        data: {'id_token': idToken},
       );
 
       final data = response.data;
