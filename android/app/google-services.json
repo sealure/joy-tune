@@ -14,37 +14,30 @@
       },
       "oauth_client": [
         {
+          "client_id": "705656192509-1iulckperi1g2fr5ki9ssv4smop1gm9o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rh.joytune",
+            "certificate_hash": "8518f78568e745bc3290b74a3def74ae893b44d3"
+          }
+        },
+        {
           "client_id": "705656192509-ocv8j9ttrlk6c0e78b56j8f35u62ofp0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.rh.joytune",
             "certificate_hash": "aa5ab1e0d94dcf5bcce02bb50b78965ad825c317"
           }
-        },
-        {
-          "client_id": "705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com",
-          "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDnhaS0OIlvxT5OT7gZBkyarGheMfcxDls"
-        },
-        {
           "current_key": "AIzaSyDng0lNJN_7MyOuTkYHCIYH-fqx7Ddp_bQ"
-        },
-        {
-          "current_key": "AIzaSyC6QgEcWAWbLWNAZQRO8iokgOUOEPB36c8"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "705656192509-opup336p6gmp1qvi56o2ovf2foemtg30.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
