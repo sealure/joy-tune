@@ -76,16 +76,19 @@ jobs:
 
       # 从 GitHub Secrets 还原发布签名（keystore + key.properties）
       # 保证所有版本用同一把 key 签名，自更新才能无缝覆盖安装（否则每次 debug 签名不同 → 覆盖报"签名不同"）
+      # 注意：if 条件不能访问 secrets 上下文，需先经 env 引用再判断
       - name: 还原发布签名
-        if: secrets.SIGNING_KEYSTORE_BASE64 != ''
+        if: env.SIGNING_KEYSTORE_BASE64 != ''
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         run: |
-          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > android/app/joy-tune-release.jks
-          cat > android/app/key.properties <<'EOF'
-          storePassword=${{ secrets.SIGNING_STORE_PASSWORD }}
-          keyPassword=${{ secrets.SIGNING_KEY_PASSWORD }}
-          keyAlias=${{ secrets.SIGNING_KEY_ALIAS }}
-          storeFile=joy-tune-release.jks
-          EOF
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > android/app/joy-tune-release.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=joy-tune-release.jks\n' \
+            "$SIGNING_STORE_PASSWORD" "$SIGNING_KEY_PASSWORD" "$SIGNING_KEY_ALIAS" \
+            > android/app/key.properties
           ls -l android/app/joy-tune-release.jks
 
       # 把 pubspec.yaml 的 version 同步为 tag(tag v0.0.1 -> version 0.0.1+1),
