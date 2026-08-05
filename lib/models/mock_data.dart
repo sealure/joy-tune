@@ -22,38 +22,20 @@ class MockPlaylist {
 /// 推荐歌单列表（元数据，不含歌曲列表）
 final List<MockPlaylist> recommendedPlaylists = [
   MockPlaylist(
-    id: 'today',
-    name: '今日推荐',
-    subtitle: '为你精选的好音乐',
-    source: 'joox',
-  ),
-  MockPlaylist(
-    id: 'hot',
-    name: '热歌榜',
-    subtitle: '热门歌曲推荐',
-    source: 'joox',
-  ),
-  MockPlaylist(
     id: 'chinese',
-    name: '华语金曲',
+    name: '华语',
     subtitle: '经典华语歌曲',
     source: 'joox',
   ),
   MockPlaylist(
     id: 'relax',
-    name: '午后轻音乐',
+    name: '轻音乐',
     subtitle: '放松心情的旋律',
     source: 'joox',
   ),
   MockPlaylist(
-    id: 'hiphop',
-    name: '嘻哈说唱',
-    subtitle: '节奏与押韵',
-    source: 'joox',
-  ),
-  MockPlaylist(
     id: 'electronic',
-    name: '电子节奏',
+    name: '电音',
     subtitle: '电子音乐精选',
     source: 'joox',
   ),
