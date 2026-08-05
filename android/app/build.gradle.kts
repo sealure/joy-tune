@@ -56,6 +56,10 @@ android {
                 // 缺少 key.properties 时降级 debug 签名，保证本地 flutter run --release 可用
                 signingConfigs.getByName("debug")
             }
+            // 关闭资源收缩：google-services 生成的 default_web_client_id 被 getIdentifier() 动态引用，
+            // AGP 9 默认资源收缩会误判为未使用而移除，导致 Google 登录拿不到 serverClientId（idToken=null）
+            isShrinkResources = false
+            isMinifyEnabled = false
         }
     }
 }
