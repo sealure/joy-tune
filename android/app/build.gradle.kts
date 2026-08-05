@@ -5,6 +5,18 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+// ── 发布签名配置 ──
+// 本地开发：读 android/app/key.properties（已被 .gitignore 忽略，不提交仓库）；
+// CI（GitHub Actions）：由 workflow 把 Secrets 解码为 key.properties，同一份密钥保证所有版本签名一致，
+// 自更新才能无缝覆盖安装（否则每次 debug 签名不同 → 覆盖安装报"签名不同"）。
+import java.util.Properties
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("app/key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
 android {
     namespace = "com.rh.joytune"
     compileSdk = flutter.compileSdkVersion
@@ -26,11 +38,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // 固定 keystore 签名（本地 key.properties / CI Secrets），保证所有版本签名一致
+            signingConfig = if (keystoreProperties["storeFile"] != null) {
+                signingConfigs.getByName("release")
+            } else {
+                // 缺少 key.properties 时降级 debug 签名，保证本地 flutter run --release 可用
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

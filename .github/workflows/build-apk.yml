@@ -74,6 +74,20 @@ jobs:
       - name: 获取依赖
         run: flutter pub get
 
+      # 从 GitHub Secrets 还原发布签名（keystore + key.properties）
+      # 保证所有版本用同一把 key 签名，自更新才能无缝覆盖安装（否则每次 debug 签名不同 → 覆盖报"签名不同"）
+      - name: 还原发布签名
+        if: env.SIGNING_KEYSTORE_BASE64 != ''
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > android/app/joy-tune-release.jks
+          cat > android/app/key.properties <<'EOF'
+          storePassword=${{ secrets.SIGNING_STORE_PASSWORD }}
+          keyPassword=${{ secrets.SIGNING_KEY_PASSWORD }}
+          keyAlias=${{ secrets.SIGNING_KEY_ALIAS }}
+          storeFile=joy-tune-release.jks
+          EOF
+          ls -l android/app/joy-tune-release.jks
+
       # 把 pubspec.yaml 的 version 同步为 tag(tag v0.0.1 -> version 0.0.1+1),
       # 这样 APK 的 versionName 与发布版本一致;非 tag 触发时跳过
       - name: 同步版本号到 tag
