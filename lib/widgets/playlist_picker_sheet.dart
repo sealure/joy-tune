@@ -143,6 +143,8 @@ class _PlaylistPickerSheetState extends ConsumerState<PlaylistPickerSheet> {
                               onTap: () => _addToPlaylist(p),
                               leading: PlaylistCover(
                                 coverUrl: p.coverUrl,
+                                coverPicId: p.coverPicId,
+                                coverSource: p.coverSource,
                                 size: 44,
                                 borderRadius: 10,
                               ),

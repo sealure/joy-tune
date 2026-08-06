@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../repositories/playlist_repository.dart';
 import '../services/providers.dart';
+import 'playlist_cover.dart';
 import 'song_cover.dart';
 
 /// 弹出新建/编辑歌单底部表单
@@ -46,6 +47,9 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
       TextEditingController(text: widget.existing?.description ?? '');
   late bool _isPublic = widget.existing?.isPublic ?? true;
   late String _coverUrl = widget.existing?.coverUrl ?? '';
+  /// 封面来源歌曲 pic_id（选中歌曲封面时落库，展示走懒加载）
+  late String? _coverPicId = widget.existing?.coverPicId;
+  late String? _coverSource = widget.existing?.coverSource;
   bool _submitting = false;
 
   @override
@@ -105,7 +109,12 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
       ),
     );
     if (selected != null && mounted) {
-      setState(() => _coverUrl = selected.coverUrl ?? '');
+      // 封面来源 = 选中歌曲的 pic_id + source（本地歌曲 coverUrl 通常为空，靠 picId 懒加载）
+      setState(() {
+        _coverUrl = selected.coverUrl ?? '';
+        _coverPicId = selected.picId;
+        _coverSource = selected.source;
+      });
     }
   }
 
@@ -123,13 +132,22 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
     final desc = _descCtrl.text.trim().isEmpty ? '' : _descCtrl.text.trim();
     debugPrint('[PlaylistForm] ${widget.existing == null ? "创建" : "更新"}歌单: name=$name, isPublic=$_isPublic');
     if (widget.existing == null) {
-      await repo.create(name: name, description: desc, coverUrl: _coverUrl, isPublic: _isPublic);
+      await repo.create(
+        name: name,
+        description: desc,
+        coverUrl: _coverUrl,
+        coverPicId: _coverPicId,
+        coverSource: _coverSource,
+        isPublic: _isPublic,
+      );
     } else {
       await repo.update(
         widget.existing!.localId,
         name: name,
         description: desc,
         coverUrl: _coverUrl,
+        coverPicId: _coverPicId,
+        coverSource: _coverSource,
         isPublic: _isPublic,
       );
     }
@@ -175,22 +193,12 @@ class _PlaylistFormSheetState extends ConsumerState<PlaylistFormSheet> {
               // 封面区：预览 + 从歌单歌曲中选择
               Row(
                 children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Color(0xFFA5B4FC), Color(0xFF818CF8)]),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: _coverUrl.isNotEmpty
-                        ? Image.network(
-                            _coverUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.music_note_rounded, color: Colors.white, size: 28),
-                          )
-                        : const Icon(Icons.music_note_rounded, color: Colors.white, size: 28),
+                  PlaylistCover(
+                    coverUrl: _coverUrl,
+                    coverPicId: _coverPicId,
+                    coverSource: _coverSource,
+                    size: 64,
+                    borderRadius: 12,
                   ),
                   const SizedBox(width: 14),
                   Expanded(

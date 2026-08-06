@@ -98,6 +98,8 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
     String? name,
     String? description,
     String? coverUrl,
+    String? coverPicId,
+    String? coverSource,
     bool? isPublic,
   }) async {
     await (update(localPlaylists)..where((t) => t.id.equals(localId))).write(
@@ -105,6 +107,8 @@ class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin 
             name: name == null ? const Value.absent() : Value(name),
             description: description == null ? const Value.absent() : Value(description),
             coverUrl: coverUrl == null ? const Value.absent() : Value(coverUrl),
+            coverPicId: coverPicId == null ? const Value.absent() : Value(coverPicId),
+            coverSource: coverSource == null ? const Value.absent() : Value(coverSource),
             isPublic: isPublic == null ? const Value.absent() : Value(isPublic),
             isSynced: const Value(false),
             updatedAt: Value(DateTime.now()),

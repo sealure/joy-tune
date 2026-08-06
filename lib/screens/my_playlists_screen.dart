@@ -123,7 +123,12 @@ class _MyPlaylistsScreenState extends ConsumerState<MyPlaylistsScreen>
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 onTap: () => context.push('/my-playlist/${p.localId}'),
-                leading: PlaylistCover(coverUrl: p.coverUrl, size: 56),
+                leading: PlaylistCover(
+                  coverUrl: p.coverUrl,
+                  coverPicId: p.coverPicId,
+                  coverSource: p.coverSource,
+                  size: 56,
+                ),
                 title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500)),
                 subtitle: Padding(
@@ -262,8 +267,15 @@ class _MyPlaylistsScreenState extends ConsumerState<MyPlaylistsScreen>
                   'isBackendPlaylist': true,
                   'backendId': f.playlistId,
                   'coverUrl': f.coverUrl,
+                  'coverPicId': f.coverPicId,
+                  'coverSource': f.coverSource,
                 }),
-                leading: PlaylistCover(coverUrl: f.coverUrl, size: 56),
+                leading: PlaylistCover(
+                  coverUrl: f.coverUrl,
+                  coverPicId: f.coverPicId,
+                  coverSource: f.coverSource,
+                  size: 56,
+                ),
                 title: Row(
                   children: [
                     // 「收藏」角标

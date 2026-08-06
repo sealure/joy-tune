@@ -47,13 +47,13 @@ class _FakeBackendClient extends BackendClient {
   }
 
   @override
-  Future<UserPlaylist?> createPlaylist({required String name, String? description, String? coverUrl, bool isPublic = false}) async {
+  Future<UserPlaylist?> createPlaylist({required String name, String? description, String? coverUrl, String? coverPicId, String? coverSource, bool isPublic = false}) async {
     calls.add(['createPlaylist', name]);
     return UserPlaylist(id: _nextPlaylistId++, name: name, isPublic: isPublic);
   }
 
   @override
-  Future<UserPlaylist?> updatePlaylist(int id, {String? name, String? description, String? coverUrl, bool? isPublic}) async {
+  Future<UserPlaylist?> updatePlaylist(int id, {String? name, String? description, String? coverUrl, String? coverPicId, String? coverSource, bool? isPublic}) async {
     calls.add(['updatePlaylist', '$id']);
     return UserPlaylist(id: id, name: name ?? '', isPublic: isPublic ?? false);
   }

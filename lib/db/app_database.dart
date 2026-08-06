@@ -21,6 +21,7 @@ part 'app_database.g.dart';
   LocalPlaylistFollows,
   LocalRecommendPlaylists,
   LocalRecommendPlaylistSongs,
+  LocalPicCovers,
 ])
 class AppDatabase extends _$AppDatabase {
   /// 默认构造：drift_flutter 统一移动端原生 + 桌面端 ffi
@@ -30,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -55,6 +56,17 @@ class AppDatabase extends _$AppDatabase {
           if (from < 6) {
             await m.createTable(localRecommendPlaylists);
             await m.createTable(localRecommendPlaylistSongs);
+          }
+          // v7：歌单/收藏歌单/推荐歌单新增封面来源字段 cover_pic_id + cover_source；
+          //     新增封面解析结果缓存表 local_pic_covers（按 pic_id+source，重启免外部 API）
+          if (from < 7) {
+            await m.addColumn(localPlaylists, localPlaylists.coverPicId);
+            await m.addColumn(localPlaylists, localPlaylists.coverSource);
+            await m.addColumn(localPlaylistFollows, localPlaylistFollows.coverPicId);
+            await m.addColumn(localPlaylistFollows, localPlaylistFollows.coverSource);
+            await m.addColumn(localRecommendPlaylists, localRecommendPlaylists.coverPicId);
+            await m.addColumn(localRecommendPlaylists, localRecommendPlaylists.coverSource);
+            await m.createTable(localPicCovers);
           }
         },
       );

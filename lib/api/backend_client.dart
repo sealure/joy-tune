@@ -194,6 +194,8 @@ class BackendClient {
     required String name,
     String? description,
     String? coverUrl,
+    String? coverPicId,
+    String? coverSource,
     bool isPublic = false,
   }) async {
     try {
@@ -202,6 +204,8 @@ class BackendClient {
         'name': name,
         if (description != null) 'description': description,
         if (coverUrl != null) 'cover_url': coverUrl,
+        if (coverPicId != null && coverPicId.isNotEmpty) 'cover_pic_id': coverPicId,
+        if (coverSource != null && coverSource.isNotEmpty) 'cover_source': coverSource,
         'is_public': isPublic,
       });
       return UserPlaylist.fromJson(response.data['playlist'] as Map<String, dynamic>);
@@ -283,6 +287,8 @@ class BackendClient {
     String? name,
     String? description,
     String? coverUrl,
+    String? coverPicId,
+    String? coverSource,
     bool? isPublic,
   }) async {
     try {
@@ -291,6 +297,8 @@ class BackendClient {
         if (name != null) 'name': name,
         if (description != null) 'description': description,
         if (coverUrl != null) 'cover_url': coverUrl,
+        if (coverPicId != null) 'cover_pic_id': coverPicId,
+        if (coverSource != null) 'cover_source': coverSource,
         if (isPublic != null) 'is_public': isPublic,
       });
       return UserPlaylist.fromJson(response.data['playlist'] as Map<String, dynamic>);
@@ -688,6 +696,10 @@ class RecommendPlaylist {
   final String name;
   final String description;
   final String coverUrl;
+  /// 封面来源歌曲 pic_id（为空则按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
   final String type;
   final int songCount;
   final int playCount;
@@ -699,6 +711,8 @@ class RecommendPlaylist {
     required this.name,
     this.description = '',
     this.coverUrl = '',
+    this.coverPicId,
+    this.coverSource,
     this.type = 'system',
     this.songCount = 0,
     this.playCount = 0,
@@ -713,6 +727,8 @@ class RecommendPlaylist {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       coverUrl: json['cover_url'] as String? ?? '',
+      coverPicId: json['cover_pic_id'] as String?,
+      coverSource: json['cover_source'] as String?,
       type: json['type'] as String? ?? 'system',
       songCount: BackendClient._parseUint64(json['song_count']),
       playCount: BackendClient._parseUint64(json['play_count']),
@@ -735,6 +751,10 @@ class FollowedPlaylist {
   final String name;
   final String description;
   final String coverUrl;
+  /// 封面来源歌曲 pic_id（为空则按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
   final String ownerNickname;
   final String ownerAvatarUrl;
   final int songCount;
@@ -744,6 +764,8 @@ class FollowedPlaylist {
     required this.name,
     this.description = '',
     this.coverUrl = '',
+    this.coverPicId,
+    this.coverSource,
     this.ownerNickname = '',
     this.ownerAvatarUrl = '',
     this.songCount = 0,
@@ -756,6 +778,8 @@ class FollowedPlaylist {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       coverUrl: json['cover_url'] as String? ?? '',
+      coverPicId: json['cover_pic_id'] as String?,
+      coverSource: json['cover_source'] as String?,
       songCount: BackendClient._parseUint64(json['song_count']),
       ownerNickname: user?['nickname'] as String? ?? '',
       ownerAvatarUrl: user?['avatar_url'] as String? ?? '',
@@ -815,6 +839,10 @@ class UserPlaylist {
   final String name;
   final String description;
   final String coverUrl;
+  /// 封面来源歌曲 pic_id（为空则按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
   final String type;
   final bool isPublic;
   final int songCount;
@@ -827,6 +855,8 @@ class UserPlaylist {
     required this.name,
     this.description = '',
     this.coverUrl = '',
+    this.coverPicId,
+    this.coverSource,
     this.type = 'user',
     this.isPublic = false,
     this.songCount = 0,
@@ -841,6 +871,8 @@ class UserPlaylist {
       name: json['name'] as String? ?? '',
       description: json['description'] as String? ?? '',
       coverUrl: json['cover_url'] as String? ?? '',
+      coverPicId: json['cover_pic_id'] as String?,
+      coverSource: json['cover_source'] as String?,
       type: json['type'] as String? ?? 'user',
       isPublic: json['is_public'] as bool? ?? false,
       songCount: BackendClient._parseUint64(json['song_count']),

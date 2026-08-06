@@ -52,6 +52,10 @@ class LocalPlaylists extends Table {
   TextColumn get description => text().withDefault(const Constant(''))();
   /// 封面 URL
   TextColumn get coverUrl => text().withDefault(const Constant(''))();
+  /// 封面来源歌曲 pic_id（为空时按 coverUrl 或占位图；非空则客户端实时解析封面）
+  TextColumn get coverPicId => text().nullable()();
+  /// 封面来源歌曲音源标识
+  TextColumn get coverSource => text().nullable()();
   /// 是否公开可见
   BoolColumn get isPublic => boolean().withDefault(const Constant(false))();
   /// soft delete 标记
@@ -242,6 +246,10 @@ class LocalPlaylistFollows extends Table {
   TextColumn get description => text().withDefault(const Constant(''))();
   /// 封面 URL
   TextColumn get coverUrl => text().withDefault(const Constant(''))();
+  /// 封面来源歌曲 pic_id（为空时按 coverUrl 或占位图；非空则客户端实时解析封面）
+  TextColumn get coverPicId => text().nullable()();
+  /// 封面来源歌曲音源标识
+  TextColumn get coverSource => text().nullable()();
   /// 创建者昵称（同步拉取后补全）
   TextColumn get ownerNickname => text().withDefault(const Constant(''))();
   /// 创建者头像 URL（同步拉取后补全）
@@ -273,6 +281,10 @@ class LocalRecommendPlaylists extends Table {
   TextColumn get description => text().withDefault(const Constant(''))();
   /// 封面 URL
   TextColumn get coverUrl => text().withDefault(const Constant(''))();
+  /// 封面来源歌曲 pic_id（为空时按 coverUrl 或占位图；非空则客户端实时解析封面）
+  TextColumn get coverPicId => text().nullable()();
+  /// 封面来源歌曲音源标识
+  TextColumn get coverSource => text().nullable()();
   /// 歌单类型：system / user（首页分区用）
   TextColumn get type => text().withDefault(const Constant('system'))();
   /// 歌曲数（服务端快照，拉取时刷新）
@@ -316,4 +328,22 @@ class LocalRecommendPlaylistSongs extends Table {
 
   @override
   Set<Column> get primaryKey => {playlistRemoteId, songId, source};
+}
+
+/// 本地封面解析结果缓存表（纯本地，不同步）
+/// 按 (pic_id, source) 缓存"封面图 ID → 解析后的封面 URL"，
+/// 歌曲封面与歌单封面共用：key 与内存缓存 `${source}_${picId}` 对齐，
+/// 解析结果落库后重启应用/换列表页不再请求外部 API。设置页"清除缓存"一并清除。
+class LocalPicCovers extends Table {
+  /// 封面图 ID（音源原始图片 ID）
+  TextColumn get picId => text()();
+  /// 音源标识
+  TextColumn get source => text()();
+  /// 封面 URL（解析结果）
+  TextColumn get coverUrl => text()();
+  /// 更新时间
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {picId, source};
 }

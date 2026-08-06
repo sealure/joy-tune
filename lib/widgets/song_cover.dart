@@ -3,21 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
+import '../utils/cover_resolver.dart';
 import 'cover_image.dart';
-
-/// 封面 URL 内存缓存：缓存键 `${source}_${picId}` → 封面 URL
-/// 同一首歌在列表滚动、列表切换、迷你播放栏等场景共用，避免重复请求
-final Map<String, String?> _coverUrlCache = {};
-
-/// 封面 URL 请求中集合：防止同一首歌并发发起多次解析请求
-final Set<String> _coverUrlInFlight = {};
 
 /// 歌曲封面组件：根据歌曲自动解析并展示封面图
 ///
 /// 解析优先级：
 /// 1. 外部显式传入的 [coverUrl]（调用方可覆盖）
 /// 2. [song.coverUrl]（后端已返回完整 URL 时直接使用）
-/// 3. [song.picId] 懒加载调用外部 API 解析，结果写入内存缓存
+/// 3. [song.picId] 懒加载调用外部 API 解析（走共享解析器：内存+sqlite local_pic_covers 缓存）
 ///
 /// 解析失败或缺少封面信息时降级为占位图。
 class SongCover extends ConsumerStatefulWidget {
@@ -67,8 +61,7 @@ class _SongCoverState extends ConsumerState<SongCover> {
     }
   }
 
-  /// 解析封面 URL：已有 URL 或命中（内存/磁盘）缓存直接使用，否则懒加载调外部 API
-  /// 首次解析并行持久化到磁盘缓存，之后复用，减少重复网络请求（手动清理缓存才清除）
+  /// 解析封面 URL：已有 URL 或命中共享缓存直接使用，否则走共享解析器懒加载
   Future<void> _resolveCoverUrl() async {
     // 已有完整 URL 时无需解析
     if (_coverUrl != null && _coverUrl!.isNotEmpty) return;
@@ -80,73 +73,37 @@ class _SongCoverState extends ConsumerState<SongCover> {
       return;
     }
 
-    // 命中内存缓存直接使用
-    if (_coverUrlCache.containsKey(_cacheKey)) {
-      final url = _coverUrlCache[_cacheKey];
-      if (mounted && url != null && url.isNotEmpty) {
-        setState(() => _coverUrl = url);
-      }
-      return;
-    }
-
-    // 请求进行中则跳过，避免同一首歌并发重复请求
-    if (_coverUrlInFlight.contains(_cacheKey)) return;
-    _coverUrlInFlight.add(_cacheKey);
-
-    try {
-      String? url;
-      // 优先读本地 sqlite 缓存（local_song_meta，key=song_id+source）
-      try {
-        url = await ref.read(songMetaDaoProvider).getCoverUrl(widget.song.id, widget.song.source);
-      } catch (_) {
-        // 缓存不可达时忽略，走实时解析
-      }
-      if (url == null || url.isEmpty) {
-        final client = ref.read(gdMusicClientProvider);
-        final resolved = await client.getCoverUrl(picId: picId, source: widget.song.source);
-        if (resolved.isNotEmpty) {
-          url = resolved;
-          try {
-            await ref.read(songMetaDaoProvider).upsert(
-                  songId: widget.song.id,
-                  source: widget.song.source,
-                  picId: picId,
-                  lyricId: widget.song.lyricId,
-                  coverUrl: resolved,
-                );
-          } catch (_) {
-            // 持久化失败不影响本次显示
-          }
-        }
-      }
-      _coverUrlCache[_cacheKey] = url;
-      if (mounted && url != null && url.isNotEmpty) {
-        setState(() => _coverUrl = url);
-      }
-    } catch (_) {
-      // 解析失败：保持占位图，不写入缓存以便下次重试
-    } finally {
-      _coverUrlInFlight.remove(_cacheKey);
+    // 走共享解析器（内部含内存缓存命中 + 并发去重 + sqlite/API 解析 + 回填磁盘）
+    final url = await resolveCoverByPic(
+      client: ref.read(gdMusicClientProvider),
+      picDao: ref.read(picCoverDaoProvider),
+      picId: picId,
+      source: widget.song.source,
+    );
+    if (mounted && url != null && url.isNotEmpty) {
+      setState(() => _coverUrl = url);
     }
   }
 
-  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带（本地 sqlite/内存）缓存与去重）
+  /// 兜底：按歌名+歌手搜索匹配解析封面（历史数据回填，带（本地 sqlite/共享内存）缓存与去重）
   Future<void> _resolveCoverBySearch() async {
-    if (_coverUrlCache.containsKey(_cacheKey)) {
-      final url = _coverUrlCache[_cacheKey];
+    if (coverUrlCache.containsKey(_cacheKey)) {
+      final url = coverUrlCache[_cacheKey];
       if (mounted && url != null && url.isNotEmpty) {
         setState(() => _coverUrl = url);
       }
       return;
     }
-    if (_coverUrlInFlight.contains(_cacheKey)) return;
-    _coverUrlInFlight.add(_cacheKey);
+    if (coverUrlInFlight.contains(_cacheKey)) return;
+    coverUrlInFlight.add(_cacheKey);
 
     try {
       String? url;
       // 优先读本地 sqlite 缓存
       try {
-        url = await ref.read(songMetaDaoProvider).getCoverUrl(widget.song.id, widget.song.source);
+        url = await ref
+            .read(songMetaDaoProvider)
+            .getCoverUrl(widget.song.id, widget.song.source);
       } catch (_) {
         url = null;
       }
@@ -163,14 +120,14 @@ class _SongCoverState extends ConsumerState<SongCover> {
           } catch (_) {}
         }
       }
-      _coverUrlCache[_cacheKey] = url;
+      coverUrlCache[_cacheKey] = url;
       if (mounted && url != null && url.isNotEmpty) {
         setState(() => _coverUrl = url);
       }
     } catch (_) {
       // 解析失败：保持占位图，不写入缓存以便下次重试
     } finally {
-      _coverUrlInFlight.remove(_cacheKey);
+      coverUrlInFlight.remove(_cacheKey);
     }
   }
 

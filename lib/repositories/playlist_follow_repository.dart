@@ -13,6 +13,10 @@ class LocalPlaylistFollowInfo {
   final String name;
   /// 封面 URL
   final String coverUrl;
+  /// 封面来源歌曲 pic_id（为空则按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
   /// 创建者昵称（同步拉取后补全）
   final String ownerNickname;
   /// 创建者头像 URL
@@ -28,6 +32,8 @@ class LocalPlaylistFollowInfo {
     required this.playlistId,
     this.name = '',
     this.coverUrl = '',
+    this.coverPicId,
+    this.coverSource,
     this.ownerNickname = '',
     this.ownerAvatarUrl = '',
     this.songCount = 0,
@@ -65,6 +71,8 @@ class PlaylistFollowRepository {
     String name = '',
     String description = '',
     String coverUrl = '',
+    String? coverPicId,
+    String? coverSource,
     String ownerNickname = '',
     String ownerAvatarUrl = '',
     int songCount = 0,
@@ -75,6 +83,8 @@ class PlaylistFollowRepository {
       name: name,
       description: description,
       coverUrl: coverUrl,
+      coverPicId: coverPicId,
+      coverSource: coverSource,
       ownerNickname: ownerNickname,
       ownerAvatarUrl: ownerAvatarUrl,
       songCount: songCount,
@@ -87,6 +97,8 @@ class PlaylistFollowRepository {
     String? name,
     String? description,
     String? coverUrl,
+    String? coverPicId,
+    String? coverSource,
     String? ownerNickname,
     String? ownerAvatarUrl,
     int? songCount,
@@ -96,6 +108,8 @@ class PlaylistFollowRepository {
       name: name,
       description: description,
       coverUrl: coverUrl,
+      coverPicId: coverPicId,
+      coverSource: coverSource,
       ownerNickname: ownerNickname,
       ownerAvatarUrl: ownerAvatarUrl,
       songCount: songCount,
@@ -113,6 +127,8 @@ class PlaylistFollowRepository {
         playlistId: row.playlistId,
         name: row.name,
         coverUrl: row.coverUrl,
+        coverPicId: row.coverPicId,
+        coverSource: row.coverSource,
         ownerNickname: row.ownerNickname,
         ownerAvatarUrl: row.ownerAvatarUrl,
         songCount: row.songCount,

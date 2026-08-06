@@ -138,6 +138,8 @@ class SyncService {
           name: p.name,
           description: drift.Value(p.description),
           coverUrl: drift.Value(p.coverUrl),
+          coverPicId: drift.Value(p.coverPicId),
+          coverSource: drift.Value(p.coverSource),
           type: drift.Value(p.type),
           songCount: drift.Value(p.songCount),
           playCount: drift.Value(p.playCount),
@@ -220,6 +222,8 @@ class SyncService {
           name: p.name,
           description: p.description.isEmpty ? null : p.description,
           coverUrl: p.coverUrl.isEmpty ? null : p.coverUrl,
+          coverPicId: p.coverPicId,
+          coverSource: p.coverSource,
           isPublic: p.isPublic,
         );
         if (created != null) {
@@ -232,6 +236,8 @@ class SyncService {
           name: p.name,
           description: p.description.isEmpty ? null : p.description,
           coverUrl: p.coverUrl.isEmpty ? null : p.coverUrl,
+          coverPicId: p.coverPicId,
+          coverSource: p.coverSource,
           isPublic: p.isPublic,
         );
         if (updated != null) {
@@ -365,6 +371,8 @@ class SyncService {
         name: p.name,
         description: p.description,
         coverUrl: p.coverUrl,
+        coverPicId: p.coverPicId,
+        coverSource: p.coverSource,
         ownerNickname: p.ownerNickname,
         ownerAvatarUrl: p.ownerAvatarUrl,
         songCount: p.songCount,
@@ -399,6 +407,8 @@ class SyncService {
           name: p.name,
           description: drift.Value(p.description),
           coverUrl: drift.Value(p.coverUrl),
+          coverPicId: drift.Value(p.coverPicId),
+          coverSource: drift.Value(p.coverSource),
           isPublic: drift.Value(p.isPublic),
         ));
         await _playlistDao.markSynced(localId, remoteId: p.id);

@@ -10,6 +10,7 @@ import '../db/daos/favorite_dao.dart';
 import '../db/daos/play_record_dao.dart';
 import '../db/daos/playlist_dao.dart';
 import '../db/daos/playlist_follow_dao.dart';
+import '../db/daos/pic_cover_dao.dart';
 import '../db/daos/recommend_dao.dart';
 import '../db/daos/search_history_dao.dart';
 import '../db/daos/session_dao.dart';
@@ -71,6 +72,11 @@ final settingsDaoProvider = Provider<SettingsDao>((ref) => SettingsDao(ref.watch
 /// 歌曲元数据缓存数据访问对象（封面/歌词/lyric_id 统一缓存，纯本地）
 final songMetaDaoProvider = Provider<SongMetaDao>((ref) {
   return SongMetaDao(ref.watch(databaseProvider));
+});
+
+/// 封面解析结果缓存数据访问对象（纯本地：key=(pic_id, source)，歌曲/歌单封面共用）
+final picCoverDaoProvider = Provider<PicCoverDao>((ref) {
+  return PicCoverDao(ref.watch(databaseProvider));
 });
 
 /// 推荐歌单缓存数据访问对象（只读下行缓存：镜像后端推荐列表/歌曲，后台异步拉取覆盖）

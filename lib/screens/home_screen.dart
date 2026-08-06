@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../api/backend_client.dart';
 import '../services/providers.dart';
+import '../utils/cover_resolver.dart';
 
 /// 渐变色列表
 const _gradients = [
@@ -121,6 +122,8 @@ class HomeScreen extends ConsumerWidget {
                 'backendId': playlist.id,
                 'isBackendPlaylist': true,
                 'coverUrl': playlist.coverUrl,
+                'coverPicId': playlist.coverPicId,
+                'coverSource': playlist.coverSource,
               },
             ),
           );
@@ -166,7 +169,7 @@ class HomeScreen extends ConsumerWidget {
 
 // ── 推荐歌单卡片 ──
 
-class _BackendPlaylistCard extends StatelessWidget {
+class _BackendPlaylistCard extends ConsumerStatefulWidget {
   final RecommendPlaylist playlist;
   final List<Color> gradient;
   final VoidCallback onTap;
@@ -178,11 +181,42 @@ class _BackendPlaylistCard extends StatelessWidget {
   });
 
   @override
+  ConsumerState<_BackendPlaylistCard> createState() => _BackendPlaylistCardState();
+}
+
+class _BackendPlaylistCardState extends ConsumerState<_BackendPlaylistCard> {
+  String? _coverUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _coverUrl = widget.playlist.coverUrl.isNotEmpty ? widget.playlist.coverUrl : null;
+    _resolveCover();
+  }
+
+  /// 无 coverUrl 时按 coverPicId/coverSource 懒加载解析（走共享解析器）
+  Future<void> _resolveCover() async {
+    if (_coverUrl != null && _coverUrl!.isNotEmpty) return;
+    final picId = widget.playlist.coverPicId;
+    final source = widget.playlist.coverSource;
+    if (picId == null || picId.isEmpty || source == null || source.isEmpty) return;
+    final url = await resolveCoverByPic(
+      client: ref.read(gdMusicClientProvider),
+      picDao: ref.read(picCoverDaoProvider),
+      picId: picId,
+      source: source,
+    );
+    if (mounted && url != null && url.isNotEmpty) {
+      setState(() => _coverUrl = url);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 有封面时作为卡片背景图，否则用渐变背景
-    final hasCover = playlist.coverUrl.isNotEmpty;
+    final hasCover = _coverUrl != null && _coverUrl!.isNotEmpty;
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         width: 150,
         clipBehavior: Clip.antiAlias,
@@ -190,12 +224,12 @@ class _BackendPlaylistCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           gradient: hasCover
               ? null
-              : LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+              : LinearGradient(colors: widget.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
           image: hasCover
-              ? DecorationImage(image: NetworkImage(playlist.coverUrl), fit: BoxFit.cover)
+              ? DecorationImage(image: NetworkImage(_coverUrl!), fit: BoxFit.cover)
               : null,
           boxShadow: [
-            BoxShadow(color: gradient.first.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
+            BoxShadow(color: widget.gradient.first.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Stack(
@@ -219,21 +253,21 @@ class _BackendPlaylistCard extends StatelessWidget {
                 children: [
                   const Spacer(),
                   Text(
-                    playlist.name,
+                    widget.playlist.name,
                     style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   // 用户公开歌单：显示创建者头像 + 昵称；否则显示歌曲数
-                  if (playlist.userName != null && playlist.userName!.isNotEmpty)
+                  if (widget.playlist.userName != null && widget.playlist.userName!.isNotEmpty)
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         ClipOval(
-                          child: (playlist.userAvatar != null && playlist.userAvatar!.isNotEmpty)
+                          child: (widget.playlist.userAvatar != null && widget.playlist.userAvatar!.isNotEmpty)
                               ? Image.network(
-                                  playlist.userAvatar!,
+                                  widget.playlist.userAvatar!,
                                   width: 16,
                                   height: 16,
                                   fit: BoxFit.cover,
@@ -244,7 +278,7 @@ class _BackendPlaylistCard extends StatelessWidget {
                         const SizedBox(width: 5),
                         Flexible(
                           child: Text(
-                            playlist.userName!,
+                            widget.playlist.userName!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11),
@@ -254,7 +288,7 @@ class _BackendPlaylistCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      '${playlist.songCount} 首',
+                      '${widget.playlist.songCount} 首',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
                     ),
                 ],

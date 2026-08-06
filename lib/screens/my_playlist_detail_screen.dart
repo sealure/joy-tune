@@ -212,7 +212,13 @@ class _MyPlaylistDetailScreenState extends ConsumerState<MyPlaylistDetailScreen>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
             ),
-            child: PlaylistCover(coverUrl: playlist.coverUrl, size: 96, borderRadius: 14),
+            child: PlaylistCover(
+              coverUrl: playlist.coverUrl,
+              coverPicId: playlist.coverPicId,
+              coverSource: playlist.coverSource,
+              size: 96,
+              borderRadius: 14,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(

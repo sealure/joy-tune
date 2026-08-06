@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../models/song.dart';
 import '../repositories/playlist_follow_repository.dart';
 import '../services/providers.dart';
+import '../utils/cover_resolver.dart';
 import '../utils/player_utils.dart';
 import '../widgets/song_cover.dart';
 
@@ -22,6 +25,29 @@ class PlaylistDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
+  /// 无 coverUrl 时按封面来源懒加载解析出的封面 URL
+  String? _resolvedCover;
+  bool _coverResolved = false;
+
+  /// 封面懒加载（幂等）：已有 coverUrl 或无可解析来源时直接跳过
+  Future<void> _ensureCover(String coverUrl, String? coverPicId, String? coverSource) async {
+    if (_coverResolved) return;
+    _coverResolved = true;
+    if (coverUrl.isNotEmpty) return;
+    if (coverPicId == null || coverPicId.isEmpty || coverSource == null || coverSource.isEmpty) {
+      return;
+    }
+    final url = await resolveCoverByPic(
+      client: ref.read(gdMusicClientProvider),
+      picDao: ref.read(picCoverDaoProvider),
+      picId: coverPicId,
+      source: coverSource,
+    );
+    if (mounted && url != null && url.isNotEmpty) {
+      setState(() => _resolvedCover = url);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -33,6 +59,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     final isBackend = extra?['isBackendPlaylist'] == true;
     final backendId = (extra?['backendId'] as num?)?.toInt() ?? 0;
     final coverUrl = (extra?['coverUrl'] as String?) ?? '';
+    final coverPicId = extra?['coverPicId'] as String?;
+    final coverSource = extra?['coverSource'] as String?;
+    // 无 coverUrl 时按封面来源懒加载解析（走共享解析器，幂等触发）
+    final effectiveCoverUrl = coverUrl.isNotEmpty ? coverUrl : (_resolvedCover ?? '');
+    unawaited(_ensureCover(coverUrl, coverPicId, coverSource));
 
     // 推荐/分享公开歌单：歌曲从本地推荐缓存流式读取（SyncService 后台异步拉取后端刷新）
     final songsAsync = ref.watch(recommendPlaylistSongsProvider(backendId));
@@ -87,7 +118,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             ),
 
             // 头部区域（含收藏按钮）
-            _buildHeader(theme, playlistName, songsAsync, context, ref, coverUrl,
+            _buildHeader(theme, playlistName, songsAsync, context, ref, effectiveCoverUrl,
                 isBackend, backendId, isFollowed),
 
             // 歌曲列表（支持加载中/错误状态）
@@ -321,11 +352,19 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
         const SnackBar(content: Text('已取消收藏')),
       );
     } else {
-      // 收藏时写入歌单名/封面，创建者信息由同步拉取补全
+      // 收藏时写入歌单名/封面（含封面来源，供收藏列表按 picId 懒加载），创建者信息由同步拉取补全
       final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
       final name = extra?['name'] as String? ?? '歌单';
       final coverUrl = (extra?['coverUrl'] as String?) ?? '';
-      await repo.follow(playlistId: backendId, name: name, coverUrl: coverUrl);
+      final coverPicId = extra?['coverPicId'] as String?;
+      final coverSource = extra?['coverSource'] as String?;
+      await repo.follow(
+        playlistId: backendId,
+        name: name,
+        coverUrl: coverUrl,
+        coverPicId: coverPicId,
+        coverSource: coverSource,
+      );
       // 收藏成功后立即触发同步（后台 POST /playlists/{id}/follow）
       ref.read(syncServiceProvider).syncNow();
       if (!context.mounted) return;

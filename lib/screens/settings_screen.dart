@@ -160,10 +160,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   subtitle: Text('当前缓存：$sizeStr'),
                   trailing: TextButton(
                     onPressed: () async {
-                      // 清音频缓存 + 歌曲元数据缓存（封面URL/歌词/lyric_id）+ 封面图片字节缓存
+                      // 清音频缓存 + 歌曲元数据缓存（封面URL/歌词/lyric_id）+ 封面解析结果缓存 + 封面图片字节缓存
                       await AudioCache.instance.clear();
                       try {
                         await ref.read(songMetaDaoProvider).clearAll();
+                      } catch (_) {}
+                      try {
+                        await ref.read(picCoverDaoProvider).clearAll();
                       } catch (_) {}
                       try {
                         await DefaultCacheManager().emptyCache();

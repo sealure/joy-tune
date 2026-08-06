@@ -782,6 +782,18 @@ class $LocalPlaylistsTable extends LocalPlaylists
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _coverPicIdMeta =
+      const VerificationMeta('coverPicId');
+  @override
+  late final GeneratedColumn<String> coverPicId = GeneratedColumn<String>(
+      'cover_pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverSourceMeta =
+      const VerificationMeta('coverSource');
+  @override
+  late final GeneratedColumn<String> coverSource = GeneratedColumn<String>(
+      'cover_source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isPublicMeta =
       const VerificationMeta('isPublic');
   @override
@@ -845,6 +857,8 @@ class $LocalPlaylistsTable extends LocalPlaylists
         name,
         description,
         coverUrl,
+        coverPicId,
+        coverSource,
         isPublic,
         deleted,
         isSynced,
@@ -886,6 +900,18 @@ class $LocalPlaylistsTable extends LocalPlaylists
     if (data.containsKey('cover_url')) {
       context.handle(_coverUrlMeta,
           coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('cover_pic_id')) {
+      context.handle(
+          _coverPicIdMeta,
+          coverPicId.isAcceptableOrUnknown(
+              data['cover_pic_id']!, _coverPicIdMeta));
+    }
+    if (data.containsKey('cover_source')) {
+      context.handle(
+          _coverSourceMeta,
+          coverSource.isAcceptableOrUnknown(
+              data['cover_source']!, _coverSourceMeta));
     }
     if (data.containsKey('is_public')) {
       context.handle(_isPublicMeta,
@@ -932,6 +958,10 @@ class $LocalPlaylistsTable extends LocalPlaylists
           .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
       coverUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}cover_url'])!,
+      coverPicId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_pic_id']),
+      coverSource: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_source']),
       isPublic: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_public'])!,
       deleted: attachedDatabase.typeMapping
@@ -969,6 +999,12 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
   /// 封面 URL
   final String coverUrl;
 
+  /// 封面来源歌曲 pic_id（为空时按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
+
   /// 是否公开可见
   final bool isPublic;
 
@@ -992,6 +1028,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
       required this.name,
       required this.description,
       required this.coverUrl,
+      this.coverPicId,
+      this.coverSource,
       required this.isPublic,
       required this.deleted,
       required this.isSynced,
@@ -1008,6 +1046,12 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
     map['cover_url'] = Variable<String>(coverUrl);
+    if (!nullToAbsent || coverPicId != null) {
+      map['cover_pic_id'] = Variable<String>(coverPicId);
+    }
+    if (!nullToAbsent || coverSource != null) {
+      map['cover_source'] = Variable<String>(coverSource);
+    }
     map['is_public'] = Variable<bool>(isPublic);
     map['deleted'] = Variable<bool>(deleted);
     map['is_synced'] = Variable<bool>(isSynced);
@@ -1026,6 +1070,12 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
       name: Value(name),
       description: Value(description),
       coverUrl: Value(coverUrl),
+      coverPicId: coverPicId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverPicId),
+      coverSource: coverSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverSource),
       isPublic: Value(isPublic),
       deleted: Value(deleted),
       isSynced: Value(isSynced),
@@ -1044,6 +1094,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
       coverUrl: serializer.fromJson<String>(json['coverUrl']),
+      coverPicId: serializer.fromJson<String?>(json['coverPicId']),
+      coverSource: serializer.fromJson<String?>(json['coverSource']),
       isPublic: serializer.fromJson<bool>(json['isPublic']),
       deleted: serializer.fromJson<bool>(json['deleted']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
@@ -1061,6 +1113,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
       'coverUrl': serializer.toJson<String>(coverUrl),
+      'coverPicId': serializer.toJson<String?>(coverPicId),
+      'coverSource': serializer.toJson<String?>(coverSource),
       'isPublic': serializer.toJson<bool>(isPublic),
       'deleted': serializer.toJson<bool>(deleted),
       'isSynced': serializer.toJson<bool>(isSynced),
@@ -1076,6 +1130,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
           String? name,
           String? description,
           String? coverUrl,
+          Value<String?> coverPicId = const Value.absent(),
+          Value<String?> coverSource = const Value.absent(),
           bool? isPublic,
           bool? deleted,
           bool? isSynced,
@@ -1088,6 +1144,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
         name: name ?? this.name,
         description: description ?? this.description,
         coverUrl: coverUrl ?? this.coverUrl,
+        coverPicId: coverPicId.present ? coverPicId.value : this.coverPicId,
+        coverSource: coverSource.present ? coverSource.value : this.coverSource,
         isPublic: isPublic ?? this.isPublic,
         deleted: deleted ?? this.deleted,
         isSynced: isSynced ?? this.isSynced,
@@ -1103,6 +1161,10 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
       description:
           data.description.present ? data.description.value : this.description,
       coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      coverPicId:
+          data.coverPicId.present ? data.coverPicId.value : this.coverPicId,
+      coverSource:
+          data.coverSource.present ? data.coverSource.value : this.coverSource,
       isPublic: data.isPublic.present ? data.isPublic.value : this.isPublic,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
@@ -1121,6 +1183,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('coverPicId: $coverPicId, ')
+          ..write('coverSource: $coverSource, ')
           ..write('isPublic: $isPublic, ')
           ..write('deleted: $deleted, ')
           ..write('isSynced: $isSynced, ')
@@ -1132,8 +1196,20 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
   }
 
   @override
-  int get hashCode => Object.hash(id, remoteId, name, description, coverUrl,
-      isPublic, deleted, isSynced, syncedEver, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      remoteId,
+      name,
+      description,
+      coverUrl,
+      coverPicId,
+      coverSource,
+      isPublic,
+      deleted,
+      isSynced,
+      syncedEver,
+      createdAt,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1143,6 +1219,8 @@ class LocalPlaylist extends DataClass implements Insertable<LocalPlaylist> {
           other.name == this.name &&
           other.description == this.description &&
           other.coverUrl == this.coverUrl &&
+          other.coverPicId == this.coverPicId &&
+          other.coverSource == this.coverSource &&
           other.isPublic == this.isPublic &&
           other.deleted == this.deleted &&
           other.isSynced == this.isSynced &&
@@ -1157,6 +1235,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
   final Value<String> name;
   final Value<String> description;
   final Value<String> coverUrl;
+  final Value<String?> coverPicId;
+  final Value<String?> coverSource;
   final Value<bool> isPublic;
   final Value<bool> deleted;
   final Value<bool> isSynced;
@@ -1170,6 +1250,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.coverPicId = const Value.absent(),
+    this.coverSource = const Value.absent(),
     this.isPublic = const Value.absent(),
     this.deleted = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -1184,6 +1266,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
     required String name,
     this.description = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.coverPicId = const Value.absent(),
+    this.coverSource = const Value.absent(),
     this.isPublic = const Value.absent(),
     this.deleted = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -1199,6 +1283,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? coverUrl,
+    Expression<String>? coverPicId,
+    Expression<String>? coverSource,
     Expression<bool>? isPublic,
     Expression<bool>? deleted,
     Expression<bool>? isSynced,
@@ -1213,6 +1299,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (coverUrl != null) 'cover_url': coverUrl,
+      if (coverPicId != null) 'cover_pic_id': coverPicId,
+      if (coverSource != null) 'cover_source': coverSource,
       if (isPublic != null) 'is_public': isPublic,
       if (deleted != null) 'deleted': deleted,
       if (isSynced != null) 'is_synced': isSynced,
@@ -1229,6 +1317,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
       Value<String>? name,
       Value<String>? description,
       Value<String>? coverUrl,
+      Value<String?>? coverPicId,
+      Value<String?>? coverSource,
       Value<bool>? isPublic,
       Value<bool>? deleted,
       Value<bool>? isSynced,
@@ -1242,6 +1332,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
       name: name ?? this.name,
       description: description ?? this.description,
       coverUrl: coverUrl ?? this.coverUrl,
+      coverPicId: coverPicId ?? this.coverPicId,
+      coverSource: coverSource ?? this.coverSource,
       isPublic: isPublic ?? this.isPublic,
       deleted: deleted ?? this.deleted,
       isSynced: isSynced ?? this.isSynced,
@@ -1269,6 +1361,12 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
     }
     if (coverUrl.present) {
       map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (coverPicId.present) {
+      map['cover_pic_id'] = Variable<String>(coverPicId.value);
+    }
+    if (coverSource.present) {
+      map['cover_source'] = Variable<String>(coverSource.value);
     }
     if (isPublic.present) {
       map['is_public'] = Variable<bool>(isPublic.value);
@@ -1302,6 +1400,8 @@ class LocalPlaylistsCompanion extends UpdateCompanion<LocalPlaylist> {
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('coverPicId: $coverPicId, ')
+          ..write('coverSource: $coverSource, ')
           ..write('isPublic: $isPublic, ')
           ..write('deleted: $deleted, ')
           ..write('isSynced: $isSynced, ')
@@ -4008,6 +4108,18 @@ class $LocalPlaylistFollowsTable extends LocalPlaylistFollows
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _coverPicIdMeta =
+      const VerificationMeta('coverPicId');
+  @override
+  late final GeneratedColumn<String> coverPicId = GeneratedColumn<String>(
+      'cover_pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverSourceMeta =
+      const VerificationMeta('coverSource');
+  @override
+  late final GeneratedColumn<String> coverSource = GeneratedColumn<String>(
+      'cover_source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _ownerNicknameMeta =
       const VerificationMeta('ownerNickname');
   @override
@@ -4076,6 +4188,8 @@ class $LocalPlaylistFollowsTable extends LocalPlaylistFollows
         name,
         description,
         coverUrl,
+        coverPicId,
+        coverSource,
         ownerNickname,
         ownerAvatarUrl,
         songCount,
@@ -4114,6 +4228,18 @@ class $LocalPlaylistFollowsTable extends LocalPlaylistFollows
     if (data.containsKey('cover_url')) {
       context.handle(_coverUrlMeta,
           coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('cover_pic_id')) {
+      context.handle(
+          _coverPicIdMeta,
+          coverPicId.isAcceptableOrUnknown(
+              data['cover_pic_id']!, _coverPicIdMeta));
+    }
+    if (data.containsKey('cover_source')) {
+      context.handle(
+          _coverSourceMeta,
+          coverSource.isAcceptableOrUnknown(
+              data['cover_source']!, _coverSourceMeta));
     }
     if (data.containsKey('owner_nickname')) {
       context.handle(
@@ -4166,6 +4292,10 @@ class $LocalPlaylistFollowsTable extends LocalPlaylistFollows
           .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
       coverUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}cover_url'])!,
+      coverPicId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_pic_id']),
+      coverSource: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_source']),
       ownerNickname: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}owner_nickname'])!,
       ownerAvatarUrl: attachedDatabase.typeMapping.read(
@@ -4203,6 +4333,12 @@ class LocalPlaylistFollow extends DataClass
   /// 封面 URL
   final String coverUrl;
 
+  /// 封面来源歌曲 pic_id（为空时按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
+
   /// 创建者昵称（同步拉取后补全）
   final String ownerNickname;
 
@@ -4228,6 +4364,8 @@ class LocalPlaylistFollow extends DataClass
       required this.name,
       required this.description,
       required this.coverUrl,
+      this.coverPicId,
+      this.coverSource,
       required this.ownerNickname,
       required this.ownerAvatarUrl,
       required this.songCount,
@@ -4242,6 +4380,12 @@ class LocalPlaylistFollow extends DataClass
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
     map['cover_url'] = Variable<String>(coverUrl);
+    if (!nullToAbsent || coverPicId != null) {
+      map['cover_pic_id'] = Variable<String>(coverPicId);
+    }
+    if (!nullToAbsent || coverSource != null) {
+      map['cover_source'] = Variable<String>(coverSource);
+    }
     map['owner_nickname'] = Variable<String>(ownerNickname);
     map['owner_avatar_url'] = Variable<String>(ownerAvatarUrl);
     map['song_count'] = Variable<int>(songCount);
@@ -4258,6 +4402,12 @@ class LocalPlaylistFollow extends DataClass
       name: Value(name),
       description: Value(description),
       coverUrl: Value(coverUrl),
+      coverPicId: coverPicId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverPicId),
+      coverSource: coverSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverSource),
       ownerNickname: Value(ownerNickname),
       ownerAvatarUrl: Value(ownerAvatarUrl),
       songCount: Value(songCount),
@@ -4276,6 +4426,8 @@ class LocalPlaylistFollow extends DataClass
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
       coverUrl: serializer.fromJson<String>(json['coverUrl']),
+      coverPicId: serializer.fromJson<String?>(json['coverPicId']),
+      coverSource: serializer.fromJson<String?>(json['coverSource']),
       ownerNickname: serializer.fromJson<String>(json['ownerNickname']),
       ownerAvatarUrl: serializer.fromJson<String>(json['ownerAvatarUrl']),
       songCount: serializer.fromJson<int>(json['songCount']),
@@ -4293,6 +4445,8 @@ class LocalPlaylistFollow extends DataClass
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
       'coverUrl': serializer.toJson<String>(coverUrl),
+      'coverPicId': serializer.toJson<String?>(coverPicId),
+      'coverSource': serializer.toJson<String?>(coverSource),
       'ownerNickname': serializer.toJson<String>(ownerNickname),
       'ownerAvatarUrl': serializer.toJson<String>(ownerAvatarUrl),
       'songCount': serializer.toJson<int>(songCount),
@@ -4308,6 +4462,8 @@ class LocalPlaylistFollow extends DataClass
           String? name,
           String? description,
           String? coverUrl,
+          Value<String?> coverPicId = const Value.absent(),
+          Value<String?> coverSource = const Value.absent(),
           String? ownerNickname,
           String? ownerAvatarUrl,
           int? songCount,
@@ -4320,6 +4476,8 @@ class LocalPlaylistFollow extends DataClass
         name: name ?? this.name,
         description: description ?? this.description,
         coverUrl: coverUrl ?? this.coverUrl,
+        coverPicId: coverPicId.present ? coverPicId.value : this.coverPicId,
+        coverSource: coverSource.present ? coverSource.value : this.coverSource,
         ownerNickname: ownerNickname ?? this.ownerNickname,
         ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
         songCount: songCount ?? this.songCount,
@@ -4336,6 +4494,10 @@ class LocalPlaylistFollow extends DataClass
       description:
           data.description.present ? data.description.value : this.description,
       coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      coverPicId:
+          data.coverPicId.present ? data.coverPicId.value : this.coverPicId,
+      coverSource:
+          data.coverSource.present ? data.coverSource.value : this.coverSource,
       ownerNickname: data.ownerNickname.present
           ? data.ownerNickname.value
           : this.ownerNickname,
@@ -4358,6 +4520,8 @@ class LocalPlaylistFollow extends DataClass
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('coverPicId: $coverPicId, ')
+          ..write('coverSource: $coverSource, ')
           ..write('ownerNickname: $ownerNickname, ')
           ..write('ownerAvatarUrl: $ownerAvatarUrl, ')
           ..write('songCount: $songCount, ')
@@ -4375,6 +4539,8 @@ class LocalPlaylistFollow extends DataClass
       name,
       description,
       coverUrl,
+      coverPicId,
+      coverSource,
       ownerNickname,
       ownerAvatarUrl,
       songCount,
@@ -4390,6 +4556,8 @@ class LocalPlaylistFollow extends DataClass
           other.name == this.name &&
           other.description == this.description &&
           other.coverUrl == this.coverUrl &&
+          other.coverPicId == this.coverPicId &&
+          other.coverSource == this.coverSource &&
           other.ownerNickname == this.ownerNickname &&
           other.ownerAvatarUrl == this.ownerAvatarUrl &&
           other.songCount == this.songCount &&
@@ -4405,6 +4573,8 @@ class LocalPlaylistFollowsCompanion
   final Value<String> name;
   final Value<String> description;
   final Value<String> coverUrl;
+  final Value<String?> coverPicId;
+  final Value<String?> coverSource;
   final Value<String> ownerNickname;
   final Value<String> ownerAvatarUrl;
   final Value<int> songCount;
@@ -4417,6 +4587,8 @@ class LocalPlaylistFollowsCompanion
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.coverPicId = const Value.absent(),
+    this.coverSource = const Value.absent(),
     this.ownerNickname = const Value.absent(),
     this.ownerAvatarUrl = const Value.absent(),
     this.songCount = const Value.absent(),
@@ -4430,6 +4602,8 @@ class LocalPlaylistFollowsCompanion
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.coverPicId = const Value.absent(),
+    this.coverSource = const Value.absent(),
     this.ownerNickname = const Value.absent(),
     this.ownerAvatarUrl = const Value.absent(),
     this.songCount = const Value.absent(),
@@ -4443,6 +4617,8 @@ class LocalPlaylistFollowsCompanion
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? coverUrl,
+    Expression<String>? coverPicId,
+    Expression<String>? coverSource,
     Expression<String>? ownerNickname,
     Expression<String>? ownerAvatarUrl,
     Expression<int>? songCount,
@@ -4456,6 +4632,8 @@ class LocalPlaylistFollowsCompanion
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (coverUrl != null) 'cover_url': coverUrl,
+      if (coverPicId != null) 'cover_pic_id': coverPicId,
+      if (coverSource != null) 'cover_source': coverSource,
       if (ownerNickname != null) 'owner_nickname': ownerNickname,
       if (ownerAvatarUrl != null) 'owner_avatar_url': ownerAvatarUrl,
       if (songCount != null) 'song_count': songCount,
@@ -4471,6 +4649,8 @@ class LocalPlaylistFollowsCompanion
       Value<String>? name,
       Value<String>? description,
       Value<String>? coverUrl,
+      Value<String?>? coverPicId,
+      Value<String?>? coverSource,
       Value<String>? ownerNickname,
       Value<String>? ownerAvatarUrl,
       Value<int>? songCount,
@@ -4483,6 +4663,8 @@ class LocalPlaylistFollowsCompanion
       name: name ?? this.name,
       description: description ?? this.description,
       coverUrl: coverUrl ?? this.coverUrl,
+      coverPicId: coverPicId ?? this.coverPicId,
+      coverSource: coverSource ?? this.coverSource,
       ownerNickname: ownerNickname ?? this.ownerNickname,
       ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
       songCount: songCount ?? this.songCount,
@@ -4507,6 +4689,12 @@ class LocalPlaylistFollowsCompanion
     }
     if (coverUrl.present) {
       map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (coverPicId.present) {
+      map['cover_pic_id'] = Variable<String>(coverPicId.value);
+    }
+    if (coverSource.present) {
+      map['cover_source'] = Variable<String>(coverSource.value);
     }
     if (ownerNickname.present) {
       map['owner_nickname'] = Variable<String>(ownerNickname.value);
@@ -4539,6 +4727,8 @@ class LocalPlaylistFollowsCompanion
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('coverPicId: $coverPicId, ')
+          ..write('coverSource: $coverSource, ')
           ..write('ownerNickname: $ownerNickname, ')
           ..write('ownerAvatarUrl: $ownerAvatarUrl, ')
           ..write('songCount: $songCount, ')
@@ -4584,6 +4774,18 @@ class $LocalRecommendPlaylistsTable extends LocalRecommendPlaylists
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant(''));
+  static const VerificationMeta _coverPicIdMeta =
+      const VerificationMeta('coverPicId');
+  @override
+  late final GeneratedColumn<String> coverPicId = GeneratedColumn<String>(
+      'cover_pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverSourceMeta =
+      const VerificationMeta('coverSource');
+  @override
+  late final GeneratedColumn<String> coverSource = GeneratedColumn<String>(
+      'cover_source', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -4637,6 +4839,8 @@ class $LocalRecommendPlaylistsTable extends LocalRecommendPlaylists
         name,
         description,
         coverUrl,
+        coverPicId,
+        coverSource,
         type,
         songCount,
         playCount,
@@ -4674,6 +4878,18 @@ class $LocalRecommendPlaylistsTable extends LocalRecommendPlaylists
     if (data.containsKey('cover_url')) {
       context.handle(_coverUrlMeta,
           coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('cover_pic_id')) {
+      context.handle(
+          _coverPicIdMeta,
+          coverPicId.isAcceptableOrUnknown(
+              data['cover_pic_id']!, _coverPicIdMeta));
+    }
+    if (data.containsKey('cover_source')) {
+      context.handle(
+          _coverSourceMeta,
+          coverSource.isAcceptableOrUnknown(
+              data['cover_source']!, _coverSourceMeta));
     }
     if (data.containsKey('type')) {
       context.handle(
@@ -4722,6 +4938,10 @@ class $LocalRecommendPlaylistsTable extends LocalRecommendPlaylists
           .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
       coverUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}cover_url'])!,
+      coverPicId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_pic_id']),
+      coverSource: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_source']),
       type: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       songCount: attachedDatabase.typeMapping
@@ -4757,6 +4977,12 @@ class LocalRecommendPlaylist extends DataClass
   /// 封面 URL
   final String coverUrl;
 
+  /// 封面来源歌曲 pic_id（为空时按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
+
   /// 歌单类型：system / user（首页分区用）
   final String type;
 
@@ -4779,6 +5005,8 @@ class LocalRecommendPlaylist extends DataClass
       required this.name,
       required this.description,
       required this.coverUrl,
+      this.coverPicId,
+      this.coverSource,
       required this.type,
       required this.songCount,
       required this.playCount,
@@ -4792,6 +5020,12 @@ class LocalRecommendPlaylist extends DataClass
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
     map['cover_url'] = Variable<String>(coverUrl);
+    if (!nullToAbsent || coverPicId != null) {
+      map['cover_pic_id'] = Variable<String>(coverPicId);
+    }
+    if (!nullToAbsent || coverSource != null) {
+      map['cover_source'] = Variable<String>(coverSource);
+    }
     map['type'] = Variable<String>(type);
     map['song_count'] = Variable<int>(songCount);
     map['play_count'] = Variable<int>(playCount);
@@ -4807,6 +5041,12 @@ class LocalRecommendPlaylist extends DataClass
       name: Value(name),
       description: Value(description),
       coverUrl: Value(coverUrl),
+      coverPicId: coverPicId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverPicId),
+      coverSource: coverSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverSource),
       type: Value(type),
       songCount: Value(songCount),
       playCount: Value(playCount),
@@ -4824,6 +5064,8 @@ class LocalRecommendPlaylist extends DataClass
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
       coverUrl: serializer.fromJson<String>(json['coverUrl']),
+      coverPicId: serializer.fromJson<String?>(json['coverPicId']),
+      coverSource: serializer.fromJson<String?>(json['coverSource']),
       type: serializer.fromJson<String>(json['type']),
       songCount: serializer.fromJson<int>(json['songCount']),
       playCount: serializer.fromJson<int>(json['playCount']),
@@ -4840,6 +5082,8 @@ class LocalRecommendPlaylist extends DataClass
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
       'coverUrl': serializer.toJson<String>(coverUrl),
+      'coverPicId': serializer.toJson<String?>(coverPicId),
+      'coverSource': serializer.toJson<String?>(coverSource),
       'type': serializer.toJson<String>(type),
       'songCount': serializer.toJson<int>(songCount),
       'playCount': serializer.toJson<int>(playCount),
@@ -4854,6 +5098,8 @@ class LocalRecommendPlaylist extends DataClass
           String? name,
           String? description,
           String? coverUrl,
+          Value<String?> coverPicId = const Value.absent(),
+          Value<String?> coverSource = const Value.absent(),
           String? type,
           int? songCount,
           int? playCount,
@@ -4865,6 +5111,8 @@ class LocalRecommendPlaylist extends DataClass
         name: name ?? this.name,
         description: description ?? this.description,
         coverUrl: coverUrl ?? this.coverUrl,
+        coverPicId: coverPicId.present ? coverPicId.value : this.coverPicId,
+        coverSource: coverSource.present ? coverSource.value : this.coverSource,
         type: type ?? this.type,
         songCount: songCount ?? this.songCount,
         playCount: playCount ?? this.playCount,
@@ -4880,6 +5128,10 @@ class LocalRecommendPlaylist extends DataClass
       description:
           data.description.present ? data.description.value : this.description,
       coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      coverPicId:
+          data.coverPicId.present ? data.coverPicId.value : this.coverPicId,
+      coverSource:
+          data.coverSource.present ? data.coverSource.value : this.coverSource,
       type: data.type.present ? data.type.value : this.type,
       songCount: data.songCount.present ? data.songCount.value : this.songCount,
       playCount: data.playCount.present ? data.playCount.value : this.playCount,
@@ -4901,6 +5153,8 @@ class LocalRecommendPlaylist extends DataClass
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('coverPicId: $coverPicId, ')
+          ..write('coverSource: $coverSource, ')
           ..write('type: $type, ')
           ..write('songCount: $songCount, ')
           ..write('playCount: $playCount, ')
@@ -4912,8 +5166,19 @@ class LocalRecommendPlaylist extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(remoteId, name, description, coverUrl, type,
-      songCount, playCount, ownerNickname, ownerAvatarUrl, orderIndex);
+  int get hashCode => Object.hash(
+      remoteId,
+      name,
+      description,
+      coverUrl,
+      coverPicId,
+      coverSource,
+      type,
+      songCount,
+      playCount,
+      ownerNickname,
+      ownerAvatarUrl,
+      orderIndex);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4922,6 +5187,8 @@ class LocalRecommendPlaylist extends DataClass
           other.name == this.name &&
           other.description == this.description &&
           other.coverUrl == this.coverUrl &&
+          other.coverPicId == this.coverPicId &&
+          other.coverSource == this.coverSource &&
           other.type == this.type &&
           other.songCount == this.songCount &&
           other.playCount == this.playCount &&
@@ -4936,6 +5203,8 @@ class LocalRecommendPlaylistsCompanion
   final Value<String> name;
   final Value<String> description;
   final Value<String> coverUrl;
+  final Value<String?> coverPicId;
+  final Value<String?> coverSource;
   final Value<String> type;
   final Value<int> songCount;
   final Value<int> playCount;
@@ -4947,6 +5216,8 @@ class LocalRecommendPlaylistsCompanion
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.coverPicId = const Value.absent(),
+    this.coverSource = const Value.absent(),
     this.type = const Value.absent(),
     this.songCount = const Value.absent(),
     this.playCount = const Value.absent(),
@@ -4959,6 +5230,8 @@ class LocalRecommendPlaylistsCompanion
     required String name,
     this.description = const Value.absent(),
     this.coverUrl = const Value.absent(),
+    this.coverPicId = const Value.absent(),
+    this.coverSource = const Value.absent(),
     this.type = const Value.absent(),
     this.songCount = const Value.absent(),
     this.playCount = const Value.absent(),
@@ -4971,6 +5244,8 @@ class LocalRecommendPlaylistsCompanion
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? coverUrl,
+    Expression<String>? coverPicId,
+    Expression<String>? coverSource,
     Expression<String>? type,
     Expression<int>? songCount,
     Expression<int>? playCount,
@@ -4983,6 +5258,8 @@ class LocalRecommendPlaylistsCompanion
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (coverUrl != null) 'cover_url': coverUrl,
+      if (coverPicId != null) 'cover_pic_id': coverPicId,
+      if (coverSource != null) 'cover_source': coverSource,
       if (type != null) 'type': type,
       if (songCount != null) 'song_count': songCount,
       if (playCount != null) 'play_count': playCount,
@@ -4997,6 +5274,8 @@ class LocalRecommendPlaylistsCompanion
       Value<String>? name,
       Value<String>? description,
       Value<String>? coverUrl,
+      Value<String?>? coverPicId,
+      Value<String?>? coverSource,
       Value<String>? type,
       Value<int>? songCount,
       Value<int>? playCount,
@@ -5008,6 +5287,8 @@ class LocalRecommendPlaylistsCompanion
       name: name ?? this.name,
       description: description ?? this.description,
       coverUrl: coverUrl ?? this.coverUrl,
+      coverPicId: coverPicId ?? this.coverPicId,
+      coverSource: coverSource ?? this.coverSource,
       type: type ?? this.type,
       songCount: songCount ?? this.songCount,
       playCount: playCount ?? this.playCount,
@@ -5031,6 +5312,12 @@ class LocalRecommendPlaylistsCompanion
     }
     if (coverUrl.present) {
       map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (coverPicId.present) {
+      map['cover_pic_id'] = Variable<String>(coverPicId.value);
+    }
+    if (coverSource.present) {
+      map['cover_source'] = Variable<String>(coverSource.value);
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
@@ -5060,6 +5347,8 @@ class LocalRecommendPlaylistsCompanion
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('coverUrl: $coverUrl, ')
+          ..write('coverPicId: $coverPicId, ')
+          ..write('coverSource: $coverSource, ')
           ..write('type: $type, ')
           ..write('songCount: $songCount, ')
           ..write('playCount: $playCount, ')
@@ -5601,6 +5890,283 @@ class LocalRecommendPlaylistSongsCompanion
   }
 }
 
+class $LocalPicCoversTable extends LocalPicCovers
+    with TableInfo<$LocalPicCoversTable, LocalPicCover> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalPicCoversTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _picIdMeta = const VerificationMeta('picId');
+  @override
+  late final GeneratedColumn<String> picId = GeneratedColumn<String>(
+      'pic_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _coverUrlMeta =
+      const VerificationMeta('coverUrl');
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+      'cover_url', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [picId, source, coverUrl, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_pic_covers';
+  @override
+  VerificationContext validateIntegrity(Insertable<LocalPicCover> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('pic_id')) {
+      context.handle(
+          _picIdMeta, picId.isAcceptableOrUnknown(data['pic_id']!, _picIdMeta));
+    } else if (isInserting) {
+      context.missing(_picIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(_coverUrlMeta,
+          coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    } else if (isInserting) {
+      context.missing(_coverUrlMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {picId, source};
+  @override
+  LocalPicCover map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalPicCover(
+      picId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pic_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      coverUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_url'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $LocalPicCoversTable createAlias(String alias) {
+    return $LocalPicCoversTable(attachedDatabase, alias);
+  }
+}
+
+class LocalPicCover extends DataClass implements Insertable<LocalPicCover> {
+  /// 封面图 ID（音源原始图片 ID）
+  final String picId;
+
+  /// 音源标识
+  final String source;
+
+  /// 封面 URL（解析结果）
+  final String coverUrl;
+
+  /// 更新时间
+  final DateTime updatedAt;
+  const LocalPicCover(
+      {required this.picId,
+      required this.source,
+      required this.coverUrl,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['pic_id'] = Variable<String>(picId);
+    map['source'] = Variable<String>(source);
+    map['cover_url'] = Variable<String>(coverUrl);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LocalPicCoversCompanion toCompanion(bool nullToAbsent) {
+    return LocalPicCoversCompanion(
+      picId: Value(picId),
+      source: Value(source),
+      coverUrl: Value(coverUrl),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LocalPicCover.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalPicCover(
+      picId: serializer.fromJson<String>(json['picId']),
+      source: serializer.fromJson<String>(json['source']),
+      coverUrl: serializer.fromJson<String>(json['coverUrl']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'picId': serializer.toJson<String>(picId),
+      'source': serializer.toJson<String>(source),
+      'coverUrl': serializer.toJson<String>(coverUrl),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LocalPicCover copyWith(
+          {String? picId,
+          String? source,
+          String? coverUrl,
+          DateTime? updatedAt}) =>
+      LocalPicCover(
+        picId: picId ?? this.picId,
+        source: source ?? this.source,
+        coverUrl: coverUrl ?? this.coverUrl,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  LocalPicCover copyWithCompanion(LocalPicCoversCompanion data) {
+    return LocalPicCover(
+      picId: data.picId.present ? data.picId.value : this.picId,
+      source: data.source.present ? data.source.value : this.source,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPicCover(')
+          ..write('picId: $picId, ')
+          ..write('source: $source, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(picId, source, coverUrl, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalPicCover &&
+          other.picId == this.picId &&
+          other.source == this.source &&
+          other.coverUrl == this.coverUrl &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LocalPicCoversCompanion extends UpdateCompanion<LocalPicCover> {
+  final Value<String> picId;
+  final Value<String> source;
+  final Value<String> coverUrl;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LocalPicCoversCompanion({
+    this.picId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalPicCoversCompanion.insert({
+    required String picId,
+    required String source,
+    required String coverUrl,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : picId = Value(picId),
+        source = Value(source),
+        coverUrl = Value(coverUrl);
+  static Insertable<LocalPicCover> custom({
+    Expression<String>? picId,
+    Expression<String>? source,
+    Expression<String>? coverUrl,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (picId != null) 'pic_id': picId,
+      if (source != null) 'source': source,
+      if (coverUrl != null) 'cover_url': coverUrl,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalPicCoversCompanion copyWith(
+      {Value<String>? picId,
+      Value<String>? source,
+      Value<String>? coverUrl,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return LocalPicCoversCompanion(
+      picId: picId ?? this.picId,
+      source: source ?? this.source,
+      coverUrl: coverUrl ?? this.coverUrl,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (picId.present) {
+      map['pic_id'] = Variable<String>(picId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalPicCoversCompanion(')
+          ..write('picId: $picId, ')
+          ..write('source: $source, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5622,6 +6188,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $LocalRecommendPlaylistsTable(this);
   late final $LocalRecommendPlaylistSongsTable localRecommendPlaylistSongs =
       $LocalRecommendPlaylistSongsTable(this);
+  late final $LocalPicCoversTable localPicCovers = $LocalPicCoversTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5637,7 +6204,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localSongMeta,
         localPlaylistFollows,
         localRecommendPlaylists,
-        localRecommendPlaylistSongs
+        localRecommendPlaylistSongs,
+        localPicCovers
       ];
 }
 
@@ -5972,6 +6540,8 @@ typedef $$LocalPlaylistsTableCreateCompanionBuilder = LocalPlaylistsCompanion
   required String name,
   Value<String> description,
   Value<String> coverUrl,
+  Value<String?> coverPicId,
+  Value<String?> coverSource,
   Value<bool> isPublic,
   Value<bool> deleted,
   Value<bool> isSynced,
@@ -5987,6 +6557,8 @@ typedef $$LocalPlaylistsTableUpdateCompanionBuilder = LocalPlaylistsCompanion
   Value<String> name,
   Value<String> description,
   Value<String> coverUrl,
+  Value<String?> coverPicId,
+  Value<String?> coverSource,
   Value<bool> isPublic,
   Value<bool> deleted,
   Value<bool> isSynced,
@@ -6042,6 +6614,12 @@ class $$LocalPlaylistsTableFilterComposer
 
   ColumnFilters<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isPublic => $composableBuilder(
       column: $table.isPublic, builder: (column) => ColumnFilters(column));
@@ -6107,6 +6685,12 @@ class $$LocalPlaylistsTableOrderingComposer
   ColumnOrderings<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isPublic => $composableBuilder(
       column: $table.isPublic, builder: (column) => ColumnOrderings(column));
 
@@ -6149,6 +6733,12 @@ class $$LocalPlaylistsTableAnnotationComposer
 
   GeneratedColumn<String> get coverUrl =>
       $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => column);
+
+  GeneratedColumn<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => column);
 
   GeneratedColumn<bool> get isPublic =>
       $composableBuilder(column: $table.isPublic, builder: (column) => column);
@@ -6220,6 +6810,8 @@ class $$LocalPlaylistsTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> coverUrl = const Value.absent(),
+            Value<String?> coverPicId = const Value.absent(),
+            Value<String?> coverSource = const Value.absent(),
             Value<bool> isPublic = const Value.absent(),
             Value<bool> deleted = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
@@ -6234,6 +6826,8 @@ class $$LocalPlaylistsTableTableManager extends RootTableManager<
             name: name,
             description: description,
             coverUrl: coverUrl,
+            coverPicId: coverPicId,
+            coverSource: coverSource,
             isPublic: isPublic,
             deleted: deleted,
             isSynced: isSynced,
@@ -6248,6 +6842,8 @@ class $$LocalPlaylistsTableTableManager extends RootTableManager<
             required String name,
             Value<String> description = const Value.absent(),
             Value<String> coverUrl = const Value.absent(),
+            Value<String?> coverPicId = const Value.absent(),
+            Value<String?> coverSource = const Value.absent(),
             Value<bool> isPublic = const Value.absent(),
             Value<bool> deleted = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
@@ -6262,6 +6858,8 @@ class $$LocalPlaylistsTableTableManager extends RootTableManager<
             name: name,
             description: description,
             coverUrl: coverUrl,
+            coverPicId: coverPicId,
+            coverSource: coverSource,
             isPublic: isPublic,
             deleted: deleted,
             isSynced: isSynced,
@@ -7737,6 +8335,8 @@ typedef $$LocalPlaylistFollowsTableCreateCompanionBuilder
   Value<String> name,
   Value<String> description,
   Value<String> coverUrl,
+  Value<String?> coverPicId,
+  Value<String?> coverSource,
   Value<String> ownerNickname,
   Value<String> ownerAvatarUrl,
   Value<int> songCount,
@@ -7751,6 +8351,8 @@ typedef $$LocalPlaylistFollowsTableUpdateCompanionBuilder
   Value<String> name,
   Value<String> description,
   Value<String> coverUrl,
+  Value<String?> coverPicId,
+  Value<String?> coverSource,
   Value<String> ownerNickname,
   Value<String> ownerAvatarUrl,
   Value<int> songCount,
@@ -7780,6 +8382,12 @@ class $$LocalPlaylistFollowsTableFilterComposer
 
   ColumnFilters<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get ownerNickname => $composableBuilder(
       column: $table.ownerNickname, builder: (column) => ColumnFilters(column));
@@ -7825,6 +8433,12 @@ class $$LocalPlaylistFollowsTableOrderingComposer
   ColumnOrderings<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get ownerNickname => $composableBuilder(
       column: $table.ownerNickname,
       builder: (column) => ColumnOrderings(column));
@@ -7869,6 +8483,12 @@ class $$LocalPlaylistFollowsTableAnnotationComposer
 
   GeneratedColumn<String> get coverUrl =>
       $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => column);
+
+  GeneratedColumn<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => column);
 
   GeneratedColumn<String> get ownerNickname => $composableBuilder(
       column: $table.ownerNickname, builder: (column) => column);
@@ -7926,6 +8546,8 @@ class $$LocalPlaylistFollowsTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> coverUrl = const Value.absent(),
+            Value<String?> coverPicId = const Value.absent(),
+            Value<String?> coverSource = const Value.absent(),
             Value<String> ownerNickname = const Value.absent(),
             Value<String> ownerAvatarUrl = const Value.absent(),
             Value<int> songCount = const Value.absent(),
@@ -7939,6 +8561,8 @@ class $$LocalPlaylistFollowsTableTableManager extends RootTableManager<
             name: name,
             description: description,
             coverUrl: coverUrl,
+            coverPicId: coverPicId,
+            coverSource: coverSource,
             ownerNickname: ownerNickname,
             ownerAvatarUrl: ownerAvatarUrl,
             songCount: songCount,
@@ -7952,6 +8576,8 @@ class $$LocalPlaylistFollowsTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> coverUrl = const Value.absent(),
+            Value<String?> coverPicId = const Value.absent(),
+            Value<String?> coverSource = const Value.absent(),
             Value<String> ownerNickname = const Value.absent(),
             Value<String> ownerAvatarUrl = const Value.absent(),
             Value<int> songCount = const Value.absent(),
@@ -7965,6 +8591,8 @@ class $$LocalPlaylistFollowsTableTableManager extends RootTableManager<
             name: name,
             description: description,
             coverUrl: coverUrl,
+            coverPicId: coverPicId,
+            coverSource: coverSource,
             ownerNickname: ownerNickname,
             ownerAvatarUrl: ownerAvatarUrl,
             songCount: songCount,
@@ -8003,6 +8631,8 @@ typedef $$LocalRecommendPlaylistsTableCreateCompanionBuilder
   required String name,
   Value<String> description,
   Value<String> coverUrl,
+  Value<String?> coverPicId,
+  Value<String?> coverSource,
   Value<String> type,
   Value<int> songCount,
   Value<int> playCount,
@@ -8016,6 +8646,8 @@ typedef $$LocalRecommendPlaylistsTableUpdateCompanionBuilder
   Value<String> name,
   Value<String> description,
   Value<String> coverUrl,
+  Value<String?> coverPicId,
+  Value<String?> coverSource,
   Value<String> type,
   Value<int> songCount,
   Value<int> playCount,
@@ -8044,6 +8676,12 @@ class $$LocalRecommendPlaylistsTableFilterComposer
 
   ColumnFilters<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnFilters(column));
@@ -8086,6 +8724,12 @@ class $$LocalRecommendPlaylistsTableOrderingComposer
   ColumnOrderings<String> get coverUrl => $composableBuilder(
       column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get type => $composableBuilder(
       column: $table.type, builder: (column) => ColumnOrderings(column));
 
@@ -8127,6 +8771,12 @@ class $$LocalRecommendPlaylistsTableAnnotationComposer
 
   GeneratedColumn<String> get coverUrl =>
       $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get coverPicId => $composableBuilder(
+      column: $table.coverPicId, builder: (column) => column);
+
+  GeneratedColumn<String> get coverSource => $composableBuilder(
+      column: $table.coverSource, builder: (column) => column);
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -8182,6 +8832,8 @@ class $$LocalRecommendPlaylistsTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> coverUrl = const Value.absent(),
+            Value<String?> coverPicId = const Value.absent(),
+            Value<String?> coverSource = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<int> songCount = const Value.absent(),
             Value<int> playCount = const Value.absent(),
@@ -8194,6 +8846,8 @@ class $$LocalRecommendPlaylistsTableTableManager extends RootTableManager<
             name: name,
             description: description,
             coverUrl: coverUrl,
+            coverPicId: coverPicId,
+            coverSource: coverSource,
             type: type,
             songCount: songCount,
             playCount: playCount,
@@ -8206,6 +8860,8 @@ class $$LocalRecommendPlaylistsTableTableManager extends RootTableManager<
             required String name,
             Value<String> description = const Value.absent(),
             Value<String> coverUrl = const Value.absent(),
+            Value<String?> coverPicId = const Value.absent(),
+            Value<String?> coverSource = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<int> songCount = const Value.absent(),
             Value<int> playCount = const Value.absent(),
@@ -8218,6 +8874,8 @@ class $$LocalRecommendPlaylistsTableTableManager extends RootTableManager<
             name: name,
             description: description,
             coverUrl: coverUrl,
+            coverPicId: coverPicId,
+            coverSource: coverSource,
             type: type,
             songCount: songCount,
             playCount: playCount,
@@ -8506,6 +9164,165 @@ typedef $$LocalRecommendPlaylistSongsTableProcessedTableManager
         ),
         LocalRecommendPlaylistSong,
         PrefetchHooks Function()>;
+typedef $$LocalPicCoversTableCreateCompanionBuilder = LocalPicCoversCompanion
+    Function({
+  required String picId,
+  required String source,
+  required String coverUrl,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$LocalPicCoversTableUpdateCompanionBuilder = LocalPicCoversCompanion
+    Function({
+  Value<String> picId,
+  Value<String> source,
+  Value<String> coverUrl,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$LocalPicCoversTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalPicCoversTable> {
+  $$LocalPicCoversTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalPicCoversTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalPicCoversTable> {
+  $$LocalPicCoversTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalPicCoversTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalPicCoversTable> {
+  $$LocalPicCoversTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get picId =>
+      $composableBuilder(column: $table.picId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LocalPicCoversTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalPicCoversTable,
+    LocalPicCover,
+    $$LocalPicCoversTableFilterComposer,
+    $$LocalPicCoversTableOrderingComposer,
+    $$LocalPicCoversTableAnnotationComposer,
+    $$LocalPicCoversTableCreateCompanionBuilder,
+    $$LocalPicCoversTableUpdateCompanionBuilder,
+    (
+      LocalPicCover,
+      BaseReferences<_$AppDatabase, $LocalPicCoversTable, LocalPicCover>
+    ),
+    LocalPicCover,
+    PrefetchHooks Function()> {
+  $$LocalPicCoversTableTableManager(
+      _$AppDatabase db, $LocalPicCoversTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalPicCoversTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalPicCoversTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalPicCoversTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> picId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String> coverUrl = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalPicCoversCompanion(
+            picId: picId,
+            source: source,
+            coverUrl: coverUrl,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String picId,
+            required String source,
+            required String coverUrl,
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalPicCoversCompanion.insert(
+            picId: picId,
+            source: source,
+            coverUrl: coverUrl,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalPicCoversTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $LocalPicCoversTable,
+    LocalPicCover,
+    $$LocalPicCoversTableFilterComposer,
+    $$LocalPicCoversTableOrderingComposer,
+    $$LocalPicCoversTableAnnotationComposer,
+    $$LocalPicCoversTableCreateCompanionBuilder,
+    $$LocalPicCoversTableUpdateCompanionBuilder,
+    (
+      LocalPicCover,
+      BaseReferences<_$AppDatabase, $LocalPicCoversTable, LocalPicCover>
+    ),
+    LocalPicCover,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8535,4 +9352,6 @@ class $AppDatabaseManager {
       get localRecommendPlaylistSongs =>
           $$LocalRecommendPlaylistSongsTableTableManager(
               _db, _db.localRecommendPlaylistSongs);
+  $$LocalPicCoversTableTableManager get localPicCovers =>
+      $$LocalPicCoversTableTableManager(_db, _db.localPicCovers);
 }

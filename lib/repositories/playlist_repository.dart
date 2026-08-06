@@ -21,6 +21,10 @@ class LocalPlaylistInfo {
   final String description;
   /// 封面 URL
   final String coverUrl;
+  /// 封面来源歌曲 pic_id（为空则按 coverUrl 或占位图；非空则客户端实时解析封面）
+  final String? coverPicId;
+  /// 封面来源歌曲音源标识
+  final String? coverSource;
   /// 是否公开
   final bool isPublic;
   /// 未删除歌曲数
@@ -34,6 +38,8 @@ class LocalPlaylistInfo {
     this.name = '',
     this.description = '',
     this.coverUrl = '',
+    this.coverPicId,
+    this.coverSource,
     this.isPublic = false,
     this.songCount = 0,
     required this.createdAt,
@@ -135,6 +141,8 @@ class PlaylistRepository {
     required String name,
     String description = '',
     String coverUrl = '',
+    String? coverPicId,
+    String? coverSource,
     bool isPublic = false,
   }) async {
     final localId = const Uuid().v4();
@@ -144,6 +152,8 @@ class PlaylistRepository {
       name: name,
       description: description,
       coverUrl: coverUrl,
+      coverPicId: coverPicId,
+      coverSource: coverSource,
       isPublic: isPublic,
     ));
     return localId;
@@ -155,6 +165,8 @@ class PlaylistRepository {
     String? name,
     String? description,
     String? coverUrl,
+    String? coverPicId,
+    String? coverSource,
     bool? isPublic,
   }) {
     debugPrint('[PlaylistRepo] update: localId=$localId');
@@ -163,6 +175,8 @@ class PlaylistRepository {
       name: name,
       description: description,
       coverUrl: coverUrl,
+      coverPicId: coverPicId,
+      coverSource: coverSource,
       isPublic: isPublic,
     );
   }
@@ -179,6 +193,8 @@ class PlaylistRepository {
     required String name,
     String description = '',
     String coverUrl = '',
+    String? coverPicId,
+    String? coverSource,
     bool isPublic = false,
   }) async {
     final localId = const Uuid().v4();
@@ -188,6 +204,8 @@ class PlaylistRepository {
       name: name,
       description: drift.Value(description),
       coverUrl: drift.Value(coverUrl),
+      coverPicId: drift.Value(coverPicId),
+      coverSource: drift.Value(coverSource),
       isPublic: drift.Value(isPublic),
       remoteId: drift.Value(remoteId),
       isSynced: const drift.Value(true),
@@ -249,6 +267,8 @@ class PlaylistRepository {
     required String name,
     String description = '',
     String coverUrl = '',
+    String? coverPicId,
+    String? coverSource,
     bool isPublic = false,
   }) =>
       LocalPlaylistsCompanion.insert(
@@ -256,6 +276,8 @@ class PlaylistRepository {
         name: name,
         description: drift.Value(description),
         coverUrl: drift.Value(coverUrl),
+        coverPicId: drift.Value(coverPicId),
+        coverSource: drift.Value(coverSource),
         isPublic: drift.Value(isPublic),
       );
 
@@ -266,6 +288,8 @@ class PlaylistRepository {
         name: p.name,
         description: p.description,
         coverUrl: p.coverUrl,
+        coverPicId: p.coverPicId,
+        coverSource: p.coverSource,
         isPublic: p.isPublic,
         songCount: songCount,
         createdAt: p.createdAt,
