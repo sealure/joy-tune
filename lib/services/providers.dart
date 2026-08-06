@@ -182,6 +182,8 @@ final recommendPlaylistsProvider = StreamProvider<List<RecommendPlaylist>>((ref)
         name: r.name,
         description: r.description,
         coverUrl: r.coverUrl,
+        coverPicId: r.coverPicId,
+        coverSource: r.coverSource,
         type: r.type,
         songCount: r.songCount,
         playCount: r.playCount,
