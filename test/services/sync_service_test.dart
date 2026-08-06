@@ -10,6 +10,7 @@ import 'package:joy_tune/db/daos/favorite_dao.dart';
 import 'package:joy_tune/db/daos/play_record_dao.dart';
 import 'package:joy_tune/db/daos/playlist_dao.dart';
 import 'package:joy_tune/db/daos/playlist_follow_dao.dart';
+import 'package:joy_tune/db/daos/recommend_dao.dart';
 import 'package:joy_tune/db/daos/settings_dao.dart';
 import 'package:joy_tune/db/daos/song_meta_dao.dart';
 import 'package:joy_tune/models/song.dart';
@@ -56,6 +57,15 @@ class _FakeBackendClient extends BackendClient {
     calls.add(['updatePlaylist', '$id']);
     return UserPlaylist(id: id, name: name ?? '', isPublic: isPublic ?? false);
   }
+
+  @override
+  Future<RecommendPlaylistsResult> getRecommendPlaylists({int page = 1, int size = 20}) async {
+    // 推荐缓存走本地 SQLite，不参与 calls 断言；返回空避免真实网络请求
+    return const RecommendPlaylistsResult(playlists: [], total: 0);
+  }
+
+  @override
+  Future<RecommendPlaylistDetail?> getRecommendPlaylistDetail(int id) async => null;
 
   @override
   Future<bool> deletePlaylist(int id) async {
@@ -118,6 +128,7 @@ void main() {
   late SettingsDao settingsDao;
   late SongMetaDao songMetaDao;
   late PlaylistFollowDao playlistFollowDao;
+  late RecommendDao recommendDao;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -127,6 +138,7 @@ void main() {
     settingsDao = SettingsDao(db);
     songMetaDao = SongMetaDao(db);
     playlistFollowDao = PlaylistFollowDao(db);
+    recommendDao = RecommendDao(db);
     client = _FakeBackendClient();
   });
 
@@ -145,6 +157,7 @@ void main() {
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
         songMetaDao: songMetaDao,
+        recommendDao: recommendDao,
       );
       await favoriteDao.insertFavorite(song('a'));
       await playRecordDao.addRecord(song('b'));
@@ -166,6 +179,7 @@ void main() {
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
         songMetaDao: songMetaDao,
+        recommendDao: recommendDao,
       );
     });
 
@@ -256,6 +270,7 @@ void main() {
         playRecordDao: playRecordDao,
         settingsDao: settingsDao,
         songMetaDao: songMetaDao,
+        recommendDao: recommendDao,
       );
       await settingsDao.set('pending_clear_play_history', 'true');
       await service.syncNow();

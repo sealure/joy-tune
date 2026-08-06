@@ -11,6 +11,7 @@ import '../../db/daos/favorite_dao.dart';
 import '../../db/daos/play_record_dao.dart';
 import '../../db/daos/playlist_dao.dart';
 import '../../db/daos/playlist_follow_dao.dart';
+import '../../db/daos/recommend_dao.dart';
 import '../../db/daos/settings_dao.dart';
 import '../../db/daos/song_meta_dao.dart';
 import '../auth_service.dart';
@@ -20,7 +21,11 @@ import '../auth_service.dart';
 /// 扫描本地需同步表中 is_synced=0 的记录，调用服务端 API 增量同步，成功后置 1。
 /// 触发时机：启动 / 定时 / 网络恢复 / 登录成功后（syncNow）。
 /// 游客态跳过推送（数据留本地，登录后再同步）。
+/// 推荐歌单缓存（只读下行）除外：免认证接口，游客态也同步（TTL 节流）。
 class SyncService {
+  /// 推荐歌单缓存刷新间隔（TTL 内不重复拉取，避免 30s 定时器频繁请求）
+  static const recommendSyncTtl = Duration(hours: 6);
+
   final BackendClient _client;
   final AuthService _auth;
   final FavoriteDao _favoriteDao;
@@ -29,6 +34,7 @@ class SyncService {
   final PlayRecordDao _playRecordDao;
   final SettingsDao _settingsDao;
   final SongMetaDao _songMetaDao;
+  final RecommendDao _recommendDao;
 
   /// 非重入锁，防止并发同步
   bool _running = false;
@@ -47,6 +53,7 @@ class SyncService {
     required PlayRecordDao playRecordDao,
     required SettingsDao settingsDao,
     required SongMetaDao songMetaDao,
+    required RecommendDao recommendDao,
   })  : _client = client,
         _auth = auth,
         _favoriteDao = favoriteDao,
@@ -54,7 +61,8 @@ class SyncService {
         _playlistFollowDao = playlistFollowDao,
         _playRecordDao = playRecordDao,
         _settingsDao = settingsDao,
-        _songMetaDao = songMetaDao;
+        _songMetaDao = songMetaDao,
+        _recommendDao = recommendDao;
 
   /// 启动后台同步任务：立即首扫 + 定时（30 秒，保证播放/收藏等写操作尽快同步）+ 网络恢复时
   void start({Duration interval = const Duration(seconds: 30)}) {
@@ -81,6 +89,8 @@ class SyncService {
     if (_running) return;
     _running = true;
     try {
+      // 推荐歌单缓存：服务端只读下行数据，免认证接口，游客态也同步（TTL 节流，forcePull 强制）
+      await syncRecommend(force: forcePull);
       // 游客不推送（数据留本地，登录后再推）
       final loggedIn = await _auth.isLoggedIn;
       if (!loggedIn) return;
@@ -97,6 +107,75 @@ class SyncService {
       debugPrint('[SyncService] syncNow 异常: $e');
     } finally {
       _running = false;
+    }
+  }
+
+  // ── 推荐歌单缓存（只读下行，免认证）──
+
+  /// 拉取服务端推荐歌单列表与歌曲，整体覆盖本地 SQLite 缓存
+  /// TTL 节流：6h 内不重复拉取；[force] 强制拉取（下拉刷新用）。
+  /// 失败返回 false（不抛异常），下次触发再试。
+  Future<bool> syncRecommend({bool force = false}) async {
+    // TTL 节流：未过期且非强制则跳过
+    final syncedAt = await _recommendDao.lastSyncedAt();
+    if (!force &&
+        syncedAt != null &&
+        DateTime.now().difference(syncedAt) < recommendSyncTtl) {
+      return true;
+    }
+
+    try {
+      // 拉取推荐歌单列表
+      final result = await _client.getRecommendPlaylists(page: 1, size: 20);
+      final playlists = result.playlists;
+
+      // 整体覆盖本地列表缓存（保留服务端返回顺序）
+      final listItems = <LocalRecommendPlaylistsCompanion>[];
+      for (var i = 0; i < playlists.length; i++) {
+        final p = playlists[i];
+        listItems.add(LocalRecommendPlaylistsCompanion.insert(
+          remoteId: drift.Value(p.id),
+          name: p.name,
+          description: drift.Value(p.description),
+          coverUrl: drift.Value(p.coverUrl),
+          type: drift.Value(p.type),
+          songCount: drift.Value(p.songCount),
+          playCount: drift.Value(p.playCount),
+          ownerNickname: drift.Value(p.userName ?? ''),
+          ownerAvatarUrl: drift.Value(p.userAvatar ?? ''),
+          orderIndex: drift.Value(i),
+        ));
+      }
+      await _recommendDao.replacePlaylists(playlists: listItems);
+
+      // 逐个拉取歌单详情歌曲并覆盖本地缓存
+      for (final p in playlists) {
+        final detail = await _client.getRecommendPlaylistDetail(p.id);
+        if (detail == null) continue;
+        final songs = <LocalRecommendPlaylistSongsCompanion>[];
+        for (var j = 0; j < detail.songs.length; j++) {
+          final s = detail.songs[j];
+          songs.add(LocalRecommendPlaylistSongsCompanion.insert(
+            playlistRemoteId: p.id,
+            songId: s.songId,
+            source: drift.Value(s.source),
+            songName: s.songName,
+            artist: drift.Value(s.artist),
+            album: drift.Value(s.album),
+            coverUrl: drift.Value(s.coverUrl.isEmpty ? null : s.coverUrl),
+            picId: drift.Value(s.picId.isEmpty ? null : s.picId),
+            lyricId: drift.Value(s.lyricId.isEmpty ? null : s.lyricId),
+            sortOrder: drift.Value(j),
+          ));
+        }
+        await _recommendDao.replaceSongs(playlistId: p.id, songs: songs);
+      }
+
+      await _recommendDao.setSyncedAt(DateTime.now());
+      return true;
+    } catch (e) {
+      debugPrint('[SyncService] syncRecommend 失败: $e');
+      return false;
     }
   }
 
@@ -240,7 +319,7 @@ class SyncService {
         final meta = await _songMetaDao.get(r.songId, r.source);
         lyricId = meta?.lyricId;
       }
-      print('[SyncService] 上报播放: song=${r.songId} source=${r.source} lyricId=${lyricId ?? "空"}');
+      debugPrint('[SyncService] 上报播放: song=${r.songId} source=${r.source} lyricId=${lyricId ?? "空"}');
       final ok = await _client.reportPlay(
         r.songId,
         source: r.source,

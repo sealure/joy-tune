@@ -1,11 +1,10 @@
 // 首页
-// 展示推荐歌单（从后端获取），支持下拉刷新
+// 展示推荐歌单（本地 SQLite 缓存流式读取，SyncService 后台异步拉取后端刷新），支持下拉刷新
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/mock_data.dart';
 import '../api/backend_client.dart';
 import '../services/providers.dart';
 
@@ -32,24 +31,30 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         // 迷你播放栏由 _MainShell 统一提供
         child: playlistsAsync.when(
-          // 后端推荐歌单加载成功
+          // 本地缓存推荐歌单加载成功
           data: (playlists) {
             if (playlists.isEmpty) {
-              // 后端无数据时 fallback 到 mock 数据
-              return _buildWithMockData(context, ref);
+              // 无缓存（新用户首开或同步失败）：空态 + 重试引导
+              return _buildEmptyState(context, ref);
             }
             return _buildWithBackendData(context, ref, playlists);
           },
           // 加载中
           loading: () => const Center(child: CircularProgressIndicator()),
-          // 加载失败，fallback 到 mock 数据
-          error: (_, __) => _buildWithMockData(context, ref),
+          // 读取失败（本地异常）：空态 + 重试
+          error: (_, __) => _buildEmptyState(context, ref),
         ),
       ),
     );
   }
 
-  /// 使用后端数据构建
+  /// 强制刷新推荐歌单：后台拉取后端并覆盖本地缓存，再失效 provider 重新读取
+  Future<void> _refresh(WidgetRef ref) async {
+    await ref.read(syncServiceProvider).syncRecommend(force: true);
+    ref.invalidate(recommendPlaylistsProvider);
+  }
+
+  /// 使用后端（本地缓存）数据构建
   Widget _buildWithBackendData(
     BuildContext context,
     WidgetRef ref,
@@ -59,11 +64,7 @@ class HomeScreen extends ConsumerWidget {
     final systemList = playlists.where((p) => p.type != 'user').toList();
     final sharedList = playlists.where((p) => p.type == 'user').toList();
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(recommendPlaylistsProvider);
-        // 等待新数据完成，避免下拉动画期间旧数据闪烁
-        await ref.read(recommendPlaylistsProvider.future);
-      },
+      onRefresh: () => _refresh(ref),
       child: ListView(
         padding: EdgeInsets.zero,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -128,51 +129,42 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// 使用 mock 数据构建（fallback）
-  Widget _buildWithMockData(BuildContext context, WidgetRef ref) {
+  /// 空态：本地无推荐歌单缓存（新用户首开 / 后端不可用），显示重试引导
+  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(recommendPlaylistsProvider);
-        // 等待新数据完成，避免下拉动画期间旧数据闪烁
-        await ref.read(recommendPlaylistsProvider.future);
-      },
+      onRefresh: () => _refresh(ref),
       child: ListView(
-        padding: EdgeInsets.zero,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 8, 20, 10),
-          child: Text('推荐歌单', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-        ),
-        SizedBox(
-          height: 190,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: recommendedPlaylists.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (_, i) => _MockPlaylistCard(
-              playlist: recommendedPlaylists[i],
-              gradient: recommendationGradients[i % recommendationGradients.length],
-              onTap: () => context.push(
-                '/playlist/${recommendedPlaylists[i].id}',
-                extra: {
-                  'id': recommendedPlaylists[i].id,
-                  'name': recommendedPlaylists[i].name,
-                  'subtitle': recommendedPlaylists[i].subtitle,
-                },
-              ),
+          const SizedBox(height: 140),
+          const Icon(Icons.library_music_outlined, size: 64, color: Colors.black26),
+          const SizedBox(height: 16),
+          const Text(
+            '暂无推荐歌单',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black54),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '下拉刷新或点击重试，从服务器拉取',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.black38),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: FilledButton.icon(
+              onPressed: () => _refresh(ref),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('重试'),
             ),
           ),
-        ),
-        const SizedBox(height: 20),
         ],
       ),
     );
   }
 }
 
-// ── 后端歌单卡片 ──
+// ── 推荐歌单卡片 ──
 
 class _BackendPlaylistCard extends StatelessWidget {
   final RecommendPlaylist playlist;
@@ -260,18 +252,18 @@ class _BackendPlaylistCard extends StatelessWidget {
                         ),
                       ],
                     )
-              else
-                Text(
-                  '${playlist.songCount} 首',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
-                ),
-              ],
+                  else
+                    Text(
+                      '${playlist.songCount} 首',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   /// 创建者默认头像占位
@@ -281,69 +273,6 @@ class _BackendPlaylistCard extends StatelessWidget {
       height: 16,
       decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
       child: const Icon(Icons.person_rounded, size: 10, color: Colors.white70),
-    );
-  }
-}
-
-// ── Mock 歌单卡片（兼容旧数据）──
-
-class _MockPlaylistCard extends ConsumerWidget {
-  final MockPlaylist playlist;
-  final List<Color> gradient;
-  final VoidCallback onTap;
-
-  const _MockPlaylistCard({required this.playlist, required this.gradient, required this.onTap});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final songsAsync = ref.watch(playlistSongsProvider(playlist.id));
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 150,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-          boxShadow: [
-            BoxShadow(color: gradient.first.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Center(
-                  child: Icon(Icons.album_rounded, size: 48, color: Colors.white.withValues(alpha: 0.9)),
-                ),
-              ),
-              Text(
-                playlist.name,
-                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              songsAsync.when(
-                data: (songs) => Text(
-                  '${songs.length} 首',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
-                ),
-                loading: () => Text(
-                  '加载中...',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
-                ),
-                error: (_, __) => Text(
-                  '加载失败',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

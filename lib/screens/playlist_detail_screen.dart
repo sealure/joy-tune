@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../repositories/playlist_follow_repository.dart';
 import '../services/providers.dart';
@@ -30,29 +29,13 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     // 从路由 extra 获取歌单元数据（Map 格式）
     final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
     final playlistName = extra?['name'] as String? ?? '歌单详情';
-    final playlistSubtitle = extra?['subtitle'] as String?;
     // 后端歌单（推荐/分享）：用 recommend 接口显示真实歌曲与封面
     final isBackend = extra?['isBackendPlaylist'] == true;
     final backendId = (extra?['backendId'] as num?)?.toInt() ?? 0;
     final coverUrl = (extra?['coverUrl'] as String?) ?? '';
 
-    // 根据 playlistId 找到对应的 MockPlaylist
-    final playlist = recommendedPlaylists.firstWhere(
-      (p) => p.id == widget.playlistId,
-      orElse: () => MockPlaylist(
-        id: widget.playlistId,
-        name: playlistName,
-        subtitle: playlistSubtitle ?? '',
-      ),
-    );
-
-    // 后端歌单：recommend 详情接口返回真实歌曲；否则按歌单名动态搜索
-    final AsyncValue<List<Song>> songsAsync;
-    if (isBackend && backendId > 0) {
-      songsAsync = ref.watch(recommendPlaylistSongsProvider(backendId));
-    } else {
-      songsAsync = ref.watch(playlistSongsProvider(widget.playlistId));
-    }
+    // 推荐/分享公开歌单：歌曲从本地推荐缓存流式读取（SyncService 后台异步拉取后端刷新）
+    final songsAsync = ref.watch(recommendPlaylistSongsProvider(backendId));
 
     // 已收藏状态：本地收藏歌单集合（订阅引用，登录后 SyncService 同步服务端）
     final followedList = ref.watch(myFollowedPlaylistsProvider).value ??
@@ -104,7 +87,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             ),
 
             // 头部区域（含收藏按钮）
-            _buildHeader(theme, playlist, songsAsync, context, ref, coverUrl,
+            _buildHeader(theme, playlistName, songsAsync, context, ref, coverUrl,
                 isBackend, backendId, isFollowed),
 
             // 歌曲列表（支持加载中/错误状态）
@@ -132,7 +115,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                       Text('加载失败: $error', style: const TextStyle(color: Colors.white70)),
                       const SizedBox(height: 16),
                       FilledButton.tonal(
-                        onPressed: () => ref.invalidate(playlistSongsProvider(widget.playlistId)),
+                        onPressed: () => ref.invalidate(recommendPlaylistSongsProvider(backendId)),
                         child: const Text('重试'),
                       ),
                     ],
@@ -149,7 +132,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
 
   Widget _buildHeader(
     ThemeData theme,
-    MockPlaylist playlist,
+    String playlistName,
     AsyncValue<List<Song>> songsAsync,
     BuildContext context,
     WidgetRef ref,
@@ -203,7 +186,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  playlist.name,
+                  playlistName,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 const SizedBox(height: 6),

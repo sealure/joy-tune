@@ -10,11 +10,11 @@ import '../db/daos/favorite_dao.dart';
 import '../db/daos/play_record_dao.dart';
 import '../db/daos/playlist_dao.dart';
 import '../db/daos/playlist_follow_dao.dart';
+import '../db/daos/recommend_dao.dart';
 import '../db/daos/search_history_dao.dart';
 import '../db/daos/session_dao.dart';
 import '../db/daos/settings_dao.dart';
 import '../db/daos/song_meta_dao.dart';
-import '../models/mock_data.dart';
 import '../models/song.dart';
 import '../repositories/drift_favorite_repository.dart';
 import '../repositories/play_record_repository.dart';
@@ -71,6 +71,11 @@ final settingsDaoProvider = Provider<SettingsDao>((ref) => SettingsDao(ref.watch
 /// 歌曲元数据缓存数据访问对象（封面/歌词/lyric_id 统一缓存，纯本地）
 final songMetaDaoProvider = Provider<SongMetaDao>((ref) {
   return SongMetaDao(ref.watch(databaseProvider));
+});
+
+/// 推荐歌单缓存数据访问对象（只读下行缓存：镜像后端推荐列表/歌曲，后台异步拉取覆盖）
+final recommendDaoProvider = Provider<RecommendDao>((ref) {
+  return RecommendDao(ref.watch(databaseProvider));
 });
 
 /// 歌单仓库（本地 SQLite）
@@ -138,7 +143,7 @@ final legacyPrefsMigratorProvider = Provider<LegacyPrefsMigrator>((ref) {
   );
 });
 
-/// 后台同步服务（扫描 is_synced=0 记录同步到服务端）
+/// 后台同步服务（扫描 is_synced=0 记录同步到服务端；推荐歌单只读下行缓存也在此异步拉取）
 final syncServiceProvider = Provider<SyncService>((ref) {
   final service = SyncService(
     client: ref.watch(backendClientProvider),
@@ -149,6 +154,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     playRecordDao: ref.watch(playRecordDaoProvider),
     settingsDao: ref.watch(settingsDaoProvider),
     songMetaDao: ref.watch(songMetaDaoProvider),
+    recommendDao: ref.watch(recommendDaoProvider),
   );
   return service;
 });
@@ -161,67 +167,37 @@ final favoritesProvider = StreamProvider<List<Song>>((ref) {
 
 // ── 推荐歌单 Provider ──
 
-/// 从后端获取推荐歌单列表
-final recommendPlaylistsProvider = FutureProvider<List<RecommendPlaylist>>((ref) async {
-  final client = ref.watch(backendClientProvider);
-  final result = await client.getRecommendPlaylists(page: 1, size: 20);
-  return result.playlists;
+/// 推荐歌单列表（本地 SQLite 流式）
+/// SyncService 后台异步拉取后端推荐列表并覆盖本地缓存，首页即时显示（离线可用缓存）。
+final recommendPlaylistsProvider = StreamProvider<List<RecommendPlaylist>>((ref) {
+  final dao = ref.watch(recommendDaoProvider);
+  return dao.watchPlaylists().map((rows) => rows.map((r) => RecommendPlaylist(
+        id: r.remoteId,
+        name: r.name,
+        description: r.description,
+        coverUrl: r.coverUrl,
+        type: r.type,
+        songCount: r.songCount,
+        playCount: r.playCount,
+        userName: r.ownerNickname.isEmpty ? null : r.ownerNickname,
+        userAvatar: r.ownerAvatarUrl.isEmpty ? null : r.ownerAvatarUrl,
+      )).toList());
 });
 
-/// 从后端获取推荐歌单歌曲列表
+/// 推荐歌单歌曲列表（本地 SQLite 流式，保留 pic_id/lyric_id 供列表/播放实时解析）
 final recommendPlaylistSongsProvider =
-    FutureProvider.family<List<Song>, int>((ref, playlistId) async {  final client = ref.watch(backendClientProvider);
-  final detail = await client.getRecommendPlaylistDetail(playlistId);
-  if (detail == null) return [];
-
-  // 将后端歌曲信息转换为前端 Song 模型（保留 pic_id/lyric_id，供列表/播放实时解析）
-  return detail.songs.map((s) => Song(
-    id: s.songId,
-    name: s.songName,
-    artist: s.artist,
-    album: s.album,
-    source: s.source,
-    coverUrl: s.coverUrl.isNotEmpty ? s.coverUrl : null,
-    picId: s.picId.isNotEmpty ? s.picId : null,
-    lyricId: s.lyricId.isNotEmpty ? s.lyricId : null,
-  )).toList();
-});
-
-// ── 歌单歌曲 Provider（兼容旧的 mock 数据方式）──
-
-/// 根据歌单元数据中的搜索关键词，通过搜索接口动态获取歌曲列表
-/// key: playlist.id (String)，value: 歌曲列表
-/// 失败时自动重试最多3次
-final playlistSongsProvider =
-    FutureProvider.family<List<Song>, String>((ref, playlistId) async {
-  // 根据 playlistId 查找歌单元数据
-  final playlist = recommendedPlaylists.firstWhere(
-    (p) => p.id == playlistId,
-    orElse: () => MockPlaylist(id: playlistId, name: playlistId, subtitle: ''),
-  );
-  // 获取搜索客户端
-  final client = ref.watch(gdMusicClientProvider);
-  // 搜索关键词：优先使用 searchKeyword，否则使用歌单名称
-  final keyword = playlist.searchKeyword ?? playlist.name;
-  // 自动重试最多99次（API 不稳定，同一关键词可能随机返回空）
-  const maxRetries = 99;
-  for (int attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      print('[playlistSongsProvider] 请求: playlistId=$playlistId, keyword=$keyword, attempt=$attempt');
-      final result = await client.search(keyword: keyword, source: playlist.source, count: 99);
-      print('[playlistSongsProvider] 结果: playlistId=$playlistId, songs=${result.length}');
-      if (result.isNotEmpty || attempt == maxRetries) return result;
-      // 返回空结果且未达最大重试次数，等待后重试
-      print('[playlistSongsProvider] 空结果，等待重试...');
-      await Future.delayed(Duration(milliseconds: 500 * attempt));
-    } catch (e) {
-      print('[playlistSongsProvider] 失败: playlistId=$playlistId, attempt=$attempt, error=$e');
-      if (attempt == maxRetries) rethrow;
-      await Future.delayed(Duration(milliseconds: 500 * attempt));
-    }
-  }
-  // 不会到达这里，但 Dart 静态分析需要
-  throw StateError('unreachable');
+    StreamProvider.family<List<Song>, int>((ref, playlistId) {
+  final dao = ref.watch(recommendDaoProvider);
+  return dao.watchSongs(playlistId).map((rows) => rows.map((s) => Song(
+        id: s.songId,
+        name: s.songName,
+        artist: s.artist,
+        album: s.album,
+        source: s.source,
+        coverUrl: (s.coverUrl?.isNotEmpty ?? false) ? s.coverUrl : null,
+        picId: (s.picId?.isNotEmpty ?? false) ? s.picId : null,
+        lyricId: (s.lyricId?.isNotEmpty ?? false) ? s.lyricId : null,
+      )).toList());
 });
 
 // ── 我的歌单 Provider ──

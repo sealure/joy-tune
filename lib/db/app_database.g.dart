@@ -4551,6 +4551,1056 @@ class LocalPlaylistFollowsCompanion
   }
 }
 
+class $LocalRecommendPlaylistsTable extends LocalRecommendPlaylists
+    with TableInfo<$LocalRecommendPlaylistsTable, LocalRecommendPlaylist> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRecommendPlaylistsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _remoteIdMeta =
+      const VerificationMeta('remoteId');
+  @override
+  late final GeneratedColumn<int> remoteId = GeneratedColumn<int>(
+      'remote_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _coverUrlMeta =
+      const VerificationMeta('coverUrl');
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+      'cover_url', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+      'type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('system'));
+  static const VerificationMeta _songCountMeta =
+      const VerificationMeta('songCount');
+  @override
+  late final GeneratedColumn<int> songCount = GeneratedColumn<int>(
+      'song_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _playCountMeta =
+      const VerificationMeta('playCount');
+  @override
+  late final GeneratedColumn<int> playCount = GeneratedColumn<int>(
+      'play_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _ownerNicknameMeta =
+      const VerificationMeta('ownerNickname');
+  @override
+  late final GeneratedColumn<String> ownerNickname = GeneratedColumn<String>(
+      'owner_nickname', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _ownerAvatarUrlMeta =
+      const VerificationMeta('ownerAvatarUrl');
+  @override
+  late final GeneratedColumn<String> ownerAvatarUrl = GeneratedColumn<String>(
+      'owner_avatar_url', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _orderIndexMeta =
+      const VerificationMeta('orderIndex');
+  @override
+  late final GeneratedColumn<int> orderIndex = GeneratedColumn<int>(
+      'order_index', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [
+        remoteId,
+        name,
+        description,
+        coverUrl,
+        type,
+        songCount,
+        playCount,
+        ownerNickname,
+        ownerAvatarUrl,
+        orderIndex
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_recommend_playlists';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalRecommendPlaylist> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('remote_id')) {
+      context.handle(_remoteIdMeta,
+          remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(_coverUrlMeta,
+          coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+          _typeMeta, type.isAcceptableOrUnknown(data['type']!, _typeMeta));
+    }
+    if (data.containsKey('song_count')) {
+      context.handle(_songCountMeta,
+          songCount.isAcceptableOrUnknown(data['song_count']!, _songCountMeta));
+    }
+    if (data.containsKey('play_count')) {
+      context.handle(_playCountMeta,
+          playCount.isAcceptableOrUnknown(data['play_count']!, _playCountMeta));
+    }
+    if (data.containsKey('owner_nickname')) {
+      context.handle(
+          _ownerNicknameMeta,
+          ownerNickname.isAcceptableOrUnknown(
+              data['owner_nickname']!, _ownerNicknameMeta));
+    }
+    if (data.containsKey('owner_avatar_url')) {
+      context.handle(
+          _ownerAvatarUrlMeta,
+          ownerAvatarUrl.isAcceptableOrUnknown(
+              data['owner_avatar_url']!, _ownerAvatarUrlMeta));
+    }
+    if (data.containsKey('order_index')) {
+      context.handle(
+          _orderIndexMeta,
+          orderIndex.isAcceptableOrUnknown(
+              data['order_index']!, _orderIndexMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {remoteId};
+  @override
+  LocalRecommendPlaylist map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRecommendPlaylist(
+      remoteId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}remote_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description'])!,
+      coverUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_url'])!,
+      type: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
+      songCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}song_count'])!,
+      playCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}play_count'])!,
+      ownerNickname: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}owner_nickname'])!,
+      ownerAvatarUrl: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}owner_avatar_url'])!,
+      orderIndex: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}order_index'])!,
+    );
+  }
+
+  @override
+  $LocalRecommendPlaylistsTable createAlias(String alias) {
+    return $LocalRecommendPlaylistsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRecommendPlaylist extends DataClass
+    implements Insertable<LocalRecommendPlaylist> {
+  /// 服务端歌单 ID（唯一）
+  final int remoteId;
+
+  /// 歌单名称
+  final String name;
+
+  /// 歌单描述
+  final String description;
+
+  /// 封面 URL
+  final String coverUrl;
+
+  /// 歌单类型：system / user（首页分区用）
+  final String type;
+
+  /// 歌曲数（服务端快照，拉取时刷新）
+  final int songCount;
+
+  /// 播放量
+  final int playCount;
+
+  /// 创建者昵称（用户公开歌单显示）
+  final String ownerNickname;
+
+  /// 创建者头像 URL
+  final String ownerAvatarUrl;
+
+  /// 服务端返回顺序（系统在前、公开在后，原样保留展示顺序）
+  final int orderIndex;
+  const LocalRecommendPlaylist(
+      {required this.remoteId,
+      required this.name,
+      required this.description,
+      required this.coverUrl,
+      required this.type,
+      required this.songCount,
+      required this.playCount,
+      required this.ownerNickname,
+      required this.ownerAvatarUrl,
+      required this.orderIndex});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['remote_id'] = Variable<int>(remoteId);
+    map['name'] = Variable<String>(name);
+    map['description'] = Variable<String>(description);
+    map['cover_url'] = Variable<String>(coverUrl);
+    map['type'] = Variable<String>(type);
+    map['song_count'] = Variable<int>(songCount);
+    map['play_count'] = Variable<int>(playCount);
+    map['owner_nickname'] = Variable<String>(ownerNickname);
+    map['owner_avatar_url'] = Variable<String>(ownerAvatarUrl);
+    map['order_index'] = Variable<int>(orderIndex);
+    return map;
+  }
+
+  LocalRecommendPlaylistsCompanion toCompanion(bool nullToAbsent) {
+    return LocalRecommendPlaylistsCompanion(
+      remoteId: Value(remoteId),
+      name: Value(name),
+      description: Value(description),
+      coverUrl: Value(coverUrl),
+      type: Value(type),
+      songCount: Value(songCount),
+      playCount: Value(playCount),
+      ownerNickname: Value(ownerNickname),
+      ownerAvatarUrl: Value(ownerAvatarUrl),
+      orderIndex: Value(orderIndex),
+    );
+  }
+
+  factory LocalRecommendPlaylist.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRecommendPlaylist(
+      remoteId: serializer.fromJson<int>(json['remoteId']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String>(json['description']),
+      coverUrl: serializer.fromJson<String>(json['coverUrl']),
+      type: serializer.fromJson<String>(json['type']),
+      songCount: serializer.fromJson<int>(json['songCount']),
+      playCount: serializer.fromJson<int>(json['playCount']),
+      ownerNickname: serializer.fromJson<String>(json['ownerNickname']),
+      ownerAvatarUrl: serializer.fromJson<String>(json['ownerAvatarUrl']),
+      orderIndex: serializer.fromJson<int>(json['orderIndex']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'remoteId': serializer.toJson<int>(remoteId),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String>(description),
+      'coverUrl': serializer.toJson<String>(coverUrl),
+      'type': serializer.toJson<String>(type),
+      'songCount': serializer.toJson<int>(songCount),
+      'playCount': serializer.toJson<int>(playCount),
+      'ownerNickname': serializer.toJson<String>(ownerNickname),
+      'ownerAvatarUrl': serializer.toJson<String>(ownerAvatarUrl),
+      'orderIndex': serializer.toJson<int>(orderIndex),
+    };
+  }
+
+  LocalRecommendPlaylist copyWith(
+          {int? remoteId,
+          String? name,
+          String? description,
+          String? coverUrl,
+          String? type,
+          int? songCount,
+          int? playCount,
+          String? ownerNickname,
+          String? ownerAvatarUrl,
+          int? orderIndex}) =>
+      LocalRecommendPlaylist(
+        remoteId: remoteId ?? this.remoteId,
+        name: name ?? this.name,
+        description: description ?? this.description,
+        coverUrl: coverUrl ?? this.coverUrl,
+        type: type ?? this.type,
+        songCount: songCount ?? this.songCount,
+        playCount: playCount ?? this.playCount,
+        ownerNickname: ownerNickname ?? this.ownerNickname,
+        ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
+        orderIndex: orderIndex ?? this.orderIndex,
+      );
+  LocalRecommendPlaylist copyWithCompanion(
+      LocalRecommendPlaylistsCompanion data) {
+    return LocalRecommendPlaylist(
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+      name: data.name.present ? data.name.value : this.name,
+      description:
+          data.description.present ? data.description.value : this.description,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      type: data.type.present ? data.type.value : this.type,
+      songCount: data.songCount.present ? data.songCount.value : this.songCount,
+      playCount: data.playCount.present ? data.playCount.value : this.playCount,
+      ownerNickname: data.ownerNickname.present
+          ? data.ownerNickname.value
+          : this.ownerNickname,
+      ownerAvatarUrl: data.ownerAvatarUrl.present
+          ? data.ownerAvatarUrl.value
+          : this.ownerAvatarUrl,
+      orderIndex:
+          data.orderIndex.present ? data.orderIndex.value : this.orderIndex,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRecommendPlaylist(')
+          ..write('remoteId: $remoteId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('type: $type, ')
+          ..write('songCount: $songCount, ')
+          ..write('playCount: $playCount, ')
+          ..write('ownerNickname: $ownerNickname, ')
+          ..write('ownerAvatarUrl: $ownerAvatarUrl, ')
+          ..write('orderIndex: $orderIndex')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(remoteId, name, description, coverUrl, type,
+      songCount, playCount, ownerNickname, ownerAvatarUrl, orderIndex);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRecommendPlaylist &&
+          other.remoteId == this.remoteId &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.coverUrl == this.coverUrl &&
+          other.type == this.type &&
+          other.songCount == this.songCount &&
+          other.playCount == this.playCount &&
+          other.ownerNickname == this.ownerNickname &&
+          other.ownerAvatarUrl == this.ownerAvatarUrl &&
+          other.orderIndex == this.orderIndex);
+}
+
+class LocalRecommendPlaylistsCompanion
+    extends UpdateCompanion<LocalRecommendPlaylist> {
+  final Value<int> remoteId;
+  final Value<String> name;
+  final Value<String> description;
+  final Value<String> coverUrl;
+  final Value<String> type;
+  final Value<int> songCount;
+  final Value<int> playCount;
+  final Value<String> ownerNickname;
+  final Value<String> ownerAvatarUrl;
+  final Value<int> orderIndex;
+  const LocalRecommendPlaylistsCompanion({
+    this.remoteId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.type = const Value.absent(),
+    this.songCount = const Value.absent(),
+    this.playCount = const Value.absent(),
+    this.ownerNickname = const Value.absent(),
+    this.ownerAvatarUrl = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+  });
+  LocalRecommendPlaylistsCompanion.insert({
+    this.remoteId = const Value.absent(),
+    required String name,
+    this.description = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.type = const Value.absent(),
+    this.songCount = const Value.absent(),
+    this.playCount = const Value.absent(),
+    this.ownerNickname = const Value.absent(),
+    this.ownerAvatarUrl = const Value.absent(),
+    this.orderIndex = const Value.absent(),
+  }) : name = Value(name);
+  static Insertable<LocalRecommendPlaylist> custom({
+    Expression<int>? remoteId,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<String>? coverUrl,
+    Expression<String>? type,
+    Expression<int>? songCount,
+    Expression<int>? playCount,
+    Expression<String>? ownerNickname,
+    Expression<String>? ownerAvatarUrl,
+    Expression<int>? orderIndex,
+  }) {
+    return RawValuesInsertable({
+      if (remoteId != null) 'remote_id': remoteId,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (coverUrl != null) 'cover_url': coverUrl,
+      if (type != null) 'type': type,
+      if (songCount != null) 'song_count': songCount,
+      if (playCount != null) 'play_count': playCount,
+      if (ownerNickname != null) 'owner_nickname': ownerNickname,
+      if (ownerAvatarUrl != null) 'owner_avatar_url': ownerAvatarUrl,
+      if (orderIndex != null) 'order_index': orderIndex,
+    });
+  }
+
+  LocalRecommendPlaylistsCompanion copyWith(
+      {Value<int>? remoteId,
+      Value<String>? name,
+      Value<String>? description,
+      Value<String>? coverUrl,
+      Value<String>? type,
+      Value<int>? songCount,
+      Value<int>? playCount,
+      Value<String>? ownerNickname,
+      Value<String>? ownerAvatarUrl,
+      Value<int>? orderIndex}) {
+    return LocalRecommendPlaylistsCompanion(
+      remoteId: remoteId ?? this.remoteId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      coverUrl: coverUrl ?? this.coverUrl,
+      type: type ?? this.type,
+      songCount: songCount ?? this.songCount,
+      playCount: playCount ?? this.playCount,
+      ownerNickname: ownerNickname ?? this.ownerNickname,
+      ownerAvatarUrl: ownerAvatarUrl ?? this.ownerAvatarUrl,
+      orderIndex: orderIndex ?? this.orderIndex,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (remoteId.present) {
+      map['remote_id'] = Variable<int>(remoteId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (songCount.present) {
+      map['song_count'] = Variable<int>(songCount.value);
+    }
+    if (playCount.present) {
+      map['play_count'] = Variable<int>(playCount.value);
+    }
+    if (ownerNickname.present) {
+      map['owner_nickname'] = Variable<String>(ownerNickname.value);
+    }
+    if (ownerAvatarUrl.present) {
+      map['owner_avatar_url'] = Variable<String>(ownerAvatarUrl.value);
+    }
+    if (orderIndex.present) {
+      map['order_index'] = Variable<int>(orderIndex.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRecommendPlaylistsCompanion(')
+          ..write('remoteId: $remoteId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('type: $type, ')
+          ..write('songCount: $songCount, ')
+          ..write('playCount: $playCount, ')
+          ..write('ownerNickname: $ownerNickname, ')
+          ..write('ownerAvatarUrl: $ownerAvatarUrl, ')
+          ..write('orderIndex: $orderIndex')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRecommendPlaylistSongsTable extends LocalRecommendPlaylistSongs
+    with
+        TableInfo<$LocalRecommendPlaylistSongsTable,
+            LocalRecommendPlaylistSong> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRecommendPlaylistSongsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _playlistRemoteIdMeta =
+      const VerificationMeta('playlistRemoteId');
+  @override
+  late final GeneratedColumn<int> playlistRemoteId = GeneratedColumn<int>(
+      'playlist_remote_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _songIdMeta = const VerificationMeta('songId');
+  @override
+  late final GeneratedColumn<String> songId = GeneratedColumn<String>(
+      'song_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _songNameMeta =
+      const VerificationMeta('songName');
+  @override
+  late final GeneratedColumn<String> songName = GeneratedColumn<String>(
+      'song_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _artistMeta = const VerificationMeta('artist');
+  @override
+  late final GeneratedColumn<String> artist = GeneratedColumn<String>(
+      'artist', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _albumMeta = const VerificationMeta('album');
+  @override
+  late final GeneratedColumn<String> album = GeneratedColumn<String>(
+      'album', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _coverUrlMeta =
+      const VerificationMeta('coverUrl');
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+      'cover_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _picIdMeta = const VerificationMeta('picId');
+  @override
+  late final GeneratedColumn<String> picId = GeneratedColumn<String>(
+      'pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lyricIdMeta =
+      const VerificationMeta('lyricId');
+  @override
+  late final GeneratedColumn<String> lyricId = GeneratedColumn<String>(
+      'lyric_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [
+        playlistRemoteId,
+        songId,
+        source,
+        songName,
+        artist,
+        album,
+        coverUrl,
+        picId,
+        lyricId,
+        sortOrder
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_recommend_playlist_songs';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalRecommendPlaylistSong> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('playlist_remote_id')) {
+      context.handle(
+          _playlistRemoteIdMeta,
+          playlistRemoteId.isAcceptableOrUnknown(
+              data['playlist_remote_id']!, _playlistRemoteIdMeta));
+    } else if (isInserting) {
+      context.missing(_playlistRemoteIdMeta);
+    }
+    if (data.containsKey('song_id')) {
+      context.handle(_songIdMeta,
+          songId.isAcceptableOrUnknown(data['song_id']!, _songIdMeta));
+    } else if (isInserting) {
+      context.missing(_songIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    }
+    if (data.containsKey('song_name')) {
+      context.handle(_songNameMeta,
+          songName.isAcceptableOrUnknown(data['song_name']!, _songNameMeta));
+    } else if (isInserting) {
+      context.missing(_songNameMeta);
+    }
+    if (data.containsKey('artist')) {
+      context.handle(_artistMeta,
+          artist.isAcceptableOrUnknown(data['artist']!, _artistMeta));
+    }
+    if (data.containsKey('album')) {
+      context.handle(
+          _albumMeta, album.isAcceptableOrUnknown(data['album']!, _albumMeta));
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(_coverUrlMeta,
+          coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('pic_id')) {
+      context.handle(
+          _picIdMeta, picId.isAcceptableOrUnknown(data['pic_id']!, _picIdMeta));
+    }
+    if (data.containsKey('lyric_id')) {
+      context.handle(_lyricIdMeta,
+          lyricId.isAcceptableOrUnknown(data['lyric_id']!, _lyricIdMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {playlistRemoteId, songId, source};
+  @override
+  LocalRecommendPlaylistSong map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRecommendPlaylistSong(
+      playlistRemoteId: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}playlist_remote_id'])!,
+      songId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}song_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      songName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}song_name'])!,
+      artist: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}artist'])!,
+      album: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}album'])!,
+      coverUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_url']),
+      picId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pic_id']),
+      lyricId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyric_id']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+    );
+  }
+
+  @override
+  $LocalRecommendPlaylistSongsTable createAlias(String alias) {
+    return $LocalRecommendPlaylistSongsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRecommendPlaylistSong extends DataClass
+    implements Insertable<LocalRecommendPlaylistSong> {
+  /// 所属推荐歌单服务端 ID
+  final int playlistRemoteId;
+
+  /// 歌曲 ID（原始音源 ID）
+  final String songId;
+
+  /// 音源标识
+  final String source;
+
+  /// 歌曲名
+  final String songName;
+
+  /// 歌手
+  final String artist;
+
+  /// 专辑
+  final String album;
+
+  /// 封面 URL
+  final String? coverUrl;
+
+  /// 封面图 pic_id（音源原始图片 ID）
+  final String? picId;
+
+  /// 歌词 ID（音源原始歌词 ID）
+  final String? lyricId;
+
+  /// 歌单内排序序号
+  final int sortOrder;
+  const LocalRecommendPlaylistSong(
+      {required this.playlistRemoteId,
+      required this.songId,
+      required this.source,
+      required this.songName,
+      required this.artist,
+      required this.album,
+      this.coverUrl,
+      this.picId,
+      this.lyricId,
+      required this.sortOrder});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['playlist_remote_id'] = Variable<int>(playlistRemoteId);
+    map['song_id'] = Variable<String>(songId);
+    map['source'] = Variable<String>(source);
+    map['song_name'] = Variable<String>(songName);
+    map['artist'] = Variable<String>(artist);
+    map['album'] = Variable<String>(album);
+    if (!nullToAbsent || coverUrl != null) {
+      map['cover_url'] = Variable<String>(coverUrl);
+    }
+    if (!nullToAbsent || picId != null) {
+      map['pic_id'] = Variable<String>(picId);
+    }
+    if (!nullToAbsent || lyricId != null) {
+      map['lyric_id'] = Variable<String>(lyricId);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  LocalRecommendPlaylistSongsCompanion toCompanion(bool nullToAbsent) {
+    return LocalRecommendPlaylistSongsCompanion(
+      playlistRemoteId: Value(playlistRemoteId),
+      songId: Value(songId),
+      source: Value(source),
+      songName: Value(songName),
+      artist: Value(artist),
+      album: Value(album),
+      coverUrl: coverUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverUrl),
+      picId:
+          picId == null && nullToAbsent ? const Value.absent() : Value(picId),
+      lyricId: lyricId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lyricId),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory LocalRecommendPlaylistSong.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRecommendPlaylistSong(
+      playlistRemoteId: serializer.fromJson<int>(json['playlistRemoteId']),
+      songId: serializer.fromJson<String>(json['songId']),
+      source: serializer.fromJson<String>(json['source']),
+      songName: serializer.fromJson<String>(json['songName']),
+      artist: serializer.fromJson<String>(json['artist']),
+      album: serializer.fromJson<String>(json['album']),
+      coverUrl: serializer.fromJson<String?>(json['coverUrl']),
+      picId: serializer.fromJson<String?>(json['picId']),
+      lyricId: serializer.fromJson<String?>(json['lyricId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'playlistRemoteId': serializer.toJson<int>(playlistRemoteId),
+      'songId': serializer.toJson<String>(songId),
+      'source': serializer.toJson<String>(source),
+      'songName': serializer.toJson<String>(songName),
+      'artist': serializer.toJson<String>(artist),
+      'album': serializer.toJson<String>(album),
+      'coverUrl': serializer.toJson<String?>(coverUrl),
+      'picId': serializer.toJson<String?>(picId),
+      'lyricId': serializer.toJson<String?>(lyricId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  LocalRecommendPlaylistSong copyWith(
+          {int? playlistRemoteId,
+          String? songId,
+          String? source,
+          String? songName,
+          String? artist,
+          String? album,
+          Value<String?> coverUrl = const Value.absent(),
+          Value<String?> picId = const Value.absent(),
+          Value<String?> lyricId = const Value.absent(),
+          int? sortOrder}) =>
+      LocalRecommendPlaylistSong(
+        playlistRemoteId: playlistRemoteId ?? this.playlistRemoteId,
+        songId: songId ?? this.songId,
+        source: source ?? this.source,
+        songName: songName ?? this.songName,
+        artist: artist ?? this.artist,
+        album: album ?? this.album,
+        coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
+        picId: picId.present ? picId.value : this.picId,
+        lyricId: lyricId.present ? lyricId.value : this.lyricId,
+        sortOrder: sortOrder ?? this.sortOrder,
+      );
+  LocalRecommendPlaylistSong copyWithCompanion(
+      LocalRecommendPlaylistSongsCompanion data) {
+    return LocalRecommendPlaylistSong(
+      playlistRemoteId: data.playlistRemoteId.present
+          ? data.playlistRemoteId.value
+          : this.playlistRemoteId,
+      songId: data.songId.present ? data.songId.value : this.songId,
+      source: data.source.present ? data.source.value : this.source,
+      songName: data.songName.present ? data.songName.value : this.songName,
+      artist: data.artist.present ? data.artist.value : this.artist,
+      album: data.album.present ? data.album.value : this.album,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      picId: data.picId.present ? data.picId.value : this.picId,
+      lyricId: data.lyricId.present ? data.lyricId.value : this.lyricId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRecommendPlaylistSong(')
+          ..write('playlistRemoteId: $playlistRemoteId, ')
+          ..write('songId: $songId, ')
+          ..write('source: $source, ')
+          ..write('songName: $songName, ')
+          ..write('artist: $artist, ')
+          ..write('album: $album, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(playlistRemoteId, songId, source, songName,
+      artist, album, coverUrl, picId, lyricId, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRecommendPlaylistSong &&
+          other.playlistRemoteId == this.playlistRemoteId &&
+          other.songId == this.songId &&
+          other.source == this.source &&
+          other.songName == this.songName &&
+          other.artist == this.artist &&
+          other.album == this.album &&
+          other.coverUrl == this.coverUrl &&
+          other.picId == this.picId &&
+          other.lyricId == this.lyricId &&
+          other.sortOrder == this.sortOrder);
+}
+
+class LocalRecommendPlaylistSongsCompanion
+    extends UpdateCompanion<LocalRecommendPlaylistSong> {
+  final Value<int> playlistRemoteId;
+  final Value<String> songId;
+  final Value<String> source;
+  final Value<String> songName;
+  final Value<String> artist;
+  final Value<String> album;
+  final Value<String?> coverUrl;
+  final Value<String?> picId;
+  final Value<String?> lyricId;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const LocalRecommendPlaylistSongsCompanion({
+    this.playlistRemoteId = const Value.absent(),
+    this.songId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.songName = const Value.absent(),
+    this.artist = const Value.absent(),
+    this.album = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRecommendPlaylistSongsCompanion.insert({
+    required int playlistRemoteId,
+    required String songId,
+    this.source = const Value.absent(),
+    required String songName,
+    this.artist = const Value.absent(),
+    this.album = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : playlistRemoteId = Value(playlistRemoteId),
+        songId = Value(songId),
+        songName = Value(songName);
+  static Insertable<LocalRecommendPlaylistSong> custom({
+    Expression<int>? playlistRemoteId,
+    Expression<String>? songId,
+    Expression<String>? source,
+    Expression<String>? songName,
+    Expression<String>? artist,
+    Expression<String>? album,
+    Expression<String>? coverUrl,
+    Expression<String>? picId,
+    Expression<String>? lyricId,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (playlistRemoteId != null) 'playlist_remote_id': playlistRemoteId,
+      if (songId != null) 'song_id': songId,
+      if (source != null) 'source': source,
+      if (songName != null) 'song_name': songName,
+      if (artist != null) 'artist': artist,
+      if (album != null) 'album': album,
+      if (coverUrl != null) 'cover_url': coverUrl,
+      if (picId != null) 'pic_id': picId,
+      if (lyricId != null) 'lyric_id': lyricId,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRecommendPlaylistSongsCompanion copyWith(
+      {Value<int>? playlistRemoteId,
+      Value<String>? songId,
+      Value<String>? source,
+      Value<String>? songName,
+      Value<String>? artist,
+      Value<String>? album,
+      Value<String?>? coverUrl,
+      Value<String?>? picId,
+      Value<String?>? lyricId,
+      Value<int>? sortOrder,
+      Value<int>? rowid}) {
+    return LocalRecommendPlaylistSongsCompanion(
+      playlistRemoteId: playlistRemoteId ?? this.playlistRemoteId,
+      songId: songId ?? this.songId,
+      source: source ?? this.source,
+      songName: songName ?? this.songName,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      coverUrl: coverUrl ?? this.coverUrl,
+      picId: picId ?? this.picId,
+      lyricId: lyricId ?? this.lyricId,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (playlistRemoteId.present) {
+      map['playlist_remote_id'] = Variable<int>(playlistRemoteId.value);
+    }
+    if (songId.present) {
+      map['song_id'] = Variable<String>(songId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (songName.present) {
+      map['song_name'] = Variable<String>(songName.value);
+    }
+    if (artist.present) {
+      map['artist'] = Variable<String>(artist.value);
+    }
+    if (album.present) {
+      map['album'] = Variable<String>(album.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (picId.present) {
+      map['pic_id'] = Variable<String>(picId.value);
+    }
+    if (lyricId.present) {
+      map['lyric_id'] = Variable<String>(lyricId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRecommendPlaylistSongsCompanion(')
+          ..write('playlistRemoteId: $playlistRemoteId, ')
+          ..write('songId: $songId, ')
+          ..write('source: $source, ')
+          ..write('songName: $songName, ')
+          ..write('artist: $artist, ')
+          ..write('album: $album, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4568,6 +5618,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalSongMetaTable localSongMeta = $LocalSongMetaTable(this);
   late final $LocalPlaylistFollowsTable localPlaylistFollows =
       $LocalPlaylistFollowsTable(this);
+  late final $LocalRecommendPlaylistsTable localRecommendPlaylists =
+      $LocalRecommendPlaylistsTable(this);
+  late final $LocalRecommendPlaylistSongsTable localRecommendPlaylistSongs =
+      $LocalRecommendPlaylistSongsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4581,7 +5635,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localPlaySessions,
         localSettings,
         localSongMeta,
-        localPlaylistFollows
+        localPlaylistFollows,
+        localRecommendPlaylists,
+        localRecommendPlaylistSongs
       ];
 }
 
@@ -6941,6 +7997,515 @@ typedef $$LocalPlaylistFollowsTableProcessedTableManager
         ),
         LocalPlaylistFollow,
         PrefetchHooks Function()>;
+typedef $$LocalRecommendPlaylistsTableCreateCompanionBuilder
+    = LocalRecommendPlaylistsCompanion Function({
+  Value<int> remoteId,
+  required String name,
+  Value<String> description,
+  Value<String> coverUrl,
+  Value<String> type,
+  Value<int> songCount,
+  Value<int> playCount,
+  Value<String> ownerNickname,
+  Value<String> ownerAvatarUrl,
+  Value<int> orderIndex,
+});
+typedef $$LocalRecommendPlaylistsTableUpdateCompanionBuilder
+    = LocalRecommendPlaylistsCompanion Function({
+  Value<int> remoteId,
+  Value<String> name,
+  Value<String> description,
+  Value<String> coverUrl,
+  Value<String> type,
+  Value<int> songCount,
+  Value<int> playCount,
+  Value<String> ownerNickname,
+  Value<String> ownerAvatarUrl,
+  Value<int> orderIndex,
+});
+
+class $$LocalRecommendPlaylistsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRecommendPlaylistsTable> {
+  $$LocalRecommendPlaylistsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get remoteId => $composableBuilder(
+      column: $table.remoteId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get songCount => $composableBuilder(
+      column: $table.songCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get playCount => $composableBuilder(
+      column: $table.playCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerNickname => $composableBuilder(
+      column: $table.ownerNickname, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ownerAvatarUrl => $composableBuilder(
+      column: $table.ownerAvatarUrl,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalRecommendPlaylistsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRecommendPlaylistsTable> {
+  $$LocalRecommendPlaylistsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get remoteId => $composableBuilder(
+      column: $table.remoteId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get type => $composableBuilder(
+      column: $table.type, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get songCount => $composableBuilder(
+      column: $table.songCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get playCount => $composableBuilder(
+      column: $table.playCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerNickname => $composableBuilder(
+      column: $table.ownerNickname,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ownerAvatarUrl => $composableBuilder(
+      column: $table.ownerAvatarUrl,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalRecommendPlaylistsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRecommendPlaylistsTable> {
+  $$LocalRecommendPlaylistsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<int> get songCount =>
+      $composableBuilder(column: $table.songCount, builder: (column) => column);
+
+  GeneratedColumn<int> get playCount =>
+      $composableBuilder(column: $table.playCount, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerNickname => $composableBuilder(
+      column: $table.ownerNickname, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerAvatarUrl => $composableBuilder(
+      column: $table.ownerAvatarUrl, builder: (column) => column);
+
+  GeneratedColumn<int> get orderIndex => $composableBuilder(
+      column: $table.orderIndex, builder: (column) => column);
+}
+
+class $$LocalRecommendPlaylistsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalRecommendPlaylistsTable,
+    LocalRecommendPlaylist,
+    $$LocalRecommendPlaylistsTableFilterComposer,
+    $$LocalRecommendPlaylistsTableOrderingComposer,
+    $$LocalRecommendPlaylistsTableAnnotationComposer,
+    $$LocalRecommendPlaylistsTableCreateCompanionBuilder,
+    $$LocalRecommendPlaylistsTableUpdateCompanionBuilder,
+    (
+      LocalRecommendPlaylist,
+      BaseReferences<_$AppDatabase, $LocalRecommendPlaylistsTable,
+          LocalRecommendPlaylist>
+    ),
+    LocalRecommendPlaylist,
+    PrefetchHooks Function()> {
+  $$LocalRecommendPlaylistsTableTableManager(
+      _$AppDatabase db, $LocalRecommendPlaylistsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRecommendPlaylistsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRecommendPlaylistsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRecommendPlaylistsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> remoteId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> description = const Value.absent(),
+            Value<String> coverUrl = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<int> songCount = const Value.absent(),
+            Value<int> playCount = const Value.absent(),
+            Value<String> ownerNickname = const Value.absent(),
+            Value<String> ownerAvatarUrl = const Value.absent(),
+            Value<int> orderIndex = const Value.absent(),
+          }) =>
+              LocalRecommendPlaylistsCompanion(
+            remoteId: remoteId,
+            name: name,
+            description: description,
+            coverUrl: coverUrl,
+            type: type,
+            songCount: songCount,
+            playCount: playCount,
+            ownerNickname: ownerNickname,
+            ownerAvatarUrl: ownerAvatarUrl,
+            orderIndex: orderIndex,
+          ),
+          createCompanionCallback: ({
+            Value<int> remoteId = const Value.absent(),
+            required String name,
+            Value<String> description = const Value.absent(),
+            Value<String> coverUrl = const Value.absent(),
+            Value<String> type = const Value.absent(),
+            Value<int> songCount = const Value.absent(),
+            Value<int> playCount = const Value.absent(),
+            Value<String> ownerNickname = const Value.absent(),
+            Value<String> ownerAvatarUrl = const Value.absent(),
+            Value<int> orderIndex = const Value.absent(),
+          }) =>
+              LocalRecommendPlaylistsCompanion.insert(
+            remoteId: remoteId,
+            name: name,
+            description: description,
+            coverUrl: coverUrl,
+            type: type,
+            songCount: songCount,
+            playCount: playCount,
+            ownerNickname: ownerNickname,
+            ownerAvatarUrl: ownerAvatarUrl,
+            orderIndex: orderIndex,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalRecommendPlaylistsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $LocalRecommendPlaylistsTable,
+        LocalRecommendPlaylist,
+        $$LocalRecommendPlaylistsTableFilterComposer,
+        $$LocalRecommendPlaylistsTableOrderingComposer,
+        $$LocalRecommendPlaylistsTableAnnotationComposer,
+        $$LocalRecommendPlaylistsTableCreateCompanionBuilder,
+        $$LocalRecommendPlaylistsTableUpdateCompanionBuilder,
+        (
+          LocalRecommendPlaylist,
+          BaseReferences<_$AppDatabase, $LocalRecommendPlaylistsTable,
+              LocalRecommendPlaylist>
+        ),
+        LocalRecommendPlaylist,
+        PrefetchHooks Function()>;
+typedef $$LocalRecommendPlaylistSongsTableCreateCompanionBuilder
+    = LocalRecommendPlaylistSongsCompanion Function({
+  required int playlistRemoteId,
+  required String songId,
+  Value<String> source,
+  required String songName,
+  Value<String> artist,
+  Value<String> album,
+  Value<String?> coverUrl,
+  Value<String?> picId,
+  Value<String?> lyricId,
+  Value<int> sortOrder,
+  Value<int> rowid,
+});
+typedef $$LocalRecommendPlaylistSongsTableUpdateCompanionBuilder
+    = LocalRecommendPlaylistSongsCompanion Function({
+  Value<int> playlistRemoteId,
+  Value<String> songId,
+  Value<String> source,
+  Value<String> songName,
+  Value<String> artist,
+  Value<String> album,
+  Value<String?> coverUrl,
+  Value<String?> picId,
+  Value<String?> lyricId,
+  Value<int> sortOrder,
+  Value<int> rowid,
+});
+
+class $$LocalRecommendPlaylistSongsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRecommendPlaylistSongsTable> {
+  $$LocalRecommendPlaylistSongsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get playlistRemoteId => $composableBuilder(
+      column: $table.playlistRemoteId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get songId => $composableBuilder(
+      column: $table.songId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get songName => $composableBuilder(
+      column: $table.songName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get artist => $composableBuilder(
+      column: $table.artist, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get album => $composableBuilder(
+      column: $table.album, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalRecommendPlaylistSongsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRecommendPlaylistSongsTable> {
+  $$LocalRecommendPlaylistSongsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get playlistRemoteId => $composableBuilder(
+      column: $table.playlistRemoteId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get songId => $composableBuilder(
+      column: $table.songId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get songName => $composableBuilder(
+      column: $table.songName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get artist => $composableBuilder(
+      column: $table.artist, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get album => $composableBuilder(
+      column: $table.album, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalRecommendPlaylistSongsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRecommendPlaylistSongsTable> {
+  $$LocalRecommendPlaylistSongsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get playlistRemoteId => $composableBuilder(
+      column: $table.playlistRemoteId, builder: (column) => column);
+
+  GeneratedColumn<String> get songId =>
+      $composableBuilder(column: $table.songId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get songName =>
+      $composableBuilder(column: $table.songName, builder: (column) => column);
+
+  GeneratedColumn<String> get artist =>
+      $composableBuilder(column: $table.artist, builder: (column) => column);
+
+  GeneratedColumn<String> get album =>
+      $composableBuilder(column: $table.album, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get picId =>
+      $composableBuilder(column: $table.picId, builder: (column) => column);
+
+  GeneratedColumn<String> get lyricId =>
+      $composableBuilder(column: $table.lyricId, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+}
+
+class $$LocalRecommendPlaylistSongsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalRecommendPlaylistSongsTable,
+    LocalRecommendPlaylistSong,
+    $$LocalRecommendPlaylistSongsTableFilterComposer,
+    $$LocalRecommendPlaylistSongsTableOrderingComposer,
+    $$LocalRecommendPlaylistSongsTableAnnotationComposer,
+    $$LocalRecommendPlaylistSongsTableCreateCompanionBuilder,
+    $$LocalRecommendPlaylistSongsTableUpdateCompanionBuilder,
+    (
+      LocalRecommendPlaylistSong,
+      BaseReferences<_$AppDatabase, $LocalRecommendPlaylistSongsTable,
+          LocalRecommendPlaylistSong>
+    ),
+    LocalRecommendPlaylistSong,
+    PrefetchHooks Function()> {
+  $$LocalRecommendPlaylistSongsTableTableManager(
+      _$AppDatabase db, $LocalRecommendPlaylistSongsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRecommendPlaylistSongsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRecommendPlaylistSongsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRecommendPlaylistSongsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> playlistRemoteId = const Value.absent(),
+            Value<String> songId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String> songName = const Value.absent(),
+            Value<String> artist = const Value.absent(),
+            Value<String> album = const Value.absent(),
+            Value<String?> coverUrl = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRecommendPlaylistSongsCompanion(
+            playlistRemoteId: playlistRemoteId,
+            songId: songId,
+            source: source,
+            songName: songName,
+            artist: artist,
+            album: album,
+            coverUrl: coverUrl,
+            picId: picId,
+            lyricId: lyricId,
+            sortOrder: sortOrder,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required int playlistRemoteId,
+            required String songId,
+            Value<String> source = const Value.absent(),
+            required String songName,
+            Value<String> artist = const Value.absent(),
+            Value<String> album = const Value.absent(),
+            Value<String?> coverUrl = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRecommendPlaylistSongsCompanion.insert(
+            playlistRemoteId: playlistRemoteId,
+            songId: songId,
+            source: source,
+            songName: songName,
+            artist: artist,
+            album: album,
+            coverUrl: coverUrl,
+            picId: picId,
+            lyricId: lyricId,
+            sortOrder: sortOrder,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalRecommendPlaylistSongsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $LocalRecommendPlaylistSongsTable,
+        LocalRecommendPlaylistSong,
+        $$LocalRecommendPlaylistSongsTableFilterComposer,
+        $$LocalRecommendPlaylistSongsTableOrderingComposer,
+        $$LocalRecommendPlaylistSongsTableAnnotationComposer,
+        $$LocalRecommendPlaylistSongsTableCreateCompanionBuilder,
+        $$LocalRecommendPlaylistSongsTableUpdateCompanionBuilder,
+        (
+          LocalRecommendPlaylistSong,
+          BaseReferences<_$AppDatabase, $LocalRecommendPlaylistSongsTable,
+              LocalRecommendPlaylistSong>
+        ),
+        LocalRecommendPlaylistSong,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6963,4 +8528,11 @@ class $AppDatabaseManager {
       $$LocalSongMetaTableTableManager(_db, _db.localSongMeta);
   $$LocalPlaylistFollowsTableTableManager get localPlaylistFollows =>
       $$LocalPlaylistFollowsTableTableManager(_db, _db.localPlaylistFollows);
+  $$LocalRecommendPlaylistsTableTableManager get localRecommendPlaylists =>
+      $$LocalRecommendPlaylistsTableTableManager(
+          _db, _db.localRecommendPlaylists);
+  $$LocalRecommendPlaylistSongsTableTableManager
+      get localRecommendPlaylistSongs =>
+          $$LocalRecommendPlaylistSongsTableTableManager(
+              _db, _db.localRecommendPlaylistSongs);
 }

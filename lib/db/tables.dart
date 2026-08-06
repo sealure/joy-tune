@@ -260,3 +260,60 @@ class LocalPlaylistFollows extends Table {
   @override
   Set<Column> get primaryKey => {playlistId};
 }
+
+/// 本地推荐歌单缓存表（只读下行缓存，无 is_synced，不做上行同步）
+/// 镜像服务端推荐歌单列表（系统「推荐」+ 用户公开分享歌单），
+/// 由 SyncService 后台异步从后端拉取后整体覆盖；首页优先读本地（即时/离线可用）。
+class LocalRecommendPlaylists extends Table {
+  /// 服务端歌单 ID（唯一）
+  IntColumn get remoteId => integer()();
+  /// 歌单名称
+  TextColumn get name => text()();
+  /// 歌单描述
+  TextColumn get description => text().withDefault(const Constant(''))();
+  /// 封面 URL
+  TextColumn get coverUrl => text().withDefault(const Constant(''))();
+  /// 歌单类型：system / user（首页分区用）
+  TextColumn get type => text().withDefault(const Constant('system'))();
+  /// 歌曲数（服务端快照，拉取时刷新）
+  IntColumn get songCount => integer().withDefault(const Constant(0))();
+  /// 播放量
+  IntColumn get playCount => integer().withDefault(const Constant(0))();
+  /// 创建者昵称（用户公开歌单显示）
+  TextColumn get ownerNickname => text().withDefault(const Constant(''))();
+  /// 创建者头像 URL
+  TextColumn get ownerAvatarUrl => text().withDefault(const Constant(''))();
+  /// 服务端返回顺序（系统在前、公开在后，原样保留展示顺序）
+  IntColumn get orderIndex => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {remoteId};
+}
+
+/// 本地推荐歌单歌曲缓存表（只读下行缓存，无 is_synced）
+/// 镜像推荐歌单内歌曲列表，由 SyncService 拉取歌单详情后整体覆盖。
+class LocalRecommendPlaylistSongs extends Table {
+  /// 所属推荐歌单服务端 ID
+  IntColumn get playlistRemoteId => integer()();
+  /// 歌曲 ID（原始音源 ID）
+  TextColumn get songId => text()();
+  /// 音源标识
+  TextColumn get source => text().withDefault(const Constant(''))();
+  /// 歌曲名
+  TextColumn get songName => text()();
+  /// 歌手
+  TextColumn get artist => text().withDefault(const Constant(''))();
+  /// 专辑
+  TextColumn get album => text().withDefault(const Constant(''))();
+  /// 封面 URL
+  TextColumn get coverUrl => text().nullable()();
+  /// 封面图 pic_id（音源原始图片 ID）
+  TextColumn get picId => text().nullable()();
+  /// 歌词 ID（音源原始歌词 ID）
+  TextColumn get lyricId => text().nullable()();
+  /// 歌单内排序序号
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {playlistRemoteId, songId, source};
+}

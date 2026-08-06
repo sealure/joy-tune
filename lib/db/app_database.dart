@@ -19,6 +19,8 @@ part 'app_database.g.dart';
   LocalSettings,
   LocalSongMeta,
   LocalPlaylistFollows,
+  LocalRecommendPlaylists,
+  LocalRecommendPlaylistSongs,
 ])
 class AppDatabase extends _$AppDatabase {
   /// 默认构造：drift_flutter 统一移动端原生 + 桌面端 ffi
@@ -28,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +50,11 @@ class AppDatabase extends _$AppDatabase {
           // v5：新增本地收藏歌单表 local_playlist_follows（订阅他人公开歌单）
           if (from < 5) {
             await m.createTable(localPlaylistFollows);
+          }
+          // v6：新增推荐歌单缓存表 local_recommend_playlists / 歌曲缓存表（只读下行，SyncService 异步拉取覆盖）
+          if (from < 6) {
+            await m.createTable(localRecommendPlaylists);
+            await m.createTable(localRecommendPlaylistSongs);
           }
         },
       );
