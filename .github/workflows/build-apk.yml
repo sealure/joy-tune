@@ -6,9 +6,12 @@
 #   - 产物按 ABI 拆分,以 joy-tune_<版本>_<abi>.apk 上传到 GitHub Release
 #
 # 注意:
-#   - 当前仓库 release 构建使用 debug 签名(android/app/build.gradle.kts
-#     中 signingConfig = debug),生成的 APK 可安装但不可上架 Google Play;
-#     如需正式签名,需在仓库配置 keystore 相关 Secrets 并在 build.gradle.kts 中配置。
+#   - release 构建使用固定 keystore 签名:android/app/build.gradle.kts 中,
+#     本机存在 android/app/key.properties 时用 release 签名(joy-tune-release.jks),
+#     缺少时才降级 debug 签名;
+#   - CI 在下方"还原发布签名"步骤从 GitHub Secrets 还原同一把 keystore,
+#     保证所有版本签名一致,自更新才能无缝覆盖安装
+#     (否则每次 debug 签名不同 → 覆盖安装报"签名不同")。
 # ============================================================
 name: 构建并发布 Android APK
 
