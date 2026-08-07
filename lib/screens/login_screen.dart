@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../config/api_config.dart';
 import '../firebase_options.dart';
+import '../services/google_oauth_windows.dart';
 import '../services/providers.dart';
 
 /// 登录页 — 深色背景 + 靛蓝/紫色光晕动画，GitHub / Google OAuth
@@ -26,31 +27,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      debugPrint('>>> [STEP 1] 调用 GoogleSignIn().signIn()');
-      // 1. 调用 Google Sign-In SDK 拿 Google 账号
-      // Android: firebase_auth 会自动用 google-services.json 的 Android client，无需手动配 serverClientId
-      // iOS/macOS: 使用 iOS 客户端 ID（firebase_options 的 iOS appId 对应）
-      final googleUser = await GoogleSignIn(
-        scopes: ['email', 'profile'],
-        clientId: Platform.isAndroid
-            ? null  // Android 自动用 Firebase 项目配置
-            : DefaultFirebaseOptions.ios.appId,
-      ).signIn();
+      // 1. 获取 Google 账号凭据：
+      //    - Windows: google_sign_in 无实现,改走浏览器 OAuth(google_oauth_windows.dart)
+      //    - Android/iOS/macOS: 用 google_sign_in 插件
+      final String? idToken;
+      final String? accessToken;
+      if (Platform.isWindows) {
+        debugPrint('>>> [STEP 1] Windows 浏览器 OAuth 登录');
+        final result = await GoogleOAuthWindows().signIn();
+        if (result == null) {
+          debugPrint('>>> [STEP 1] 用户取消或 OAuth 失败');
+          setState(() => _isLoading = false);
+          return;
+        }
+        idToken = result.idToken;
+        accessToken = result.accessToken;
+        debugPrint('>>> [STEP 1] OAuth 成功, idToken=${idToken.length}字符');
+      } else {
+        debugPrint('>>> [STEP 1] 调用 GoogleSignIn().signIn()');
+        // Android: firebase_auth 会自动用 google-services.json 的 Android client，无需手动配 serverClientId
+        // iOS/macOS: 使用 iOS 客户端 ID（firebase_options 的 iOS appId 对应）
+        final googleUser = await GoogleSignIn(
+          scopes: ['email', 'profile'],
+          clientId: Platform.isAndroid
+              ? null // Android 自动用 Firebase 项目配置
+              : DefaultFirebaseOptions.ios.appId,
+        ).signIn();
 
-      if (googleUser == null) {
-        debugPrint('>>> [STEP 1] 用户取消了登录');
-        setState(() => _isLoading = false);
-        return;
+        if (googleUser == null) {
+          debugPrint('>>> [STEP 1] 用户取消了登录');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        debugPrint('>>> [STEP 1] 登录成功, email=${googleUser.email}, displayName=${googleUser.displayName}');
+
+        // 2. 获取 Google 认证信息
+        debugPrint('>>> [STEP 2] 获取 authentication');
+        final googleAuth = await googleUser.authentication;
+        idToken = googleAuth.idToken;
+        accessToken = googleAuth.accessToken;
+        debugPrint('>>> [STEP 2] idToken=${idToken != null ? "有(${idToken.length}字符)" : "null"}, accessToken=${accessToken != null ? "有(${accessToken.length}字符)" : "null"}');
       }
-
-      debugPrint('>>> [STEP 1] 登录成功, email=${googleUser.email}, displayName=${googleUser.displayName}');
-
-      // 2. 获取 Google 认证信息
-      debugPrint('>>> [STEP 2] 获取 authentication');
-      final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken;
-      final accessToken = googleAuth.accessToken;
-      debugPrint('>>> [STEP 2] idToken=${idToken != null ? "有(${idToken.length}字符)" : "null"}, accessToken=${accessToken != null ? "有(${accessToken.length}字符)" : "null"}');
 
       if (idToken == null) {
         debugPrint('>>> [STEP 2] 错误: idToken 为 null');

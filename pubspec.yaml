@@ -26,6 +26,7 @@ dependencies:
 
   # Google OAuth 登录
   google_sign_in: ^6.2.1
+  crypto: ^3.0.7 # Windows 浏览器 OAuth 的 PKCE(S256) 哈希
   # Firebase（统一 Google 登录，多端配置由 flutterfire 生成 firebase_options.dart 管理）
   firebase_core: ^4.13.0
   firebase_auth: ^6.5.7
@@ -68,8 +69,16 @@ dev_dependencies:
   build_runner: ^2.4.13
   # 单元测试 mock
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
+
+# Windows 图标生成配置（运行 dart run flutter_launcher_icons 生成 app_icon.ico）
+flutter_launcher_icons:
+  image_path: "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png"
+  windows:
+    generate: true
+    icon_size: 256
