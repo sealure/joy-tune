@@ -1,0 +1,18 @@
+# 临时探测 workflow：确认 GitHub 各 macOS runner 的架构与 Xcode 版本
+# 用后删除
+name: probe-macos
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-14, macos-15]
+    steps:
+      - name: 打印架构与 Xcode 版本
+        run: |
+          echo "ARCH: $(uname -m)"
+          xcodebuild -version
+          xcrun swift --version | head -1
