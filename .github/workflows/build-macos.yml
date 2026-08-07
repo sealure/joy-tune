@@ -17,6 +17,8 @@ on:
   push:
     tags:
       - 'v*'
+  # 手动触发：调试构建链路时用 gh workflow run 触发,无需反复打 tag
+  workflow_dispatch:
 
 env:
   # 固定 Flutter 版本以稳定命中缓存(与本地开发版本一致,3.44.7)
