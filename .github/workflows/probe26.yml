@@ -1,0 +1,13 @@
+# 临时探测 macos-26 runner 的 Xcode 版本,用后删除
+name: probe26
+on:
+  workflow_dispatch:
+
+jobs:
+  p:
+    runs-on: macos-26
+    steps:
+      - run: |
+          echo "ARCH: $(uname -m)"
+          xcodebuild -version
+          xcrun swift --version | head -1
