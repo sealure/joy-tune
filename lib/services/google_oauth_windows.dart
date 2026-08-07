@@ -17,7 +17,7 @@ const int kGoogleOAuthPort = 9092;
 
 /// firebase 项目《via-music-d4c27》的 Web OAuth client_id
 /// 从 Google Cloud Console → 凭据 → OAuth 2.0 客户端 ID 页面【顶部】复制，格式 xxx.apps.googleusercontent.com
-const String googleWebClientId = '705656192509-vs0nj9detc11k8acnjl7s81h9tmcp54b.apps.googleusercontent.com';
+const String googleWebClientId = '705656192509-vs0nj9dqtc11k8acnjl7s81h9tmcp54b.apps.googleusercontent.com';
 
 /// Google OAuth 成功返回的凭据
 class GoogleOAuthResult {

@@ -59,7 +59,11 @@ jobs:
         shell: pwsh
         run: |
           $VERSION = "$env:GITHUB_REF" -replace 'refs/tags/v',''
-          (Get-Content pubspec.yaml -Raw) -replace '^version: .*$', "version: ${VERSION}+1" | Set-Content pubspec.yaml
+          # 逐行替换版本号:Get-Content -Raw 会把文件读成单个多行字符串,
+          # 此时 .NET 正则 ^/$ 不按行匹配导致替换失效(exe 版本一直是 0.0.1)
+          $content = Get-Content pubspec.yaml
+          $content = $content -replace '^version: .*$', "version: ${VERSION}+1"
+          $content | Set-Content pubspec.yaml
           Write-Host "当前版本: $((Get-Content pubspec.yaml | Select-String '^version:').Line)"
 
       - name: 构建 Windows Release
