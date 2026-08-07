@@ -29,7 +29,7 @@ Future<void> initDesktop() async {
     } else {
       await windowManager.center();
     }
-    await windowManager.setPreventClose(true);
+    // 不设 setPreventClose,点标题栏 X 直接退出(系统托盘保留显示/退出菜单)
     await windowManager.show();
     await windowManager.focus();
   });
@@ -54,7 +54,6 @@ Future<void> initDesktop() async {
     MenuItem(
       label: '退出',
       onClicked: () async {
-        await windowManager.setPreventClose(false);
         await windowManager.close();
       },
     ),
@@ -73,15 +72,9 @@ Future<void> initDesktop() async {
   windowManager.addListener(_AppWindowListener());
 }
 
-/// 窗口事件监听
+/// 窗口事件监听（保存窗口尺寸/位置；关闭由系统默认处理，直接退出）
 class _AppWindowListener extends WindowListener {
   Timer? _saveTimer;
-
-  @override
-  void onWindowClose() {
-    windowManager.setPreventClose(false);
-    windowManager.close();
-  }
 
   @override
   void onWindowResize() {
