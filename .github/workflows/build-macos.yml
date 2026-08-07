@@ -3,13 +3,15 @@
 #
 # 触发方式:
 #   - 推送形如 v0.0.1 的 tag 时自动触发(versionName 会自动同步为 0.0.1)
-#   - 矩阵并行:macos-13(Intel x64) 与 macos-14(Apple Silicon arm64),
-#     产物命名 joy-tune_<版本>_macos_<arch>.dmg 上传到 GitHub Release
+#   - workflow_dispatch:手动触发调试
+#   - 矩阵并行:两 job 都用 macos-15(Xcode 16.4/Swift 6.1,能编译新版 firebase)
+#     ,arm64 原生构建,x64 装 Rosetta + 下载 x64 Flutter SDK 交叉编译
 #
 # 注意:
-#   - 免费 Personal Team 无法公证,CI 用 CODE_SIGNING_ALLOWED=NO 跳过签名,
-#     产物未签名,Gatekeeper 首次分发需用户右键打开;
-#   - 正式后端地址经 --dart-define 注入,与 build-apk.yml 一致
+#   - 免费 Personal Team 无法公证,CI 构建前 perl 把 CODE_SIGNING_ALLOWED=NO
+#     写进工程配置跳过签名,产物未签名,Gatekeeper 首次分发需右键打开;
+#   - 正式后端地址经 --dart-define 注入,与 build-apk.yml 一致;
+#   - Flutter macOS SDK 按架构区分:arm64 用 flutter_macos_arm64, x64 用 flutter_macos
 # ============================================================
 name: 构建并发布 macOS 安装包
 
@@ -17,11 +19,10 @@ on:
   push:
     tags:
       - 'v*'
-  # 手动触发：调试构建链路时用 gh workflow run 触发,无需反复打 tag
   workflow_dispatch:
 
 env:
-  # 固定 Flutter 版本以稳定命中缓存(与本地开发版本一致,3.44.7)
+  # 固定 Flutter 版本(与本地一致),两个架构各一份下载
   FLUTTER_VERSION: '3.44.7'
   # 正式环境后端地址,经 --dart-define 注入,替代本地默认的局域网地址
   API_BASE_URL: 'https://va.1hub.ccwu.cc/api/v1'
@@ -29,7 +30,7 @@ env:
 jobs:
   build-macos:
     name: 构建 macOS (${{ matrix.arch }}) 并发布
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-15
     timeout-minutes: 90
     # 发布 Release 需要写权限
     permissions:
@@ -37,12 +38,13 @@ jobs:
     strategy:
       matrix:
         include:
-          # Apple Silicon
+          # Apple Silicon:原生构建
           - arch: arm64
-            runner: macos-14
-          # Intel
+            # 无 dart_sdk_arch 后缀的为 x64 版;arm64 版文件名带 _arm64
+            flutter_zip: flutter_macos_arm64_3.44.7-stable.zip
+          # Intel:装 Rosetta 跑 x64 Flutter SDK 交叉编译
           - arch: x64
-            runner: macos-13
+            flutter_zip: flutter_macos_3.44.7-stable.zip
 
     steps:
       - name: 检出代码
@@ -55,17 +57,23 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: 安装 Flutter SDK(含 SDK 与 pub 依赖缓存)
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          cache: true
+      # x64 需 Rosetta 才能在 arm64 runner 运行 x86_64 的 Flutter 工具链
+      - name: 安装 Rosetta(x64)
+        if: matrix.arch == 'x64'
+        run: sudo softwareupdate --install-rosetta --agree-to-license || true
+
+      # Flutter macOS SDK 按架构区分,arm64 与 x64 下载各自版本;无缓存但稳定
+      - name: 下载 Flutter SDK (${{ matrix.arch }})
+        run: |
+          curl -L -o /tmp/flutter.zip \
+            https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/${{ matrix.flutter_zip }}
+          unzip -q /tmp/flutter.zip -d /tmp/
 
       - name: 获取依赖
+        # Flutter 3.44 SPM 集成会把 pub 插件复制到 build/ios 与 build/macos 的
+        # SourcePackages,CI 干净环境该目录不存在会导致 rsync 复制失败,先建目录
         run: |
-          # Flutter 3.44 SPM 集成会把 pub 插件复制到 build/ios 与 build/macos 的
-          # SourcePackages,CI 干净环境该目录不存在会导致 rsync 复制失败,先建目录
+          export PATH="/tmp/flutter/bin:$PATH"
           mkdir -p build/ios/SourcePackages build/macos/SourcePackages
           flutter pub get
 
@@ -86,8 +94,15 @@ jobs:
           perl -0pi -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Automatic;\n\t\t\t\tCODE_SIGNING_ALLOWED = NO;/g' macos/Runner.xcodeproj/project.pbxproj
           echo "已注入 CODE_SIGNING_ALLOWED: $(grep -c 'CODE_SIGNING_ALLOWED' macos/Runner.xcodeproj/project.pbxproj) 处"
 
+      # arm64 原生构建;x64 经 Rosetta 运行 x86_64 Flutter 工具链产出 x86_64 app
       - name: 构建 macOS Release(不签名)
-        run: flutter build macos --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+        run: |
+          export PATH="/tmp/flutter/bin:$PATH"
+          if [ "${{ matrix.arch }}" = "x64" ]; then
+            arch -x86_64 flutter build macos --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+          else
+            flutter build macos --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+          fi
 
       # 制作 dmg 安装镜像:joy-tune_<版本>_macos_<arch>.dmg
       # staging 目录放 .app + Applications 符号链接,提供"拖拽到 Applications"布局
@@ -102,10 +117,10 @@ jobs:
           rm -rf dmg_stage
           ls -lh dist/
 
-      # 两个矩阵 job 向同一个 tag 的 Release 追加各自的 zip
+      # 两个矩阵 job 向同一个 tag 的 Release 追加各自的 dmg
       - name: 发布到 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          files: dist/*.dmg
           update_release: true
           generate_release_notes: true
