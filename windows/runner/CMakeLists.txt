@@ -16,6 +16,9 @@ add_executable(${BINARY_NAME} WIN32
   "runner.exe.manifest"
 )
 
+# CMake target 名须为 ASCII(joy_tune),通过 OUTPUT_NAME 让 exe 文件名为"悦听.exe"
+set_target_properties(${BINARY_NAME} PROPERTIES OUTPUT_NAME "悦听")
+
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
