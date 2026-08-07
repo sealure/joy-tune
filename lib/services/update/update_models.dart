@@ -1,6 +1,11 @@
 // 自动更新数据模型：GitHub Release 信息 / 产物 / 更新内容 / 检查结果
 import 'version_compare.dart';
 
+/// 支持自动更新的产物平台标识（与产物命名里的平台段一致）
+const String assetPlatformAndroid = 'android';
+const String assetPlatformMacos = 'macos';
+const String assetPlatformWindows = 'windows';
+
 /// GitHub Release 最新版本信息
 class ReleaseInfo {
   final String tagName; // 如 v0.0.2
@@ -21,8 +26,8 @@ class ReleaseInfo {
   factory ReleaseInfo.fromJson(Map<String, dynamic> json) {
     final assets = (json['assets'] as List? ?? [])
         .map((a) => ReleaseAsset.fromJson(a as Map<String, dynamic>))
-        // 仅保留能解析出 ABI 的 APK 产物（过滤旧命名等无关资产）
-        .where((a) => a.abi != null)
+        // 仅保留能解析出平台的产物（过滤旧命名等无关资产）
+        .where((a) => a.platform.isNotEmpty)
         .toList();
     return ReleaseInfo(
       tagName: json['tag_name'] as String? ?? '',
@@ -33,36 +38,65 @@ class ReleaseInfo {
   }
 }
 
-/// Release 中的下载资产（按 ABI 拆分的 APK）
+/// Release 中的下载资产（按平台+架构拆分的安装包）
 class ReleaseAsset {
-  final String name; // joy-tune_0.0.2_arm64-v8a.apk
+  /// 产物名，如 joy-tune_0.0.2_arm64-v8a.apk / joy-tune_0.0.11_macos_arm64.dmg
+  final String name;
+
   final String browserDownloadUrl;
   final int size; // 字节
-  final String? abi; // 从文件名解析出的 ABI，解析失败为 null
+
+  /// 产物平台（android / macos / windows，见 assetPlatform* 常量）
+  final String platform;
+
+  /// 产物架构（Android 为 ABI 串如 arm64-v8a；桌面端为 arm64 / x64）
+  final String arch;
 
   const ReleaseAsset({
     required this.name,
     required this.browserDownloadUrl,
     required this.size,
-    this.abi,
+    required this.platform,
+    required this.arch,
   });
 
   factory ReleaseAsset.fromJson(Map<String, dynamic> json) {
     final name = json['name'] as String? ?? '';
+    final info = parseAssetInfo(name);
     return ReleaseAsset(
       name: name,
       browserDownloadUrl: json['browser_download_url'] as String? ?? '',
       size: json['size'] as int? ?? 0,
-      abi: parseAbiFromName(name),
+      platform: info?.$1 ?? '',
+      arch: info?.$2 ?? '',
     );
   }
 }
 
-/// 从产物名解析 ABI：joy-tune_0.0.2_arm64-v8a.apk => arm64-v8a；
-/// 旧命名 via_music_0.0.1.apk 解析失败返回 null（安全过滤）
+/// 从产物名解析 (平台, 架构)：
+/// - Android: `joy-tune_<版本>_<abi>.apk`        → (android, abi)
+/// - macOS:   `joy-tune_<版本>_macos_<arch>.dmg`  → (macos, arm64/x64)
+/// - Windows: `joy-tune_<版本>_windows_<arch>.zip` → (windows, arm64/x64)
+/// 旧命名 via_music_*.apk 等解析失败返回 null（安全过滤）
+(String, String)? parseAssetInfo(String name) {
+  // Android APK：无平台段，末段为 ABI
+  final apk = RegExp(r'^joy-tune_[^_]+_(.+)\.apk$').firstMatch(name);
+  if (apk != null) return (assetPlatformAndroid, apk.group(1)!);
+  // macOS dmg：显式平台段
+  final macos =
+      RegExp(r'^joy-tune_[^_]+_macos_(arm64|x64)\.dmg$').firstMatch(name);
+  if (macos != null) return (assetPlatformMacos, macos.group(1)!);
+  // Windows zip：显式平台段
+  final windows =
+      RegExp(r'^joy-tune_[^_]+_windows_(arm64|x64)\.zip$').firstMatch(name);
+  if (windows != null) return (assetPlatformWindows, windows.group(1)!);
+  return null;
+}
+
+/// 从产物名解析 ABI（仅 Android APK 有效，桌面端产物返回 null）
 String? parseAbiFromName(String name) {
-  final match = RegExp(r'^joy-tune_[^_]+_(.+)\.apk$').firstMatch(name);
-  return match?.group(1);
+  final info = parseAssetInfo(name);
+  return info?.$1 == assetPlatformAndroid ? info?.$2 : null;
 }
 
 /// 更新内容条目类型（设计稿：新增=靛蓝 / 修复=红 / 优化=绿 / 其它=普通）

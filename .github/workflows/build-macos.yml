@@ -1,0 +1,100 @@
+# ============================================================
+# 构建并发布 macOS Release 安装包（Intel x64 + Apple Silicon arm64）
+#
+# 触发方式:
+#   - 推送形如 v0.0.1 的 tag 时自动触发(versionName 会自动同步为 0.0.1)
+#   - 矩阵并行:macos-13(Intel x64) 与 macos-14(Apple Silicon arm64),
+#     产物命名 joy-tune_<版本>_macos_<arch>.dmg 上传到 GitHub Release
+#
+# 注意:
+#   - 免费 Personal Team 无法公证,CI 用 CODE_SIGNING_ALLOWED=NO 跳过签名,
+#     产物未签名,Gatekeeper 首次分发需用户右键打开;
+#   - 正式后端地址经 --dart-define 注入,与 build-apk.yml 一致
+# ============================================================
+name: 构建并发布 macOS 安装包
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  # 固定 Flutter 版本以稳定命中缓存(与本地开发版本一致,3.44.7)
+  FLUTTER_VERSION: '3.44.7'
+  # 正式环境后端地址,经 --dart-define 注入,替代本地默认的局域网地址
+  API_BASE_URL: 'https://va.1hub.ccwu.cc/api/v1'
+
+jobs:
+  build-macos:
+    name: 构建 macOS (${{ matrix.arch }}) 并发布
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    # 发布 Release 需要写权限
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          # Apple Silicon
+          - arch: arm64
+            runner: macos-14
+          # Intel
+          - arch: x64
+            runner: macos-13
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # macOS 构建需要 JDK 17+,先用 temurin 17 保证稳定
+      - name: 配置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Flutter SDK(含 SDK 与 pub 依赖缓存)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: 获取依赖
+        run: flutter pub get
+
+      # 把 pubspec.yaml 的 version 同步为 tag(tag v0.0.1 -> version 0.0.1+1)
+      - name: 同步版本号到 tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          sed -i '' "s/^version: .*/version: ${VERSION}+1/" pubspec.yaml
+          echo "当前版本: $(grep '^version:' pubspec.yaml)"
+
+      # CI 无 Apple 开发证书(免费 Personal Team 无法公证),通过环境变量
+      # CODE_SIGNING_ALLOWED=NO 让 xcodebuild 跳过签名(环境变量优先级高于
+      # 工程配置),产物未签名,首次分发需右键打开
+      - name: 构建 macOS Release(不签名)
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: flutter build macos --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+
+      # 制作 dmg 安装镜像:joy-tune_<版本>_macos_<arch>.dmg
+      # staging 目录放 .app + Applications 符号链接,提供"拖拽到 Applications"布局
+      - name: 制作 DMG 安装镜像
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          mkdir -p dist dmg_stage
+          cp -R build/macos/Build/Products/Release/joy_tune.app dmg_stage/
+          ln -s /Applications dmg_stage/Applications
+          hdiutil create -volname "JoyTune" -srcfolder dmg_stage \
+            -ov -format UDZO "dist/joy-tune_${VERSION}_macos_${{ matrix.arch }}.dmg"
+          rm -rf dmg_stage
+          ls -lh dist/
+
+      # 两个矩阵 job 向同一个 tag 的 Release 追加各自的 zip
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          update_release: true
+          generate_release_notes: true

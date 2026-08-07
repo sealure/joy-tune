@@ -24,6 +24,47 @@ void main() {
     });
   });
 
+  group('parseAssetInfo', () {
+    test('解析 Android APK 产物', () {
+      final info = parseAssetInfo('joy-tune_0.0.11_arm64-v8a.apk');
+      expect(info, isNotNull);
+      expect(info!.$1, assetPlatformAndroid);
+      expect(info.$2, 'arm64-v8a');
+    });
+
+    test('解析 macOS dmg 产物（arm64 / x64）', () {
+      final arm = parseAssetInfo('joy-tune_0.0.11_macos_arm64.dmg');
+      expect(arm, isNotNull);
+      expect(arm!.$1, assetPlatformMacos);
+      expect(arm.$2, 'arm64');
+
+      final x64 = parseAssetInfo('joy-tune_0.0.11_macos_x64.dmg');
+      expect(x64, isNotNull);
+      expect(x64!.$1, assetPlatformMacos);
+      expect(x64.$2, 'x64');
+    });
+
+    test('解析 Windows zip 产物（x64）', () {
+      final info = parseAssetInfo('joy-tune_0.0.11_windows_x64.zip');
+      expect(info, isNotNull);
+      expect(info!.$1, assetPlatformWindows);
+      expect(info.$2, 'x64');
+    });
+
+    test('非法命名无法解析（安全过滤）', () {
+      // 旧命名 / 缺架构段 / 不支持的平台 / 无关文件
+      expect(parseAssetInfo('via_music_0.0.1.apk'), isNull);
+      expect(parseAssetInfo('joy-tune_0.0.11_macos.dmg'), isNull);
+      expect(parseAssetInfo('joy-tune_0.0.11_linux_x64.dmg'), isNull);
+      expect(parseAssetInfo('readme.md'), isNull);
+    });
+
+    test('parseAbiFromName 对桌面端产物返回 null', () {
+      expect(parseAbiFromName('joy-tune_0.0.11_macos_arm64.dmg'), isNull);
+      expect(parseAbiFromName('joy-tune_0.0.11_windows_x64.zip'), isNull);
+    });
+  });
+
   group('ChangelogItem.parse', () {
     test('解析 [新增] 前缀为新增类型', () {
       final items = ChangelogItem.parse('[新增] 支持按 ABI 拆分');
@@ -75,7 +116,7 @@ void main() {
 
   group('pickLatestRelease', () {
     // 构造一个 release JSON（字段与 GitHub API 一致）
-    Map<String, dynamic> _release(String tag,
+    Map<String, dynamic> makeRelease(String tag,
         {bool draft = false, bool prerelease = false}) {
       return {
         'tag_name': tag,
@@ -88,16 +129,16 @@ void main() {
     }
 
     test('并行发版时按版本号取最高（不依赖发布时间）', () {
-      final list = <dynamic>[_release('v0.0.8'), _release('v0.0.9')];
+      final list = <dynamic>[makeRelease('v0.0.8'), makeRelease('v0.0.9')];
       final latest = pickLatestRelease(list);
       expect(latest?.version, '0.0.9');
     });
 
     test('过滤 draft 与 prerelease', () {
       final list = <dynamic>[
-        _release('v0.0.10', draft: true),
-        _release('v0.0.11', prerelease: true),
-        _release('v0.0.9'),
+        makeRelease('v0.0.10', draft: true),
+        makeRelease('v0.0.11', prerelease: true),
+        makeRelease('v0.0.9'),
       ];
       final latest = pickLatestRelease(list);
       expect(latest?.version, '0.0.9');
@@ -106,7 +147,7 @@ void main() {
     test('空列表或全部草稿返回 null', () {
       expect(pickLatestRelease(<dynamic>[]), isNull);
       expect(
-        pickLatestRelease(<dynamic>[_release('v0.0.1', draft: true)]),
+        pickLatestRelease(<dynamic>[makeRelease('v0.0.1', draft: true)]),
         isNull,
       );
     });

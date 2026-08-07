@@ -1,6 +1,8 @@
 // 更新弹窗：发现新版本后居中卡片式弹窗
 // 对应设计稿 ui/update/index.html 帧 2（渐变头部 + 更新内容 + 下载进度 + 两按钮）
 
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,8 +30,8 @@ String formatSize(int bytes) {
 
 /// 更新选择框：发现新版本后让用户决定是否立即更新
 ///
-/// - Android 有匹配产物：`[稍后再说] [立即更新]`，立即更新进入完整下载安装弹窗
-/// - 桌面端/ABI 无产物（noAsset）：`[取消] [前往下载]`，前往下载打开 Release 页
+/// - 有匹配产物：`[稍后再说] [立即更新]`，立即更新进入完整下载安装弹窗
+/// - 平台/架构无产物（noAsset）：`[取消] [前往下载]`，前往下载打开 Release 页
 Future<void> showUpdatePrompt(
   BuildContext context,
   WidgetRef ref, {
@@ -38,14 +40,14 @@ Future<void> showUpdatePrompt(
   final release = result.release;
   if (release == null) return;
 
-  // 桌面端/ABI 无产物：跳转 Release 页手动下载
+  // 平台/架构无产物（如 Linux）：跳转 Release 页手动下载
   if (result.noAsset) {
     final go = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('发现新版本'),
         content: Text('当前 v${result.currentVersion ?? ''} → 最新 v${release.version}\n'
-            '当前平台暂不支持自动安装，前往 GitHub Release 页手动下载？'),
+            '当前平台暂不支持自动更新，前往 GitHub Release 页手动下载？'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -68,14 +70,16 @@ Future<void> showUpdatePrompt(
   final asset = result.asset;
   if (asset == null) return;
 
-  // Android：确认是否立即更新
+  // 桌面端（macOS/Windows）：自动下载并替换当前应用；Android：下载后拉起系统安装器
+  final isDesktop = Platform.isMacOS || Platform.isWindows;
   final go = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('发现新版本'),
       content: Text(
           '当前 v${result.currentVersion ?? ''} → 最新 v${release.version}\n'
-          '约 ${formatSize(asset.size)}，是否立即更新？'),
+          '约 ${formatSize(asset.size)}，'
+          '${isDesktop ? '更新将自动下载并替换当前应用' : '是否立即更新？'}'),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
@@ -175,11 +179,26 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
     }
   }
 
-  /// 拉起系统安装器安装 APK；未授权"安装未知应用"时先引导跳设置开启
+  /// 安装更新：Android 拉起系统安装器；桌面端自动替换并重启应用
   Future<void> _install() async {
     final path = _localPath;
     if (path == null) return;
     final service = ref.read(updateServiceProvider);
+
+    // 桌面端（macOS/Windows）：自动替换安装，成功后退出由脚本收尾
+    if (Platform.isMacOS || Platform.isWindows) {
+      final asset = _asset;
+      if (asset == null) return;
+      final ok = await service.installDesktopUpdate(asset);
+      if (ok) {
+        exit(0);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('更新失败，请稍后重试或手动下载安装')),
+        );
+      }
+      return;
+    }
 
     // Android 8+ 需先授权"安装未知应用"，否则系统拒绝安装
     if (!await service.hasUnknownSourcePermission()) {
@@ -221,13 +240,13 @@ class _UpdateDialogState extends ConsumerState<UpdateDialog> {
     Navigator.of(context).pop();
   }
 
-  /// 主按钮文案（状态机）
+  /// 主按钮文案（状态机；桌面端下载完为"立即更新"，Android 为"立即安装"）
   String get _actionText {
     switch (_phase) {
       case _UpdatePhase.downloading:
         return '下载中…';
       case _UpdatePhase.downloaded:
-        return '立即安装';
+        return Platform.isMacOS || Platform.isWindows ? '立即更新' : '立即安装';
       case _UpdatePhase.error:
         return '重试下载';
       case _UpdatePhase.idle:

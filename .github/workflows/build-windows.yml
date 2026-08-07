@@ -1,0 +1,78 @@
+# ============================================================
+# 构建并发布 Windows Release 安装包(x64)
+#
+# 触发方式:
+#   - 推送形如 v0.0.1 的 tag 时自动触发(versionName 会自动同步为 0.0.1)
+#   - 产物命名 joy-tune_<版本>_windows_x64.zip 上传到 GitHub Release
+#   - Windows 更新程序按 x64 匹配此产物
+#
+# 注意:Windows 未做代码签名,SmartScreen 首次运行可能警告
+# ============================================================
+name: 构建并发布 Windows 安装包
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  # 固定 Flutter 版本以稳定命中缓存(与本地开发版本一致,3.44.7)
+  FLUTTER_VERSION: '3.44.7'
+  # 正式环境后端地址,经 --dart-define 注入,替代本地默认的局域网地址
+  API_BASE_URL: 'https://va.1hub.ccwu.cc/api/v1'
+
+jobs:
+  build-windows:
+    name: 构建 Windows x64 并发布
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # 发布 Release 需要写权限
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # Flutter 构建需要 JDK 17+,先用 temurin 17 保证稳定
+      - name: 配置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Flutter SDK(含 SDK 与 pub 依赖缓存)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: 获取依赖
+        run: flutter pub get
+
+      # 把 pubspec.yaml 的 version 同步为 tag(tag v0.0.1 -> version 0.0.1+1)
+      - name: 同步版本号到 tag
+        shell: pwsh
+        run: |
+          $VERSION = "$env:GITHUB_REF" -replace 'refs/tags/v',''
+          (Get-Content pubspec.yaml -Raw) -replace '^version: .*$', "version: ${VERSION}+1" | Set-Content pubspec.yaml
+          Write-Host "当前版本: $((Get-Content pubspec.yaml | Select-String '^version:').Line)"
+
+      - name: 构建 Windows Release
+        run: flutter build windows --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+
+      # 打包整个 Release 目录为 zip:joy-tune_<版本>_windows_x64.zip
+      - name: 整理构建产物
+        shell: pwsh
+        run: |
+          $VERSION = "$env:GITHUB_REF" -replace 'refs/tags/v',''
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/joy-tune_${VERSION}_windows_x64.zip" -Force
+          Get-ChildItem dist | Select-Object Name, Length
+
+      - name: 发布到 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
