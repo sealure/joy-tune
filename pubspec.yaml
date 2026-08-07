@@ -27,11 +27,8 @@ dependencies:
   # Google OAuth 登录
   google_sign_in: ^6.2.1
   # Firebase（统一 Google 登录，多端配置由 flutterfire 生成 firebase_options.dart 管理）
-  # 锁 3.4~3.6 / 5.1~5.3：对应 firebase-ios-sdk 11.4~11.6(2024 年, Swift 5.x 语法),
-  # 兼容 GitHub CI 的 Intel runner(macos-13, Xcode 15.4/Swift 5.10)。
-  # 更高 firebase-ios-sdk(11.15/12.x) 用了 Swift 6.1 语法,旧 Xcode 无法编译。
-  firebase_core: '>=3.4.0 <3.7.0'
-  firebase_auth: '>=5.1.0 <5.4.0'
+  firebase_core: ^4.13.0
+  firebase_auth: ^6.5.7
 
   # 窗口管理
   window_manager: ^0.4.3
