@@ -60,6 +60,10 @@ jobs:
           Write-Host "当前版本: $((Get-Content pubspec.yaml | Select-String '^version:').Line)"
 
       - name: 构建 Windows Release
+        env:
+          # 降级后的 firebase_cpp_sdk CMakeLists 要求兼容 CMake<3.5,新版 CMake 已移除该兼容,
+          # 设 CMAKE_POLICY_VERSION_MINIMUM=3.5 按旧策略配置避免报错
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
         run: flutter build windows --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
 
       # 打包整个 Release 目录为 zip:joy-tune_<版本>_windows_x64.zip
