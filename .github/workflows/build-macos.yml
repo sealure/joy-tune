@@ -61,7 +61,11 @@ jobs:
           cache: true
 
       - name: 获取依赖
-        run: flutter pub get
+        run: |
+          # Flutter 3.44 SPM 集成会把 pub 插件同步到 build/ios/SourcePackages,
+          # CI 干净环境该目录不存在会导致 rsync 复制失败,先建目录
+          mkdir -p build/ios/SourcePackages
+          flutter pub get
 
       # 把 pubspec.yaml 的 version 同步为 tag(tag v0.0.1 -> version 0.0.1+1)
       - name: 同步版本号到 tag
