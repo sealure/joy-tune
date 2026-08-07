@@ -4,8 +4,8 @@
 # 触发方式:
 #   - 推送形如 v0.0.1 的 tag 时自动触发(versionName 会自动同步为 0.0.1)
 #   - workflow_dispatch:手动触发调试
-#   - 矩阵并行:两 job 都用 macos-15(Xcode 16.4/Swift 6.1,能编译新版 firebase)
-#     ,arm64 原生构建,x64 装 Rosetta + 下载 x64 Flutter SDK 交叉编译
+#   - 矩阵并行:两 job 都用 macos-26(Xcode 26.6/Swift 6.3,与本机一致,能编译新版
+#     firebase/connectivity_plus),arm64 原生构建,x64 装 Rosetta + 下载 x64 Flutter SDK 交叉编译
 #
 # 注意:
 #   - 免费 Personal Team 无法公证,CI 构建前 perl 把 CODE_SIGNING_ALLOWED=NO
@@ -30,7 +30,8 @@ env:
 jobs:
   build-macos:
     name: 构建 macOS (${{ matrix.arch }}) 并发布
-    runs-on: macos-15
+    # macos-26 = Xcode 26.6/Swift 6.3(与本机一致),能编译新版 firebase 与 connectivity_plus
+    runs-on: macos-26
     timeout-minutes: 90
     # 发布 Release 需要写权限
     permissions:
