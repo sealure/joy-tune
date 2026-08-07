@@ -123,8 +123,10 @@ jobs:
           rm -rf dmg_stage
           ls -lh dist/
 
-      # 两个矩阵 job 向同一个 tag 的 Release 追加各自的 dmg
+      # 两个矩阵 job 向同一个 tag 的 Release 追加各自的 dmg;
+      # 仅 tag 触发时发布(workflow_dispatch 调试无 tag,跳过)
       - name: 发布到 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.dmg
