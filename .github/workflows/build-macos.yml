@@ -109,7 +109,12 @@ jobs:
       # staging 目录放 .app + Applications 符号链接,提供"拖拽到 Applications"布局
       - name: 制作 DMG 安装镜像
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          # 版本号:tag 触发从 tag 取;dispatch 调试时 GITHUB_REF 非 tag,改从 pubspec 取
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          fi
           mkdir -p dist dmg_stage
           cp -R build/macos/Build/Products/Release/joy_tune.app dmg_stage/
           ln -s /Applications dmg_stage/Applications
