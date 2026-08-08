@@ -73,31 +73,46 @@ class GoogleOAuthWindows {
   }
 
   /// 监听 loopback 回调，解析 authorization code；用户取消或失败返回 null
+  ///
+  /// 同时监听 IPv4 与 IPv6 loopback：Windows 上浏览器访问 localhost 可能
+  /// 解析为 ::1(IPv6),若只监听 127.0.0.1 会连不上 → 回调页白屏且收不到 code
   Future<String?> _listenForCode() async {
-    HttpServer? server;
-    try {
-      server = await HttpServer.bind(InternetAddress.loopbackIPv4, kGoogleOAuthPort);
-    } catch (e) {
-      debugPrint('[GoogleOAuth] 端口 $kGoogleOAuthPort 被占用: $e');
-      return null;
-    }
     final completer = Completer<String?>();
-    server.listen((request) {
-      final query = request.uri.queryParameters;
-      final code = query['code'];
-      final error = query['error'];
-      request.response
-        ..statusCode = HttpStatus.ok
-        ..headers.contentType = ContentType.html
-        ..write('<html><body><h3>'
-            '${error != null ? '授权失败: $error' : '授权成功，可关闭此窗口'}'
-            '</h3></body></html>');
-      request.response.close();
-      if (!completer.isCompleted) {
-        completer.complete(error != null ? null : code);
+    final servers = <HttpServer>[];
+
+    for (final addr in [InternetAddress.loopbackIPv4, InternetAddress.loopbackIPv6]) {
+      try {
+        final server = await HttpServer.bind(
+          addr,
+          kGoogleOAuthPort,
+          // IPv6 独立绑定,避免 v6Only=false 与 IPv4 冲突
+          v6Only: addr.type == InternetAddressType.IPv6,
+        );
+        server.listen((request) {
+          final query = request.uri.queryParameters;
+          final code = query['code'];
+          final error = query['error'];
+          request.response
+            ..statusCode = HttpStatus.ok
+            ..headers.contentType = ContentType.html
+            ..write('<html><body style="font-family:system-ui;text-align:center">'
+                '<h3>${error != null ? "授权失败: $error" : "授权成功，可关闭此窗口，返回应用"}</h3>'
+                '</body></html>');
+          request.response.close();
+          if (!completer.isCompleted) {
+            completer.complete(error != null ? null : code);
+          }
+          // 单个回调成功后关掉所有监听(IPv4+IPv6)
+          for (final s in servers) {
+            s.close(force: true);
+          }
+        });
+        servers.add(server);
+      } catch (e) {
+        debugPrint('[GoogleOAuth] 监听 $addr:$kGoogleOAuthPort 失败: $e');
       }
-      server?.close(force: true);
-    });
+    }
+    if (servers.isEmpty) return null;
     return completer.future;
   }
 
