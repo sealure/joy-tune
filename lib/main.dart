@@ -148,6 +148,14 @@ void main() async {
       client.configureMusicSources(musicSources.sources);
       debugPrint('>>> [STARTUP] 音源配置已应用: ${client.enabledSources}');
     }
+
+    // 默认音质：把持久化值同步到播放客户端（设置页「默认音质」修改后也会重新写入）
+    final bitrateRaw = await settingsDao.get('default_bitrate');
+    final bitrate = bitrateRaw != null ? int.tryParse(bitrateRaw) : null;
+    if (bitrate != null) {
+      client.defaultBitrate = bitrate;
+      debugPrint('>>> [STARTUP] 默认音质已加载: ${bitrate}kbps');
+    }
   } catch (e) {
     debugPrint('>>> [STARTUP] 初始化失败，使用默认配置: $e');
   }

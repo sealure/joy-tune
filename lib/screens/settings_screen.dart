@@ -16,11 +16,13 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  int _defaultBitrate = 320;
+  int _defaultBitrate = 128;
 
   @override
   void initState() {
     super.initState();
+    // 读取持久化的默认音质并同步到播放客户端
+    _loadDefaultBitrate();
     // 进页后静默检查一次更新（本会话仅一次，供红点角标与按钮初始态）
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -31,6 +33,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       ref.read(updateCheckStateProvider.notifier).state = result;
     });
+  }
+
+  /// 读取本地持久化的默认音质并同步到播放客户端
+  Future<void> _loadDefaultBitrate() async {
+    final raw = await ref.read(settingsDaoProvider).get('default_bitrate');
+    final v = raw != null ? int.tryParse(raw) : null;
+    if (v != null && mounted) {
+      setState(() => _defaultBitrate = v);
+      ref.read(gdMusicClientProvider).defaultBitrate = v;
+    }
   }
 
   /// 触发检查更新（手动点击）
@@ -125,8 +137,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   DropdownMenuItem(value: 740, child: Text('740k (无损)')),
                   DropdownMenuItem(value: 999, child: Text('999k (高解析)')),
                 ],
-                onChanged: (v) {
-                  if (v != null) setState(() => _defaultBitrate = v);
+                onChanged: (v) async {
+                  if (v == null) return;
+                  setState(() => _defaultBitrate = v);
+                  // 持久化，并同步给播放客户端（让「默认音质」真正生效）
+                  await ref.read(settingsDaoProvider).set('default_bitrate', '$v');
+                  ref.read(gdMusicClientProvider).defaultBitrate = v;
                 },
               ),
             ),

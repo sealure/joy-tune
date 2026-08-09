@@ -116,17 +116,23 @@ class GdMusicClient {
     return list.map((e) => Song.fromJson(e as Map<String, dynamic>, source: source)).toList();
   }
 
+  /// 当前默认音质（kbps），会话级默认播放 bitrate；默认 128
+  /// 由设置页「默认音质」持久化并同步至此处；getPlayUrl 不传 bitrate 时使用
+  int defaultBitrate = 128;
+
   /// 获取播放 URL
+  /// [bitrate] 不传时使用当前默认音质（默认音质设置真正生效的入口）
   Future<PlayUrl> getPlayUrl({
     required String songId,
     required String source,
-    int bitrate = 320,
+    int? bitrate,
   }) async {
+    final br = bitrate ?? defaultBitrate;
     final response = await _clientFor(source).get('', queryParameters: {
       'types': 'url',
       'source': source,
       'id': songId,
-      'br': bitrate,
+      'br': br,
     });
 
     return PlayUrl.fromJson(response.data as Map<String, dynamic>);
