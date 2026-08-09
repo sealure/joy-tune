@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,51 +10,56 @@ import '../utils/player_utils.dart';
 import '../widgets/song_tile.dart';
 import '../widgets/playlist_picker_sheet.dart';
 
+/// 单次请求每页条数（GD Music API 单页最大，翻页以此判断是否到底）
+const _pageSize = 99;
+
 /// 搜索结果分页状态
 class _SearchState {
-  final List<Song> songs;
+  /// 各音源搜索结果字典：source → 该音源已加载的所有页的结果
+  final Map<String, List<Song>> sourceSongs;
   final bool isLoading;
   final bool hasMore;
+  /// 已加载到的页码，0 表示尚未搜索
   final int page;
   /// 当前搜索关键词（非空表示已执行搜索）
   final String keyword;
   /// 是否为专辑搜索（source 加 _album 后缀）
   final bool albumSearch;
-  /// joox 页面是否已全部翻完（< 20 条表示到底）
-  final bool jooxComplete;
-  /// 其他音源是否已加载过
-  final bool otherSourcesLoaded;
 
   const _SearchState({
-    this.songs = const [],
+    this.sourceSongs = const {},
     this.isLoading = false,
-    this.hasMore = true,
+    this.hasMore = false,
     this.page = 0,
     this.keyword = '',
     this.albumSearch = false,
-    this.jooxComplete = false,
-    this.otherSourcesLoaded = false,
   });
 
+  /// 按固定音源顺序展开的扁平结果列表（joox → tencent → netease → ...）
+  /// 用于列表渲染，第 n 页加载后按相同顺序追加
+  List<Song> get songs {
+    final list = <Song>[];
+    for (final source in GdMusicClient.sources) {
+      list.addAll(sourceSongs[source] ?? const []);
+    }
+    return list;
+  }
+
   _SearchState copyWith({
-    List<Song>? songs,
+    Map<String, List<Song>>? sourceSongs,
     bool? isLoading,
     bool? hasMore,
     int? page,
     String? keyword,
     bool? albumSearch,
-    bool? jooxComplete,
-    bool? otherSourcesLoaded,
   }) {
     return _SearchState(
-      songs: songs ?? this.songs,
+      sourceSongs: sourceSongs ?? this.sourceSongs,
       isLoading: isLoading ?? this.isLoading,
       hasMore: hasMore ?? this.hasMore,
       page: page ?? this.page,
       keyword: keyword ?? this.keyword,
       albumSearch: albumSearch ?? this.albumSearch,
-      jooxComplete: jooxComplete ?? this.jooxComplete,
-      otherSourcesLoaded: otherSourcesLoaded ?? this.otherSourcesLoaded,
     );
   }
 }
@@ -65,7 +69,7 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
 
   _SearchNotifier(this._ref) : super(const _SearchState());
 
-  /// 新搜索（先搜 joox，joox 翻到底后才加载其他音源）
+  /// 新搜索：多源并发搜索第 1 页，结果按音源分组存入字典
   Future<void> search(String keyword, {bool albumSearch = false}) async {
     if (keyword.trim().isEmpty) {
       state = const _SearchState();
@@ -74,157 +78,86 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     // 保存搜索历史（本地 SQLite，纯本地）
     await _ref.read(searchHistoryDaoProvider).addKeyword(keyword.trim());
     state = state.copyWith(
-      isLoading: true, songs: [], page: 0, hasMore: true,
-      keyword: keyword.trim(), albumSearch: albumSearch,
-      jooxComplete: false, otherSourcesLoaded: false,
+      isLoading: true,
+      sourceSongs: const {},
+      page: 0,
+      hasMore: false,
+      keyword: keyword.trim(),
+      albumSearch: albumSearch,
     );
-    await _fetchAllSourceResults();
+    await _fetchPage(1);
   }
 
-  /// 加载下一页（使用主源分页，避免超出 API 频率限制）
+  /// 加载下一页：所有音源并发搜索同一页码，结果按音源追加到字典
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore || state.keyword.isEmpty) return;
     state = state.copyWith(isLoading: true);
     await _fetchPage(state.page + 1);
   }
 
-  /// 首次搜索：先搜 joox，joox 没结果则立即加载其他音源
-  Future<void> _fetchAllSourceResults() async {
-    try {
-      final client = _ref.read(gdMusicClientProvider);
-      // 1. 先搜 joox（主源）
-      final jooxResults = await client.search(
-        keyword: state.keyword,
-        source: 'joox',
-        count: 99,
-        albumSearch: state.albumSearch,
-      );
-
-      final jooxComplete = jooxResults.length < 99;
-      List<Song> songs = jooxResults;
-      bool otherSourcesLoaded = false;
-
-      // 2. 如果 joox 没结果，立即加载其他音源
-      if (jooxResults.isEmpty) {
-        songs = await _fetchOtherSourcesSync();
-        otherSourcesLoaded = true;
-      }
-
-      if (!mounted) return;
-      state = state.copyWith(
-        songs: songs,
-        isLoading: false,
-        // joox 还有更多页，或者还没加载其他音源 → 可以继续加载
-        hasMore: !jooxComplete || !otherSourcesLoaded,
-        page: 1,
-        jooxComplete: jooxComplete,
-        otherSourcesLoaded: otherSourcesLoaded,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      state = state.copyWith(isLoading: false);
-    }
-  }
-
-  /// 分页加载：joox 没翻完就继续翻 joox，翻完则加载其他音源
+  /// 并发搜索所有启用音源的第 [page] 页，按音源分组追加到字典
+  /// - 每页每个音源一个搜索请求，返回结果存进字典（source → songs）
+  /// - 展示时按 `GdMusicClient.sources` 固定顺序展开，第一页、第 n 页均如此
+  /// - 查询源取 `client.enabledSources`（服务端 music_sources 配置启用集合；未配置则为内置兜底 4 源）
+  /// - 同源跨页按「歌名+歌手」去重，避免重复行
   Future<void> _fetchPage(int page) async {
-    try {
-      final client = _ref.read(gdMusicClientProvider);
-
-      if (!state.jooxComplete) {
-        // ── 继续翻 joox 分页 ──
-        final results = await client.search(
-          keyword: state.keyword,
-          source: 'joox',
-          count: 99,
-          page: page,
-          albumSearch: state.albumSearch,
-        );
-        if (!mounted) return;
-
-        final jooxComplete = results.length < 99;
-        // 跳过已存在的歌曲
-        final seen = <String>{
-          for (final s in state.songs) '${s.name}_${s.artist}'.toLowerCase(),
-        };
-        final fresh = results
-            .where((s) => !seen.contains('${s.name}_${s.artist}'.toLowerCase()))
-            .toList();
-
-        var songs = [...state.songs, ...fresh];
-        var otherSourcesLoaded = state.otherSourcesLoaded;
-
-        // joox 翻完了，接着加载其他音源
-        if (jooxComplete && !otherSourcesLoaded) {
-          final otherResults = await _fetchOtherSourcesSync();
-          songs = [...songs, ...otherResults];
-          otherSourcesLoaded = true;
-        }
-
-        if (!mounted) return;
-        state = state.copyWith(
-          songs: songs,
-          isLoading: false,
-          hasMore: !jooxComplete || !otherSourcesLoaded,
-          page: page,
-          jooxComplete: jooxComplete,
-          otherSourcesLoaded: otherSourcesLoaded,
-        );
-      } else if (!state.otherSourcesLoaded) {
-        // ── joox 已翻完，加载其他音源 ──
-        final otherResults = await _fetchOtherSourcesSync();
-        if (!mounted) return;
-        state = state.copyWith(
-          songs: [...state.songs, ...otherResults],
-          isLoading: false,
-          hasMore: false,
-          otherSourcesLoaded: true,
-        );
-      } else {
-        // ── 全部加载完 ──
-        state = state.copyWith(isLoading: false, hasMore: false);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      state = state.copyWith(isLoading: false);
-    }
-  }
-
-  /// 并发搜索非 joox 的所有音源，汇总去重并返回
-  Future<List<Song>> _fetchOtherSourcesSync() async {
     final client = _ref.read(gdMusicClientProvider);
-    final keyword = state.keyword.toLowerCase();
-    final futures = GdMusicClient.sources
-        .where((s) => s != 'joox')
-        .map((source) async {
+    final requestKeyword = state.keyword;
+    final keyword = requestKeyword.toLowerCase();
+    final futures = client.enabledSources.map((source) async {
       try {
-        final results = await client.search(
-          keyword: state.keyword,
+        final raw = await client.search(
+          keyword: requestKeyword,
           source: source,
-          count: 99,
+          count: _pageSize,
+          page: page,
           albumSearch: state.albumSearch,
         );
-        // 非主源的结果做精确过滤
-        return results.where((s) {
-          return s.name.toLowerCase().contains(keyword) ||
-              s.artist.toLowerCase().contains(keyword) ||
-              s.album.toLowerCase().contains(keyword);
-        }).toList();
+        // joox 作为主源不过滤；其余音源按关键词精确过滤，减少无关结果
+        final refined = source == 'joox'
+            ? raw
+            : raw
+                .where((s) =>
+                    s.name.toLowerCase().contains(keyword) ||
+                    s.artist.toLowerCase().contains(keyword) ||
+                    s.album.toLowerCase().contains(keyword))
+                .toList();
+        // 是否还有下一页用原始返回条数判断（过滤后可能被清空但源仍有后续页）
+        return (source: source, songs: refined, fullPage: raw.length >= _pageSize);
       } catch (_) {
-        return <Song>[];
+        // 单个音源失败不影响其他音源，返回空
+        return (source: source, songs: <Song>[], fullPage: false);
       }
     });
-    final allResults = await Future.wait(futures);
-    // 汇总所有结果
-    final allSongs = allResults.expand((list) => list).toList();
-    // 去重（歌名+歌手相同视为同一首歌，保留第一个）
-    final seen = <String>{};
-    final unique = <Song>[];
-    for (final song in allSongs) {
-      final key = '${song.name}_${song.artist}'.toLowerCase();
-      if (seen.add(key)) unique.add(song);
+    final entries = await Future.wait(futures);
+
+    if (!mounted || state.keyword != requestKeyword) return;
+
+    // 合并进字典：本页结果按音源追加，并判断是否还有下一页
+    final next = Map<String, List<Song>>.from(state.sourceSongs);
+    var anyFullPage = false; // 任意音源返回整页 → 该源可能还有下一页
+    var addedAny = false;    // 本页是否有新增歌曲（防同一页被重复返回时无限加载）
+    for (final entry in entries) {
+      final source = entry.source;
+      final results = entry.songs;
+      final old = next[source] ?? const <Song>[];
+      final seen = <String>{
+        for (final s in old) '${s.name}_${s.artist}'.toLowerCase(),
+      };
+      final fresh = results
+          .where((s) => seen.add('${s.name}_${s.artist}'.toLowerCase()))
+          .toList();
+      next[source] = [...old, ...fresh];
+      if (fresh.isNotEmpty) addedAny = true;
+      if (entry.fullPage) anyFullPage = true;
     }
-    return unique;
+
+    state = state.copyWith(
+      sourceSongs: next,
+      page: page,
+      isLoading: false,
+      hasMore: anyFullPage && addedAny,
+    );
   }
 }
 
@@ -383,23 +316,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     itemBuilder: (_, i) {
                       // 加载指示器
                       if (i == searchState.songs.length) {
-                        // joox 已翻完且正在加载其他音源时显示提示文字
-                        final isJooxDone = searchState.jooxComplete && !searchState.otherSourcesLoaded;
-                        return Column(
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16),
-                              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                            ),
-                            if (isJooxDone)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Text(
-                                  '正在加载其他音源...',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ),
-                          ],
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                         );
                       }
                       return SongTile(

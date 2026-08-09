@@ -17,6 +17,7 @@ import '../db/daos/session_dao.dart';
 import '../db/daos/settings_dao.dart';
 import '../db/daos/song_meta_dao.dart';
 import '../models/song.dart';
+import '../models/music_source_config.dart';
 import '../repositories/drift_favorite_repository.dart';
 import '../repositories/play_record_repository.dart';
 import '../repositories/playlist_follow_repository.dart';
@@ -40,6 +41,25 @@ final gdMusicClientProvider = Provider<GdMusicClient>((ref) => GdMusicClient());
 
 /// 后端 API 客户端
 final backendClientProvider = Provider<BackendClient>((ref) => BackendClient());
+
+/// 启动一次性拉取的服务端配置快照（音源列表 + system_configs）
+/// 由 main.dart 触发一次并缓存，运行期再次 read 不重复请求
+class StartupConfig {
+  /// 音源列表（music_sources 表；接口失败为 null，客户端回落内置列表）
+  final MusicSourcesResult? musicSources;
+  /// 系统配置（app_shutdown / recommend_top_n / comment_max_length 等，供全局读取）
+  final Map<String, dynamic> systemConfigs;
+
+  const StartupConfig({this.musicSources, this.systemConfigs = const {}});
+}
+
+/// 启动配置 provider：并发拉取一次音源列表 + 系统配置，FutureProvider 自动缓存
+final startupConfigProvider = FutureProvider<StartupConfig>((ref) async {
+  final client = ref.watch(backendClientProvider);
+  final musicSources = await client.getMusicSources();
+  final systemConfigs = await client.getConfigs();
+  return StartupConfig(musicSources: musicSources, systemConfigs: systemConfigs);
+});
 
 // ── 本地数据库 Provider ──
 

@@ -115,7 +115,7 @@ void main() async {
   // ── 启动后台同步任务（立即首扫 + 周期；游客态自动跳过推送）──
   container.read(syncServiceProvider).start();
 
-  // ── 启动时拉取后端配置 ──
+  // ── 启动一次性初始化（每次冷启动仅执行一轮，运行期不再重复）──
   try {
     final backendClient = container.read(backendClientProvider);
     final settingsDao = container.read(settingsDaoProvider);
@@ -123,7 +123,7 @@ void main() async {
     // 获取设备 ID（存于本地 SQLite，含旧值迁移回退）
     final deviceId = await _getDeviceId(settingsDao);
 
-    // 上报设备（幂等，失败静默忽略不影响启动）
+    // 1. 上报设备（写入后端 devices 表，作为停服定位依据；幂等，失败静默忽略）
     await backendClient.reportDevice(
       deviceId: deviceId,
       platform: _platformName(),
@@ -131,7 +131,7 @@ void main() async {
       appVersion: await container.read(appInfoProvider).version,
     );
 
-    // 检查停服开关（优先级最高）
+    // 2. 检查停服开关（优先级最高；必须先于 3，依赖 devices 表已有本设备记录）
     final shutdownResult = await backendClient.checkShutdown(deviceId: deviceId);
     if (shutdownResult.enabled) {
       // 停服：弹窗提示后退出
@@ -139,17 +139,17 @@ void main() async {
       return;
     }
 
-    // 拉取系统配置
-    final configs = await backendClient.getConfigs();
-
-    // 更新音乐 API 地址
-    final musicApiUrl = configs['music_api_url'] as String?;
-    if (musicApiUrl != null && musicApiUrl.isNotEmpty) {
-      container.read(gdMusicClientProvider).updateBaseUrl(musicApiUrl);
-      debugPrint('>>> [STARTUP] 音乐 API 地址已更新: $musicApiUrl');
+    // 3. 一次性拉取启动配置（音源列表 + system_configs），FutureProvider 缓存供运行期复用
+    final bootstrap = await container.read(startupConfigProvider.future);
+    final client = container.read(gdMusicClientProvider);
+    final musicSources = bootstrap.musicSources;
+    // 应用音源：music_sources 表配置优先；接口失败/为空则回落客户端内置列表
+    if (musicSources != null && musicSources.sources.isNotEmpty) {
+      client.configureMusicSources(musicSources.sources);
+      debugPrint('>>> [STARTUP] 音源配置已应用: ${client.enabledSources}');
     }
   } catch (e) {
-    debugPrint('>>> [STARTUP] 配置加载失败，使用默认配置: $e');
+    debugPrint('>>> [STARTUP] 初始化失败，使用默认配置: $e');
   }
 
   // 恢复上次播放会话

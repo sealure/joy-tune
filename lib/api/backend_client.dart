@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../config/api_config.dart';
+import '../models/music_source_config.dart';
 import '../models/song.dart';
 
 /// 后端 API 客户端
@@ -65,7 +66,27 @@ class BackendClient {
     }
   }
 
-  /// 上报设备信息（客户端启动时调用，幂等）
+  /// 获取音源列表（服务端 music_sources 独立表配置；失败返回 null）
+  /// 每个音源带独立 API 地址，决定客户端「查哪些源 + 各源请求哪个服务器」
+  Future<MusicSourcesResult?> getMusicSources() async {
+    try {
+      final response = await _dio.get('/config/music-sources');
+      final data = response.data as Map<String, dynamic>;
+      final sources = (data['sources'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => MusicSourceConfig.fromJson(e.cast<String, dynamic>()))
+          .toList();
+      return MusicSourcesResult(
+        sources: sources,
+        defaultSource: data['default_source'] as String? ?? '',
+      );
+    } on DioException catch (e) {
+      debugPrint('>>> [CONFIG] 获取音源列表失败: ${e.message}');
+      return null;
+    }
+  }
+
+  /// 上报设备信息（仅在启动时调用一次，幂等）
   /// 服务端据此记录活跃设备，作为精确停服的定位依据；失败静默忽略不影响启动
   Future<bool> reportDevice({
     required String deviceId,

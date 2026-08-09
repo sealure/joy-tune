@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/song.dart';
-import '../api/gdmusic_client.dart';
 import '../utils/cover_resolver.dart';
 import 'providers.dart';
 
@@ -71,11 +70,12 @@ class SongResolver {
     });
   }
 
-  /// 并发搜索所有音源，返回所有结果
+  /// 并发搜索当前启用音源，返回所有结果
   Future<List<Song>> _searchAllSources(Song song) async {
     final keyword = '${song.name} ${song.artist}';
-    // 并发搜索所有源
-    final futures = GdMusicClient.sources.map((source) async {
+    // 只并发搜索已启用音源（服务端 music_sources 配置启用，未配置兜底内置列表）
+    final futures =
+        _ref.read(gdMusicClientProvider).enabledSources.map((source) async {
       try {
         return await _ref.read(searchServiceProvider).search(
               keyword: keyword,
