@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+﻿cmake_minimum_required(VERSION 3.14)
 project(runner LANGUAGES CXX)
 
 # Define the application target. To change its name, change BINARY_NAME in the
@@ -16,8 +16,14 @@ add_executable(${BINARY_NAME} WIN32
   "runner.exe.manifest"
 )
 
-# CMake target 名须为 ASCII(joy_tune),通过 OUTPUT_NAME 让 exe 文件名为"悦听.exe"
+# Keep the CMake target name ASCII (joy_tune); use OUTPUT_NAME so the on-disk
+# binary keeps the product name: 悦听.exe
 set_target_properties(${BINARY_NAME} PROPERTIES OUTPUT_NAME "悦听")
+
+# flutter run locates the executable by BINARY_NAME, so also produce a copy
+# named joy_tune.exe next to 悦听.exe for the dev workflow.
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${BINARY_NAME}>" "$<TARGET_FILE_DIR:${BINARY_NAME}>/joy_tune.exe")
 
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.

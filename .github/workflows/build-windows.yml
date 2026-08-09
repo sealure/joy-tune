@@ -71,7 +71,10 @@ jobs:
           # 降级后的 firebase_cpp_sdk CMakeLists 要求兼容 CMake<3.5,新版 CMake 已移除该兼容,
           # 设 CMAKE_POLICY_VERSION_MINIMUM=3.5 按旧策略配置避免报错
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
-        run: flutter build windows --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }}
+          # Google OAuth ????? Secret ??,???????
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: flutter build windows --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }} --dart-define=GOOGLE_OAUTH_CLIENT_ID=${{ env.GOOGLE_OAUTH_CLIENT_ID }} --dart-define=GOOGLE_OAUTH_CLIENT_SECRET=${{ env.GOOGLE_OAUTH_CLIENT_SECRET }}
 
       # 打包整个 Release 目录为 zip:joy-tune_<版本>_windows_x64.zip
       - name: 整理构建产物
