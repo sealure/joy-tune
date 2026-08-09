@@ -11,5 +11,5 @@
 /// GitHub Actions 发布 workflow 已在构建时注入正式域名，见 .github/workflows/build-apk.yml
 const String apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://192.168.1.5:8080/api/v1',
+  defaultValue: 'http://127.0.0.1:8080/api/v1',
 );
