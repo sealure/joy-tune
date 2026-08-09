@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 macos/build/
+
+# Local OAuth credentials (never commit)
+/.oauth_local.json
+

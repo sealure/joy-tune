@@ -16,18 +16,65 @@ import 'package:url_launcher/url_launcher.dart';
 /// Google Cloud 注册该端口，只要指向 localhost 即可）
 const int kGoogleOAuthPort = 9092;
 
-/// Windows ??? OAuth ??,??/????? --dart-define ???
-/// ???????????(GitHub ? secret scanning ??????? push),
-/// ? build-windows.yml ????,? GitHub Actions Secret ????:
-///   flutter run -d windows \
-///     --dart-define=GOOGLE_OAUTH_CLIENT_ID=`<client_id>` \
-///     --dart-define=GOOGLE_OAUTH_CLIENT_SECRET=`<client_secret>`
-/// ??:Google ? Desktop/Web ?? client ?? token ????? client_secret
-/// (?????? HTTP 400 client_secret is missing);iOS/Android ?????????
-const String googleDesktopClientId =
+/// Windows 专用 Google OAuth 登录
+/// google_sign_in 插件无 Windows 实现，Windows 上通过「浏览器 OAuth + PKCE(loopback 重定向)」
+/// 拿 Google id_token/access_token，再交给 firebase_auth.signInWithCredential 复用。
+///
+/// OAuth 凭据优先级（公开仓库不存明文，本地开发也无需每次敲 --dart-define）：
+///   1. --dart-define=GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET
+///      （CI 由 GitHub Actions Secret 注入，见 build-windows.yml）
+///   2. 项目根目录 .oauth_local.json（已 .gitignore，不入库；打包版可放在 exe 同目录）
+///      格式: `{"clientId": "<client_id>", "clientSecret": "<client_secret>"}`
+/// 原因：Google 的 Desktop/Web 类型 client 换 token 时需要 client_secret
+/// （否则 HTTP 400 client_secret is missing）；iOS/Android 不受影响。
+const String _googleClientIdFromEnv =
     String.fromEnvironment('GOOGLE_OAUTH_CLIENT_ID');
-const String googleDesktopClientSecret =
+const String _googleClientSecretFromEnv =
     String.fromEnvironment('GOOGLE_OAUTH_CLIENT_SECRET');
+
+const String _kLocalOAuthFile = '.oauth_local.json';
+String? _localOAuthJson;
+
+/// Google OAuth 客户端 ID：--dart-define 优先，否则读本地 .oauth_local.json。
+String get googleDesktopClientId => _googleClientIdFromEnv.isNotEmpty
+    ? _googleClientIdFromEnv
+    : _localCred('clientId');
+
+/// Google OAuth 客户端密钥：--dart-define 优先，否则读本地 .oauth_local.json。
+String get googleDesktopClientSecret => _googleClientSecretFromEnv.isNotEmpty
+    ? _googleClientSecretFromEnv
+    : _localCred('clientSecret');
+
+String _localCred(String key) {
+  try {
+    _localOAuthJson ??= _readLocalOAuthJson();
+    if (_localOAuthJson == null || _localOAuthJson!.isEmpty) return '';
+    final map = jsonDecode(_localOAuthJson!) as Map<String, dynamic>;
+    return map[key] as String? ?? '';
+  } catch (e) {
+    debugPrint('[GoogleOAuth] 读取本地凭据 .oauth_local.json 失败: $e');
+    return '';
+  }
+}
+
+String? _readLocalOAuthJson() {
+  final exeDir = File(Platform.resolvedExecutable).parent.path;
+  final candidates = <String>[
+    // flutter run -d windows：当前工作目录即项目根
+    _kLocalOAuthFile,
+    // 打包发布的 exe：凭据文件放在 exe 同目录
+    '$exeDir${Platform.pathSeparator}$_kLocalOAuthFile',
+  ];
+  for (final path in candidates) {
+    try {
+      final f = File(path);
+      if (f.existsSync()) return f.readAsStringSync();
+    } catch (e) {
+      debugPrint('[GoogleOAuth] 检查本地凭据 $path 失败: $e');
+    }
+  }
+  return null;
+}
 
 class GoogleOAuthResult {
   final String idToken;
