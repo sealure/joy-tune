@@ -50,7 +50,11 @@ String _localCred(String key) {
     _localOAuthJson ??= _readLocalOAuthJson();
     if (_localOAuthJson == null || _localOAuthJson!.isEmpty) return '';
     final map = jsonDecode(_localOAuthJson!) as Map<String, dynamic>;
-    return map[key] as String? ?? '';
+    final value = map[key] as String? ?? '';
+    if (value.isNotEmpty) {
+      debugPrint('[GoogleOAuth] 已从 .oauth_local.json 读取 $key');
+    }
+    return value;
   } catch (e) {
     debugPrint('[GoogleOAuth] 读取本地凭据 .oauth_local.json 失败: $e');
     return '';
