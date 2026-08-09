@@ -601,30 +601,46 @@ class BackendClient {
   // 评论
   // ══════════════════════════════════════════
 
-  /// 获取歌曲评论列表
+  /// 获取歌曲评论列表（游客可看；登录用户带 token，服务端返回 is_liked）
   Future<CommentsResult> getComments(String songId, {
     int page = 1,
     int size = 20,
   }) async {
     try {
-      final response = await _dio.get('/songs/$songId/comments', queryParameters: {
+      final dio = await _authedDio;
+      final response = await dio.get('/songs/$songId/comments', queryParameters: {
         'page': page,
         'size': size,
       });
-
-      final data = response.data;
-      final comments = (data['comments'] as List? ?? [])
-          .map((c) => CommentInfo.fromJson(c as Map<String, dynamic>))
-          .toList();
-
-      return CommentsResult(
-        comments: comments,
-        total: BackendClient._parseUint64(data['total']),
-      );
+      return _parseCommentsResponse(response.data);
     } on DioException catch (e) {
-      debugPrint('>>> [COMMENT] 获取评论失败: ${e.message}');
+      // 携带过期/无效 token 触发 401 → 降级为游客请求（无 token，服务端可选认证放行）
+      if (e.response?.statusCode == 401) {
+        try {
+          final response = await _dio.get('/songs/$songId/comments', queryParameters: {
+            'page': page,
+            'size': size,
+          });
+          return _parseCommentsResponse(response.data);
+        } on DioException catch (e2) {
+          debugPrint('>>> [COMMENT] 获取评论失败: ${e2.message}');
+        }
+      } else {
+        debugPrint('>>> [COMMENT] 获取评论失败: ${e.message}');
+      }
       return CommentsResult(comments: [], total: 0);
     }
+  }
+
+  /// 解析评论列表响应（comments 数组 + total 总数）
+  CommentsResult _parseCommentsResponse(dynamic data) {
+    final comments = (data['comments'] as List? ?? [])
+        .map((c) => CommentInfo.fromJson(c as Map<String, dynamic>))
+        .toList();
+    return CommentsResult(
+      comments: comments,
+      total: BackendClient._parseUint64(data['total']),
+    );
   }
 
   /// 发表评论
@@ -935,6 +951,7 @@ class CommentInfo {
   final int? parentId;
   final String? userName;
   final String? userAvatar;
+  final DateTime? createdAt;
   final List<CommentInfo> replies;
 
   const CommentInfo({
@@ -946,6 +963,7 @@ class CommentInfo {
     this.parentId,
     this.userName,
     this.userAvatar,
+    this.createdAt,
     this.replies = const [],
   });
 
@@ -964,6 +982,7 @@ class CommentInfo {
       parentId: json['parent_id'] == null ? null : BackendClient._parseUint64(json['parent_id']),
       userName: user?['nickname'] as String?,
       userAvatar: user?['avatar_url'] as String?,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
       replies: repliesList,
     );
   }

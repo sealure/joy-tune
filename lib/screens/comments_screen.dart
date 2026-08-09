@@ -9,6 +9,17 @@ import '../models/song.dart';
 import '../api/backend_client.dart';
 import '../services/providers.dart';
 
+/// 评论相对时间展示（对齐设计稿：3 分钟前 / 1 小时前）
+String _formatCommentTime(DateTime? time) {
+  if (time == null) return '';
+  final diff = DateTime.now().difference(time.toLocal());
+  if (diff.inSeconds < 60) return '刚刚';
+  if (diff.inMinutes < 60) return '${diff.inMinutes} 分钟前';
+  if (diff.inHours < 24) return '${diff.inHours} 小时前';
+  if (diff.inDays < 30) return '${diff.inDays} 天前';
+  return '${time.year}-${time.month.toString().padLeft(2, '0')}-${time.day.toString().padLeft(2, '0')}';
+}
+
 /// 评论页
 class CommentsScreen extends ConsumerWidget {
   final Song? song;
@@ -265,8 +276,13 @@ class _CommentsBodyState extends ConsumerState<_CommentsBody> {
         return _CommentTile(
           theme: theme,
           commentInfo: comment,
+          currentUserId: _isLoggedIn ? ref.watch(currentUserProvider).value?.id : null,
           onReply: _isLoggedIn ? () => _startReply(comment.id, comment.userName ?? '匿名') : null,
           onLike: _isLoggedIn ? () => _handleLikeComment(comment) : null,
+          onDelete: _isLoggedIn && comment.userId == ref.watch(currentUserProvider).value?.id
+              ? () => _handleDeleteComment(comment)
+              : null,
+          onDeleteReply: _isLoggedIn ? _handleDeleteComment : null,
         );
       },
     );
@@ -281,6 +297,40 @@ class _CommentsBodyState extends ConsumerState<_CommentsBody> {
     }
     // 刷新评论列表
     _loadComments();
+  }
+
+  /// 删除自己的评论（后端级联删除其子回复），确认后刷新列表
+  Future<void> _handleDeleteComment(CommentInfo comment) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除评论'),
+        content: const Text('确定删除这条评论吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final backend = ref.read(backendClientProvider);
+    final success = await backend.deleteComment(comment.id);
+    if (!mounted) return;
+    if (success) {
+      // 刷新评论列表（退回第 1 页，避免分页状态错乱）
+      _loadComments();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('删除失败，请稍后重试')),
+      );
+    }
   }
 
   Widget _buildInputBar(BuildContext context, ThemeData theme) {
@@ -370,15 +420,30 @@ class _CommentsBodyState extends ConsumerState<_CommentsBody> {
 class _CommentTile extends StatelessWidget {
   final ThemeData theme;
   final CommentInfo commentInfo;
+  /// 当前登录用户 ID（用于判断是否自己的评论，可删除）
+  final int? currentUserId;
   final VoidCallback? onReply;
   final VoidCallback? onLike;
+  /// 删除当前评论（顶级评论）
+  final VoidCallback? onDelete;
+  /// 删除子回复（传入被删除的回复）
+  final void Function(CommentInfo reply)? onDeleteReply;
 
   const _CommentTile({
     required this.theme,
     required this.commentInfo,
+    this.currentUserId,
     this.onReply,
     this.onLike,
+    this.onDelete,
+    this.onDeleteReply,
   });
+
+  /// 判断回复是否是当前用户本人发表的（仅本人可删自己的回复）
+  bool _isOwnMe(CommentInfo reply) {
+    final me = currentUserId;
+    return reply.userId != 0 && me != null && reply.userId == me;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -387,7 +452,7 @@ class _CommentTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 用户信息行
+          // 用户信息行（头像 + 用户名 + 时间）
           Row(
             children: [
               // 头像
@@ -409,6 +474,12 @@ class _CommentTile extends StatelessWidget {
                   style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
+              // 时间
+              if (commentInfo.createdAt != null)
+                Text(
+                  _formatCommentTime(commentInfo.createdAt),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.secondary),
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -461,6 +532,21 @@ class _CommentTile extends StatelessWidget {
                       ],
                     ),
                   ),
+                // 删除（仅自己的评论）
+                if (onDelete != null) ...[
+                  const SizedBox(width: 16),
+                  GestureDetector(
+                    onTap: onDelete,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.delete_outline, size: 16, color: theme.colorScheme.secondary),
+                        const SizedBox(width: 4),
+                        Text('删除', style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -500,6 +586,15 @@ class _CommentTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                      // 删除自己的回复
+                      if (onDeleteReply != null && _isOwnMe(reply))
+                        GestureDetector(
+                          onTap: () => onDeleteReply!(reply),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(Icons.close, size: 14, color: theme.colorScheme.secondary),
+                          ),
+                        ),
                     ],
                   ),
                 )).toList(),
