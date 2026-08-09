@@ -48,3 +48,6 @@ macos/build/
 # Local OAuth credentials (never commit)
 /.oauth_local.json
 
+
+# codex 工具误生成的临时文件（把绝对路径当文件名）
+*codex_known_hosts
