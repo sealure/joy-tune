@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/user.dart';
 import '../services/providers.dart';
 
 /// 个人中心页 — 显示真实用户信息，支持退出登录
@@ -14,71 +13,30 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  bool _isLoggedIn = false;
-  User? _user;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLoginStatus();
-  }
-
-  /// 检查登录状态并加载用户信息
-  Future<void> _checkLoginStatus() async {
-    debugPrint('>>> [PROFILE] 检查登录状态...');
-    final authService = ref.read(authServiceProvider);
-    final hasToken = await authService.isLoggedIn;
-    ref.read(isLoggedInProvider.notifier).state = hasToken;
-    debugPrint('>>> [PROFILE] hasToken=$hasToken');
-
-    if (!mounted) return;
-
-    if (hasToken) {
-      try {
-        debugPrint('>>> [PROFILE] 调用 getProfile()...');
-        final user = await authService.getProfile();
-        debugPrint('>>> [PROFILE] 获取成功: nickname=${user.nickname}, avatar=${user.avatarUrl}, authProvider=${user.authProvider}');
-        if (!mounted) return;
-        setState(() {
-          _isLoggedIn = true;
-          _user = user;
-          _isLoading = false;
-        });
-      } catch (e) {
-        debugPrint('>>> [PROFILE] getProfile 失败: $e');
-        // Token 可能已过期
-        setState(() {
-          _isLoggedIn = false;
-          _isLoading = false;
-        });
-      }
-    } else {
-      debugPrint('>>> [PROFILE] 未登录');
-      setState(() {
-        _isLoggedIn = false;
-        _isLoading = false;
-      });
-    }
-  }
-
   /// 退出登录
   Future<void> _handleLogout() async {
     final authService = ref.read(authServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
     // 退出前尽力同步本地未同步数据到该账号（游客切换到别的账号前先冲刷）
-    await ref.read(syncServiceProvider).syncNow();
+    await syncService.syncNow();
     await authService.logout();
+    // 清空本地账号数据（收藏/歌单/收藏歌单/播放历史），重新登录后 forcePull 拉回
+    await syncService.clearLocalUserData();
     if (!mounted) return;
+    // 登录态置 false，currentUserProvider 会自动刷新为 null
     ref.read(isLoggedInProvider.notifier).state = false;
-    setState(() {
-      _isLoggedIn = false;
-      _user = null;
-    });
     context.go('/login');
   }
 
   @override
   Widget build(BuildContext context) {
+    // 登录态与用户信息来自全局缓存（currentUserProvider 首次进入拉一次，切页不再重复请求）
+    final isLoggedInFlag = ref.watch(isLoggedInProvider);
+    final userAsync = ref.watch(currentUserProvider);
+    final user = userAsync.valueOrNull;
+    final loading = isLoggedInFlag && userAsync.isLoading;
+    // 有效登录判定：有 token 且已取到用户（或正在加载），避免 token 过期时展示半登录态
+    final isLoggedIn = isLoggedInFlag && (user != null || loading);
     // 统计行真实数据：收藏数 / 创建歌单数
     final favCount = ref.watch(favoritesProvider).maybeWhen(
       data: (songs) => '${songs.length}',
@@ -129,14 +87,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: _isLoggedIn ? () => context.push('/profile/edit') : () => context.push('/login'),
+                          onTap: isLoggedIn ? () => context.push('/profile/edit') : () => context.push('/login'),
                           child: CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.white.withValues(alpha: 0.2),
-                            child: _user?.avatarUrl != null && _user!.avatarUrl.isNotEmpty
+                            child: user != null && user.avatarUrl.isNotEmpty
                                 ? ClipOval(
                                     child: Image.network(
-                                      _user!.avatarUrl,
+                                      user.avatarUrl,
                                       width: 60,
                                       height: 60,
                                       fit: BoxFit.cover,
@@ -148,7 +106,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ),
                                   )
                                 : Icon(
-                                    _isLoggedIn ? Icons.person_rounded : Icons.person_outline_rounded,
+                                    isLoggedIn ? Icons.person_rounded : Icons.person_outline_rounded,
                                     size: 30,
                                     color: Colors.white.withValues(alpha: 0.6),
                                   ),
@@ -156,17 +114,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(width: 16),
                         GestureDetector(
-                          onTap: _isLoggedIn ? null : () => context.push('/login'),
+                          onTap: isLoggedIn ? null : () => context.push('/login'),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _isLoading
+                                loading
                                     ? '加载中...'
-                                    : (_user?.nickname ?? '点击登录'),
+                                    : (user?.nickname ?? '点击登录'),
                                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
                               ),
-                              if (_isLoggedIn && _user != null && _user!.authProvider.isNotEmpty)
+                              if (isLoggedIn && user != null && user.authProvider.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Row(
@@ -174,7 +132,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       Icon(Icons.check_circle_rounded, size: 14, color: Colors.white.withValues(alpha: 0.6)),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '已绑定 ${_formatProvider(_user!.authProvider)}',
+                                        '已绑定 ${_formatProvider(user.authProvider)}',
                                         style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6)),
                                       ),
                                     ],
@@ -195,9 +153,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
                 children: [
-                  _StatItem(label: '收藏歌曲', value: _isLoggedIn ? favCount : '---'),
-                  _StatItem(label: '创建歌单', value: _isLoggedIn ? playlistCount : '---'),
-                  _StatItem(label: '听歌总数', value: _isLoggedIn ? playCount : '---'),
+                  _StatItem(label: '收藏歌曲', value: isLoggedIn ? favCount : '---'),
+                  _StatItem(label: '创建歌单', value: isLoggedIn ? playlistCount : '---'),
+                  _StatItem(label: '听歌总数', value: isLoggedIn ? playCount : '---'),
                 ],
               ),
             ),
@@ -221,7 +179,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     label: '我的歌单',
                     iconBg: const Color(0xFFECFDF5),
                     iconColor: const Color(0xFF10B981),
-                    enabled: _isLoggedIn,
+                    enabled: isLoggedIn,
                     onTap: () => context.push('/my-playlists'),
                   ),
                   _MenuTile(
@@ -229,7 +187,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     label: '播放历史',
                     iconBg: const Color(0xFFEEF2FF),
                     iconColor: const Color(0xFF6366F1),
-                    enabled: _isLoggedIn,
+                    enabled: isLoggedIn,
                     onTap: () => context.push('/play-history'),
                   ),
                   _MenuTile(
@@ -244,7 +202,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
 
             // 退出登录
-            if (_isLoggedIn)
+            if (isLoggedIn)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: SizedBox(

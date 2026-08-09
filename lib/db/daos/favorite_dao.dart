@@ -11,6 +11,11 @@ part 'favorite_dao.g.dart';
 class FavoriteDao extends DatabaseAccessor<AppDatabase> with _$FavoriteDaoMixin {
   FavoriteDao(super.attachedDatabase);
 
+  /// 清空全部收藏（退出登录/登录失效时调用，重新登录后由 syncNow(forcePull) 拉回）
+  Future<void> clearAll() async {
+    await (delete(localFavorites)).go();
+  }
+
   /// 收藏一首歌：不存在则插入；已 soft delete 则恢复（deleted=0、is_synced=0）；
   /// 已存在且未删除则幂等跳过
   Future<void> insertFavorite(Song song) async {

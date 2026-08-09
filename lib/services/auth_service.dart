@@ -16,7 +16,10 @@ class AuthService {
   final Dio _dio;
   final FlutterSecureStorage _storage;
 
-  AuthService({Dio? dio, FlutterSecureStorage? storage})
+  /// 认证失效（401）回调：由调用方注入，用于清空本地账号数据并置登录态为未登录
+  Future<void> Function()? onAuthExpired;
+
+  AuthService({Dio? dio, FlutterSecureStorage? storage, this.onAuthExpired})
       : _dio = dio ?? Dio(BaseOptions(baseUrl: _baseUrl)),
         _storage = storage ?? const FlutterSecureStorage();
 
@@ -137,7 +140,9 @@ class AuthService {
     } on DioException catch (e) {
       debugPrint('>>> [AUTH] getProfile DioException: status=${e.response?.statusCode}, data=${e.response?.data}, message=${e.message}');
       if (e.response?.statusCode == 401) {
+        // token 失效：清 token → 触发全局登出清理（清本地账号数据 + 置未登录态）→ 仍抛错供调用方降级
         await clearToken();
+        await onAuthExpired?.call();
         throw Exception('登录已过期，请重新登录');
       }
       throw Exception('获取用户信息失败: ${e.response?.statusCode} ${e.response?.data}');

@@ -18,6 +18,7 @@ import '../db/daos/settings_dao.dart';
 import '../db/daos/song_meta_dao.dart';
 import '../models/song.dart';
 import '../models/music_source_config.dart';
+import '../models/user.dart';
 import '../repositories/drift_favorite_repository.dart';
 import '../repositories/play_record_repository.dart';
 import '../repositories/playlist_follow_repository.dart';
@@ -131,6 +132,21 @@ final searchHistoryProvider = StreamProvider<List<String>>((ref) {
 /// 登录状态（供需要登录的功能开关使用）
 final isLoggedInProvider = StateProvider<bool>((ref) => false);
 
+/// 当前登录用户信息（全局缓存，避免每次进入页面重复拉取）
+/// - 登录态由 [isLoggedInProvider] 驱动：登录/登出时该值变化会触发重新获取
+/// - 未登录返回 null；接口失败静默降级为 null
+/// 首次被 watch 时拉取一次 getProfile 并缓存，切页/切 Tab 不再重复请求
+final currentUserProvider = FutureProvider<User?>((ref) async {
+  final loggedIn = ref.watch(isLoggedInProvider);
+  if (!loggedIn) return null;
+  final auth = ref.watch(authServiceProvider);
+  try {
+    return await auth.getProfile();
+  } catch (_) {
+    return null;
+  }
+});
+
 /// 收藏数据仓库：统一本地 SQLite（登录/游客一致），由 SyncService 后台同步
 final favoriteRepositoryProvider = Provider<DriftFavoriteRepository>((ref) {
   return DriftFavoriteRepository(ref.watch(favoriteDaoProvider));
@@ -157,6 +173,7 @@ final audioServiceProvider = Provider<AudioService>((ref) {
 final songResolverProvider = Provider<SongResolver>((ref) => SongResolver(ref));
 
 /// 认证服务 Provider（单例）
+/// 401 过期回调由 syncServiceProvider 注入（见下，避免 provider 间循环依赖）
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 /// 旧 SharedPreferences 数据迁移器（启动时把旧数据写入 SQLite）
@@ -171,9 +188,10 @@ final legacyPrefsMigratorProvider = Provider<LegacyPrefsMigrator>((ref) {
 
 /// 后台同步服务（扫描 is_synced=0 记录同步到服务端；推荐歌单只读下行缓存也在此异步拉取）
 final syncServiceProvider = Provider<SyncService>((ref) {
+  final auth = ref.watch(authServiceProvider);
   final service = SyncService(
     client: ref.watch(backendClientProvider),
-    auth: ref.watch(authServiceProvider),
+    auth: auth,
     favoriteDao: ref.watch(favoriteDaoProvider),
     playlistDao: ref.watch(playlistDaoProvider),
     playlistFollowDao: ref.watch(playlistFollowDaoProvider),
@@ -182,6 +200,12 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     songMetaDao: ref.watch(songMetaDaoProvider),
     recommendDao: ref.watch(recommendDaoProvider),
   );
+  // 登录失效（token 过期 401）：清空本地账号数据 + 置未登录态（「我的」等页随之刷新）
+  // 用局部 service 引用自身，避免 provider 间循环依赖
+  auth.onAuthExpired = () async {
+    await service.clearLocalUserData();
+    ref.read(isLoggedInProvider.notifier).state = false;
+  };
   return service;
 });
 

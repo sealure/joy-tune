@@ -12,6 +12,11 @@ class PlaylistFollowDao extends DatabaseAccessor<AppDatabase>
     with _$PlaylistFollowDaoMixin {
   PlaylistFollowDao(super.attachedDatabase);
 
+  /// 清空全部收藏的歌单（退出登录/登录失效时调用，重新登录后由 syncNow(forcePull) 拉回）
+  Future<void> clearAll() async {
+    await (delete(localPlaylistFollows)).go();
+  }
+
   /// 收藏歌单（幂等）：不存在则插入；已 soft delete 则恢复并置顶（deleted=0、is_synced=0）
   Future<void> insertFollow({
     required int playlistId,

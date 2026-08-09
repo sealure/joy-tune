@@ -84,6 +84,17 @@ class SyncService {
     _connectivitySub = null;
   }
 
+  /// 清空本地账号数据（退出登录 / 登录失效时调用）
+  /// 清除收藏、歌单及其歌曲、收藏的歌单、播放历史；
+  /// 搜索历史 / 播放会话 / 封面与歌词缓存等纯本地数据保留。
+  /// 重新登录后由 syncNow(forcePull: true) 从服务端拉回。
+  Future<void> clearLocalUserData() async {
+    await _favoriteDao.clearAll();
+    await _playlistDao.clearAll();
+    await _playlistFollowDao.clearAll();
+    await _playRecordDao.clearAll();
+  }
+
   /// 手动触发一次同步。[forcePull] 时先从服务端拉取数据合并到本地
   Future<void> syncNow({bool forcePull = false}) async {
     if (_running) return;

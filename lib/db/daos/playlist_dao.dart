@@ -20,6 +20,12 @@ class PlaylistWithCount {
 class PlaylistDao extends DatabaseAccessor<AppDatabase> with _$PlaylistDaoMixin {
   PlaylistDao(super.attachedDatabase);
 
+  /// 清空全部歌单及其歌曲（退出登录/登录失效时调用，重新登录后由 syncNow(forcePull) 拉回）
+  Future<void> clearAll() async {
+    await (delete(localPlaylistSongs)).go();
+    await (delete(localPlaylists)).go();
+  }
+
   // ── 歌单列表 ──
 
   /// 流式监听全部未删除歌单（带了未删除歌曲数，按创建时间倒序）
