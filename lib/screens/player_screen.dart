@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -492,14 +493,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
         ),
         if (_coverUrl != null)
-          Image.network(
-            _coverUrl!,
+          CachedNetworkImage(
+            imageUrl: _coverUrl!,
             fit: BoxFit.cover,
-            loadingBuilder: (_, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return const SizedBox.shrink();
-            },
-            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            placeholder: (_, __) => const SizedBox.shrink(),
+            errorWidget: (_, __, ___) => const SizedBox.shrink(),
           ),
         Container(
           decoration: BoxDecoration(
@@ -685,14 +683,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(borderRadius),
                 child: _coverUrl != null
-                    ? Image.network(
-                        _coverUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: _coverUrl!,
                         fit: BoxFit.cover,
-                        loadingBuilder: (_, child, progress) {
-                          if (progress == null) return child;
-                          return _coverPlaceholder();
-                        },
-                        errorBuilder: (_, __, ___) => _coverPlaceholder(),
+                        placeholder: (_, __) => _coverPlaceholder(),
+                        errorWidget: (_, __, ___) => _coverPlaceholder(),
                       )
                     : _coverPlaceholder(),
               ),

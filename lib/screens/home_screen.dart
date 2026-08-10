@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:cached_network_image/cached_network_image.dart';
+
 import '../api/backend_client.dart';
 import '../services/providers.dart';
 import '../utils/cover_resolver.dart';
@@ -213,7 +215,7 @@ class _BackendPlaylistCardState extends ConsumerState<_BackendPlaylistCard> {
 
   @override
   Widget build(BuildContext context) {
-    // 有封面时作为卡片背景图，否则用渐变背景
+    // 有封面时在渐变底上叠加封面图（CachedNetworkImage 磁盘缓存，二次进入秒开），否则仅渐变背景
     final hasCover = _coverUrl != null && _coverUrl!.isNotEmpty;
     return GestureDetector(
       onTap: widget.onTap,
@@ -222,18 +224,24 @@ class _BackendPlaylistCardState extends ConsumerState<_BackendPlaylistCard> {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: hasCover
-              ? null
-              : LinearGradient(colors: widget.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-          image: hasCover
-              ? DecorationImage(image: NetworkImage(_coverUrl!), fit: BoxFit.cover)
-              : null,
+          // 渐变始终保留，作为封面加载中/加载失败的占位底色
+          gradient: LinearGradient(colors: widget.gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
           boxShadow: [
             BoxShadow(color: widget.gradient.first.withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Stack(
           children: [
+            // 封面图：与 CoverImage/PlaylistCover 一致走磁盘缓存，加载中/失败回落到渐变底
+            if (hasCover)
+              Positioned.fill(
+                child: CachedNetworkImage(
+                  imageUrl: _coverUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => const SizedBox.shrink(),
+                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
             // 底部暗色遮罩，保证文字可读
             Positioned.fill(
               child: DecoratedBox(
@@ -266,12 +274,13 @@ class _BackendPlaylistCardState extends ConsumerState<_BackendPlaylistCard> {
                       children: [
                         ClipOval(
                           child: (widget.playlist.userAvatar != null && widget.playlist.userAvatar!.isNotEmpty)
-                              ? Image.network(
-                                  widget.playlist.userAvatar!,
+                              ? CachedNetworkImage(
+                                  imageUrl: widget.playlist.userAvatar!,
                                   width: 16,
                                   height: 16,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _defaultAvatar(),
+                                  placeholder: (_, __) => _defaultAvatar(),
+                                  errorWidget: (_, __, ___) => _defaultAvatar(),
                                 )
                               : _defaultAvatar(),
                         ),
