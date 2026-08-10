@@ -7,9 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import '../models/song.dart';
 import '../services/providers.dart';
-import '../services/audio_cache.dart';
-import '../services/audio_service.dart';
-import '../services/prefetch_service.dart';
 import '../theme/player_colors.dart';
 import '../utils/lyric_utils.dart';
 import '../widgets/player_seek_bar.dart';
@@ -90,17 +87,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _onQueueAdvance(song);
     });
 
-    // 情况1：有恢复的会话且当前歌曲匹配，只加载元数据（不播放）
+    // 判断当前是否真正加载了可播放媒体（duration>0 表示已 open 媒体）。
+    // 重启应用后 restoreSession 仅恢复队列/歌曲元数据，player 并未加载媒体（duration=0），
+    // 此时进入播放页必须走 _onQueueAdvance 真正解析播放，不能误判为「已在播放」
+    final hasMedia = (audio.duration?.inMilliseconds ?? 0) > 0;
+    print('[Player] _initPlayer: hasMedia=$hasMedia');
+
+    // 情况1：有恢复的会话且当前歌曲匹配，且确实已加载媒体 → 只加载元数据（不播放）
     if (audio.currentSongId != null && routeSong != null &&
-        audio.currentSongId == routeSong.id) {
+        audio.currentSongId == routeSong.id && hasMedia) {
       print('[Player] 跳过: 已在播放');
       _loadSongMetadata(routeSong);
       _checkFavorite(routeSong);
       return;
     }
 
-    // 情况2：有恢复的会话但用户打开了不同歌曲，使用当前会话的歌曲
-    if (audio.currentSong != null && audio.queue.isNotEmpty && routeSong == null) {
+    // 情况2：有恢复的会话且已加载媒体，但用户打开了不同歌曲，使用当前会话的歌曲
+    if (audio.currentSong != null && audio.queue.isNotEmpty &&
+        routeSong == null && hasMedia) {
       final song = audio.currentSong!;
       print('[Player] 使用恢复的歌曲: ${song.name}');
       _loadSongMetadata(song);
@@ -151,88 +155,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   Future<void> _onQueueAdvance(Song song) async {
     print('[Player] _onQueueAdvance: ${song.name}');
     final audio = ref.read(audioServiceProvider);
-    final resolver = ref.read(songResolverProvider);
-    final cache = AudioCache.instance;
-    final cacheKey = AudioCache.cacheKey(song.name, song.artist);
 
-    // 保存播放前的位置，用于恢复时 seek
-    final savedPos = _isRestoringSession ? await audio.getSavedPosition() : 0;
-    _isRestoringSession = false;
-
-    // 有缓存 → 直接本地播放
-    final localPath = await cache.getLocalPath(cacheKey);
-    print('[Player] 缓存: ${localPath ?? "无"}');
-    if (localPath != null) {
-      final meta = await cache.loadMetadata(cacheKey);
-      if (meta != null && mounted) {
-        setState(() {
-          _coverUrl = meta['coverUrl'] as String?;
-          if (meta['lyrics'] is String) {
-            _lyrics = parseLrc(meta['lyrics'] as String);
-          }
-        });
-      } else {
-        _loadSongMetadata(song);
-      }
-      _checkFavorite(song);
-      if (!mounted) return;
-      await audio.play(localPath, songId: song.id, song: song);
-      // 恢复播放位置
-      if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
-      // 播放成功后预缓存下一首
-      _fetchPrefetchNext(audio);
-      return;
-    }
-
-    // 无缓存 → 直接用 song_id 现解析最新播放地址（不依赖后端 audio_url：
-    // joox 等带 vkey 的地址会过期，song_id 每次拿新签名最可靠）
+    // 先加载歌曲元数据（封面占位/清空歌词），真实解析结果在播放成功后更新
     _loadSongMetadata(song);
     _checkFavorite(song);
+    if (!mounted) return;
 
-    final result = await resolver.resolveDirectly(song);
-    print('[Player] resolve: ${result != null ? "OK" : "NULL"}');
-    if (result == null || !mounted) {
-      print('[Player] resolve失败或未挂载');
-      audio.playNext();
-      return;
-    }
+    // 统一走 AudioService.playSong：查缓存→命中本地播放 / 未命中解析播放；失败自动切下一首
+    final result = await audio.playSong(
+      song,
+      restorePosition: _isRestoringSession, // 会话恢复场景 seek 到上次位置
+    );
+    _isRestoringSession = false;
+    if (!mounted) return;
 
-    try {
-      final playUrl = await ref.read(gdMusicClientProvider).getPlayUrl(
-        songId: result.playable.id,
-        source: result.playable.source,
-      );
-      print('[Player] url: ${playUrl.url.isNotEmpty ? "有" : "空"}, mounted=$mounted');
-      if (!mounted) return;
-      print('[Player] 调用audio.play');
-      await audio
-          .play(playUrl.url, songId: result.playable.id, song: result.playable)
-          .timeout(const Duration(seconds: 15));
-      // 恢复播放位置
-      if (savedPos > 0) await audio.seek(Duration(milliseconds: savedPos));
-      // 播放成功后预缓存下一首
-      _fetchPrefetchNext(audio);
-      print('[Player] 播放成功');
-      if (mounted) {
-        setState(() {
-          if (result.coverUrl != null) _coverUrl = result.coverUrl;
-          if (result.lyricsText != null) _lyrics = parseLrc(result.lyricsText!);
-        });
-      }
-      if (result.coverUrl != null || result.lyricsText != null) {
-        cache.saveMetadata(cacheKey, {
-          'coverUrl': result.coverUrl,
-          'lyrics': result.lyricsText,
-        });
-      }
-      // 回填歌词到本地 db（播放后缓存，离线可看）
+    // 用解析/缓存到的封面与歌词更新展示，并回填歌词到本地 db（离线可看）
+    if (result != null) {
+      setState(() {
+        if (result.coverUrl != null) _coverUrl = result.coverUrl;
+        if (result.lyricsText != null) _lyrics = parseLrc(result.lyricsText!);
+      });
       if (result.lyricsText != null) {
         unawaited(_backfillLyrics(result.playable, result.lyricsText!));
       }
-    } catch (e) {
-      print('[Player] 播放异常: $e');
-      audio.playNext();
     }
+    print('[Player] 播放流程完成: ${song.name}');
   }
 
   void _onPlayToggle(Song song) {
@@ -244,28 +191,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     } else {
       _onQueueAdvance(song);
     }
-  }
-
-  /// 预缓存下一首歌的音频和元数据（异步，不阻塞播放）
-  void _fetchPrefetchNext(AudioService audio) {
-    if (!mounted) return;
-    final queue = audio.queue;
-    final currentIndex = audio.currentQueueIndex;
-    if (queue.isEmpty || currentIndex < 0) return;
-
-    // 计算下一首索引，仅一首歌时跳过
-    final nextIdx = audio.playMode.nextIndex(currentIndex, queue.length);
-    if (nextIdx == currentIndex) return;
-
-    final resolver = ref.read(songResolverProvider);
-    final client = ref.read(gdMusicClientProvider);
-    PrefetchService.instance.prefetchNext(
-      resolver: resolver,
-      client: client,
-      queue: queue,
-      currentIndex: currentIndex,
-      playMode: audio.playMode,
-    );
   }
 
   // ── 收藏（本地 + 后端同步）──

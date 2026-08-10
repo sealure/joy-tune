@@ -104,9 +104,34 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
                     color: theme.colorScheme.primary,
                   ),
                   onPressed: () {
+                    // ── 诊断日志：打印点击时的完整播放状态，定位重启后点击播放无效的问题 ──
+                    final pos = audio.position;
+                    final dur = audio.duration;
+                    print('[MiniPlayer] 点击播放按钮: '
+                        'state=$playState, '
+                        'song=${song?.name}, songId=${audio.currentSongId}, '
+                        'queueLen=${audio.queue.length}, queueIndex=${audio.currentQueueIndex}, '
+                        'playerPlaying=${audio.isPlaying}, '
+                        'position=${pos?.inMilliseconds ?? -1}ms, '
+                        'duration=${dur?.inMilliseconds ?? -1}ms');
                     if (playState == PlayState.playing) {
+                      print('[MiniPlayer] 分支 playing → audio.pause()');
                       audio.pause();
+                    } else if (playState == PlayState.paused &&
+                        (dur?.inMilliseconds ?? 0) > 0) {
+                      // 已加载媒体且暂停 → 恢复播放
+                      print('[MiniPlayer] 分支 paused(有媒体) → audio.resume()');
+                      audio.resume();
+                    } else if (song != null) {
+                      // stopped / loading / 假 paused（重启恢复会话未加载媒体，duration=0）：
+                      // resume() 裸调 _player.play() 无媒体可播。此处原地走 playSong() 真正
+                      // 解析+播放（mini 播放器即播放页的软链接，行为等同播放页点播放，但不跳页）
+                      print('[MiniPlayer] 分支 $playState 无媒体可恢复 → '
+                          '原地 audio.playSong(${song.name})');
+                      audio.playSong(song, restorePosition: true);
                     } else {
+                      // 无歌曲兜底，保持原逻辑避免状态异常
+                      print('[MiniPlayer] 分支 $playState 且无歌曲 → 兜底 audio.resume()');
                       audio.resume();
                     }
                   },

@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:media_kit/media_kit.dart';
+import '../api/gdmusic_client.dart';
 import '../models/song.dart';
 import '../db/daos/session_dao.dart';
 import 'audio_cache.dart';
+import 'prefetch_service.dart';
+import 'song_resolver.dart';
 
 /// 音频播放服务（基于 media_kit）
 class AudioService {
@@ -12,6 +15,11 @@ class AudioService {
   final Player _player = Player();
   String? currentSongId;
   Song? currentSong;
+
+  /// 歌曲解析器（查缓存/解析播放地址），可空以便脱离数据库的测试场景
+  final SongResolver? _songResolver;
+  /// 音乐 API 客户端（取播放 URL），可空以便脱离数据库的测试场景
+  final GdMusicClient? _gdMusicClient;
 
   /// 播放上报回调：一首歌成功开始播放时触发，外部用于埋点（如上报听歌总数）
   Future<void> Function(Song song)? onSongPlayed;
@@ -34,6 +42,10 @@ class AudioService {
   /// 防重入标志：_applyAndPlay 执行期间置 true，防止 _player.stop() 触发的 completed
   /// 事件连锁调用 _advanceToNext() 导致跳歌（A→B→C→D 连跳）
   bool _transitioning = false;
+
+  /// 打开媒体标志：play() 打开新媒体期间置 true，抑制 media_kit 在 open 阶段
+  /// 误触发的 completed 事件（否则刚 open 就被误判为播完，触发切歌/中断刚开始的播放）
+  bool _opening = false;
 
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
@@ -61,7 +73,13 @@ class AudioService {
   Duration? get duration => _player.state.duration;
   bool get isPlaying => _player.state.playing;
 
-  AudioService({SessionDao? sessionDao}) : _sessionDao = sessionDao {
+  AudioService({
+    SessionDao? sessionDao,
+    SongResolver? songResolver,
+    GdMusicClient? gdMusicClient,
+  })  : _sessionDao = sessionDao,
+        _songResolver = songResolver,
+        _gdMusicClient = gdMusicClient {
     AudioCache.instance.init().catchError((_) {});
 
     // 每5秒自动保存播放进度
@@ -85,7 +103,15 @@ class AudioService {
 
     _player.stream.completed.listen((_) {
       // 防重入：_applyAndPlay 中 _player.stop() 触发的 completed 事件直接忽略
-      if (_transitioning) return;
+      if (_transitioning) {
+        print('[AudioService] completed 被 _transitioning 抑制');
+        return;
+      }
+      // 防误触发：play() 打开新媒体阶段 media_kit 会发一次 completed，忽略避免误切歌/中断播放
+      if (_opening) {
+        print('[AudioService] completed 被 _opening 抑制(open阶段)');
+        return;
+      }
       _advanceToNext();
     });
   }
@@ -137,6 +163,7 @@ class AudioService {
   }
 
   Future<void> play(String url, {String? songId, Song? song}) async {
+    print('[AudioService] play(): urlLen=${url.length}, songId=$songId, song=${song?.name}');
     _updateState(PlayState.loading);
     currentSongId = songId;
     currentSong = song;
@@ -154,6 +181,8 @@ class AudioService {
       }
     }
 
+    // 打开新媒体阶段置位，抑制 media_kit open 时误触发的 completed（防止刚 open 就切歌）
+    _opening = true;
     try {
       await _player.open(Media(playSource));
       await _player.play();
@@ -162,20 +191,135 @@ class AudioService {
         unawaited(onSongPlayed?.call(song));
       }
     } catch (e) {
+      _opening = false;
       currentSongId = null;
       currentSong = null;
       _updateState(PlayState.stopped);
       rethrow;
     }
+    // 播放稳定后清除保护，使真正的 completed（播到结尾）能正常触发下一首
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _opening = false;
+    });
   }
 
-  void pause() => _player.pause();
-  void resume() => _player.play();
+  /// 播放指定歌曲（PlayerScreen 与 mini 播放器共用的统一播放入口）。
+  /// 内部完成：查本地缓存 → 命中直接本地播放；未命中解析播放地址后播放；失败自动切下一首。
+  /// 返回解析/缓存到的元数据（封面/歌词，可为空），供调用方更新 UI。
+  /// [restorePosition] 为 true 时，播放成功后 seek 到上次保存的位置（会话恢复场景）。
+  Future<SongResolveResult?> playSong(Song song, {bool restorePosition = false}) async {
+    final cache = AudioCache.instance;
+    final cacheKey = AudioCache.cacheKey(song.name, song.artist);
+    final savedPos = restorePosition ? await getSavedPosition() : 0;
+    print('[AudioService] playSong: ${song.name}, restorePosition=$restorePosition, savedPos=$savedPos');
+
+    // 缓存命中 → 直接用本地文件播放（不重新解析）
+    final localPath = await cache.getLocalPath(cacheKey);
+    if (localPath != null) {
+      print('[AudioService] playSong 命中缓存: ${song.name} → $localPath');
+      await play(localPath, songId: song.id, song: song);
+      if (savedPos > 0) await seek(Duration(milliseconds: savedPos));
+      _prefetchNext();
+      // 读取缓存中的封面/歌词元数据返回，供调用方展示
+      final meta = await cache.loadMetadata(cacheKey);
+      if (meta != null) {
+        return SongResolveResult(
+          playable: song,
+          coverUrl: meta['coverUrl'] as String?,
+          lyricsText: meta['lyrics'] is String ? meta['lyrics'] as String : null,
+        );
+      }
+      return null;
+    }
+
+    // 无缓存 → 解析播放地址（song_id 每次拿新签名最可靠，不依赖后端 audio_url）
+    if (_songResolver == null || _gdMusicClient == null) {
+      print('[AudioService] playSong: 缺少解析依赖(songResolver/gdMusicClient)，自动切下一首');
+      playNext();
+      return null;
+    }
+    try {
+      final result = await _songResolver.resolveDirectly(song);
+      print('[AudioService] playSong resolve: ${result != null ? "OK" : "NULL"}');
+      if (result == null) {
+        print('[AudioService] playSong 解析失败 → 自动切下一首');
+        playNext();
+        return null;
+      }
+      final playUrl = await _gdMusicClient.getPlayUrl(
+        songId: result.playable.id,
+        source: result.playable.source,
+      );
+      print('[AudioService] playSong url: ${playUrl.url.isNotEmpty ? "有" : "空"}');
+      await play(playUrl.url, songId: result.playable.id, song: result.playable)
+          .timeout(const Duration(seconds: 15));
+      if (savedPos > 0) await seek(Duration(milliseconds: savedPos));
+      // 缓存音频与元数据（封面/歌词），离线可播可看
+      if (result.coverUrl != null || result.lyricsText != null) {
+        cache.saveMetadata(cacheKey, {
+          'coverUrl': result.coverUrl,
+          'lyrics': result.lyricsText,
+        });
+      }
+      _prefetchNext();
+      return result;
+    } catch (e) {
+      print('[AudioService] playSong 播放异常: $e');
+      playNext();
+      return null;
+    }
+  }
+
+  /// 当前歌曲播放成功后，后台预缓存队列中下一首歌（无感切歌）
+  void _prefetchNext() {
+    if (_queue.isEmpty || _currentQueueIndex < 0) return;
+    final nextIdx = _playMode.nextIndex(_currentQueueIndex, _queue.length);
+    if (nextIdx == _currentQueueIndex) return; // 仅一首歌/单曲循环，无需预缓存
+    final resolver = _songResolver;
+    final client = _gdMusicClient;
+    if (resolver == null || client == null) return;
+    PrefetchService.instance.prefetchNext(
+      resolver: resolver,
+      client: client,
+      queue: _queue,
+      currentIndex: _currentQueueIndex,
+      playMode: _playMode,
+    );
+  }
+
+  void pause() {
+    print('[AudioService] pause(): state=$_state');
+    _player.pause();
+  }
+
+  void resume() {
+    // 诊断日志：resume 直接裸调 _player.play()。若重启后仅恢复会话（未 open 媒体），
+    // 此处 play() 因无可播放媒体而无效，表现为「点击播放无用」
+    print('[AudioService] resume(): state=$_state, '
+        'playerPlaying=${_player.state.playing}, '
+        'mediaLoaded(duration>0)=${_player.state.duration.inMilliseconds > 0}, '
+        'durationMs=${_player.state.duration.inMilliseconds}, '
+        'currentSong=${currentSong?.name}');
+
+    // 无媒体时裸 play() 无效（media_kit 会把 playing 置 true 造成假的播放态，实际无声）。
+    // 此场景由调用方（mini 播放器/播放页）走 playSong() 真正解析+open 媒体，这里直接忽略。
+    if (_player.state.duration.inMilliseconds <= 0) {
+      print('[AudioService] resume(): 无媒体(duration=0)，忽略本次 play，避免假播放');
+      return;
+    }
+    _player.play();
+    // 播放后打印一次播放状态 200ms，确认 play 是否真正生效
+    Future.delayed(const Duration(milliseconds: 200), () {
+      print('[AudioService] resume() 后: playing=${_player.state.playing}, '
+          'durationMs=${_player.state.duration.inMilliseconds}');
+    });
+  }
 
   void stop() {
     print('[AudioService] stop');
     _stopped = true;
     _transitioning = false;
+    _opening = false;
     _queue.clear();
     _currentQueueIndex = -1;
     currentSongId = null;
@@ -272,6 +416,10 @@ class AudioService {
 
     print('[AudioService] 恢复会话: ${song.name}, 索引=$_currentQueueIndex, '
         '位置=${positionMs}ms, 模式=$_playMode');
+
+    // 注意：此处仅恢复元数据（队列/索引/歌曲），未真正 open 媒体。
+    // 此时 mini 播放器显示播放按钮，但若用户直接点播放，resume() 的裸 _player.play() 无媒体可播 → 点击无效。
+    print('[AudioService] 会话已恢复，但 player 未加载媒体(需真正播放时走解析+open)');
 
     // 通知监听者（MiniPlayerBar 等）状态已更新
     _updateState(PlayState.stopped);

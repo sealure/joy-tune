@@ -161,7 +161,12 @@ final favoriteServiceProvider = Provider<FavoriteService>((ref) {
 });
 
 final audioServiceProvider = Provider<AudioService>((ref) {
-  final audio = AudioService(sessionDao: ref.watch(sessionDaoProvider));
+  final audio = AudioService(
+    sessionDao: ref.watch(sessionDaoProvider),
+    // 注入解析器与音乐客户端，供 playSong()（mini 播放器/播放页共用）解析播放地址
+    songResolver: ref.watch(songResolverProvider),
+    gdMusicClient: ref.watch(gdMusicClientProvider),
+  );
   // 播放上报：无论登录与否先写本地播放记录（is_synced=0），
   // 登录后由 SyncService 定时（30s）同步上报到后端 play-records
   audio.onSongPlayed = (song) async {
