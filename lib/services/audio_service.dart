@@ -47,6 +47,11 @@ class AudioService {
   /// 误触发的 completed 事件（否则刚 open 就被误判为播完，触发切歌/中断刚开始的播放）
   bool _opening = false;
 
+  /// 播放请求序号：每次发起新的播放（playSong/切歌）自增。
+  /// playSong 解析完成后比对序号：若期间已有更新的播放请求（用户已切歌），
+  /// 则丢弃本次迟到的解析结果，绝不覆盖当前播放（如缓冲中的歌解析完成后抢回焦点）
+  int _playRequestSeq = 0;
+
   // ── 可观察状态 ──
   final StreamController<PlayState> _stateController =
       StreamController<PlayState>.broadcast();
@@ -219,11 +224,18 @@ class AudioService {
     final cache = AudioCache.instance;
     final cacheKey = AudioCache.cacheKey(song.name, song.artist);
     final savedPos = restorePosition ? await getSavedPosition() : 0;
-    print('[AudioService] playSong: ${song.name}, restorePosition=$restorePosition, savedPos=$savedPos');
+    // 记录本次请求序号，后续解析完成后校验是否已被更新的播放请求（用户切歌）取代
+    final mySeq = ++_playRequestSeq;
+    print('[AudioService] playSong: ${song.name}, seq=$mySeq, restorePosition=$restorePosition, savedPos=$savedPos');
 
     // 缓存命中 → 直接用本地文件播放（不重新解析）
     final localPath = await cache.getLocalPath(cacheKey);
     if (localPath != null) {
+      // 读缓存期间用户可能已切歌：丢弃迟到的播放
+      if (mySeq != _playRequestSeq) {
+        print('[AudioService] playSong 丢弃迟到的缓存结果: ${song.name}（已有更新的播放请求）');
+        return null;
+      }
       print('[AudioService] playSong 命中缓存: ${song.name} → $localPath');
       await play(localPath, songId: song.id, song: song);
       if (savedPos > 0) await seek(Duration(milliseconds: savedPos));
@@ -248,6 +260,11 @@ class AudioService {
     }
     try {
       final result = await _songResolver.resolveDirectly(song);
+      // 解析期间用户可能已切歌：丢弃迟到的结果，绝不覆盖当前播放
+      if (mySeq != _playRequestSeq) {
+        print('[AudioService] playSong 丢弃延迟的解析结果: ${song.name}（已有更新的播放请求）');
+        return null;
+      }
       print('[AudioService] playSong resolve: ${result != null ? "OK" : "NULL"}');
       if (result == null) {
         print('[AudioService] playSong 解析失败 → 自动切下一首');
@@ -258,6 +275,11 @@ class AudioService {
         songId: result.playable.id,
         source: result.playable.source,
       );
+      // 取 URL 期间同样可能被切歌，二次校验
+      if (mySeq != _playRequestSeq) {
+        print('[AudioService] playSong 取URL后已过期，丢弃: ${song.name}');
+        return null;
+      }
       print('[AudioService] playSong url: ${playUrl.url.isNotEmpty ? "有" : "空"}');
       await play(playUrl.url, songId: result.playable.id, song: result.playable)
           .timeout(const Duration(seconds: 15));
@@ -272,6 +294,11 @@ class AudioService {
       _prefetchNext();
       return result;
     } catch (e) {
+      // 若期间已被切歌，本次异常多为旧请求被 _player.stop() 中断所致，不自动切歌
+      if (mySeq != _playRequestSeq) {
+        print('[AudioService] playSong 已过期，忽略异常不切歌: ${song.name}');
+        return null;
+      }
       print('[AudioService] playSong 播放异常: $e');
       playNext();
       return null;
@@ -356,6 +383,8 @@ class AudioService {
     print('[AudioService] _applyAndPlay: index=$index, stopped=$_stopped');
     // stop() 后的 completed 事件触发的 _applyAndPlay 直接返回，不干扰新 PlayerScreen
     if (_stopped) return;
+    // 切歌视为新播放请求，使仍在异步解析的旧 playSong 结果作废（不抢当前播放）
+    _playRequestSeq++;
     // 设置防重入标志，防止 _player.stop() 触发的 completed 事件连锁调用
     _transitioning = true;
     _currentQueueIndex = index;
