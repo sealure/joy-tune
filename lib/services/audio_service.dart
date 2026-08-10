@@ -145,7 +145,15 @@ class AudioService {
 
   void playNext() {
     if (_queue.isEmpty) return;
-    _applyAndPlay(_calculateNextIndex());
+    // 手动「下一首」不应受播放模式限制：
+    // 单曲循环(sequential)时 nextIndex 返回当前索引，会导致手动换歌无效（点击像没反应）。
+    // 因此手动切歌统一按列表循环切到下一首（随机模式仍随机切），
+    // 单曲循环只影响「自动播完」后的 _advanceToNext 行为。
+    final next = _playMode == PlayMode.shuffle
+        ? _calculateNextIndex()
+        : (_currentQueueIndex + 1) % _queue.length;
+    print('[AudioService] playNext: 当前=$_currentQueueIndex → 目标=$next (mode=$_playMode)');
+    _applyAndPlay(next);
   }
 
   void playPrevious() {
