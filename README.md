@@ -40,23 +40,3 @@
 ![收藏页](docs/images/like.png)
 
 ---
-
-## 快速开始
-
-1. 后端服务：启动 via-music 后端（gRPC-gateway，默认 `http://192.168.1.8:8080`），
-   客户端通过 `api_config.dart` 指向后端地址。
-2. 客户端：进入 `apps/joy-tune`，执行：
-
-   ```bash
-   flutter pub get
-   flutter run -d windows   # Windows
-   flutter run -d macos     # macOS
-   flutter run -d android   # Android（连接真机/模拟器）
-   ```
-
-3. 游客可直接搜索试听；登录后获得收藏同步、歌单与评论能力。
-
-## 技术栈
-
-- Flutter + Riverpod + GoRouter + Drift（本地 SQLite）
-- 后端：Go + gRPC-Gateway + Proto（snake_case JSON），见主仓库 `via-music`
