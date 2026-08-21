@@ -430,8 +430,15 @@ class AudioService {
     currentSongId = song.id.isEmpty ? null : song.id;
     _player.stop();
     _updateState(PlayState.loading);
+    // 广播切歌通知（PlayerScreen 收到后仅刷新 UI，见 player_screen 的 _syncUi）
     _nextSongController.add(song);
-    // 延迟清除防重入标志，等待 PlayerScreen 接收事件并启动播放
+    // ── 切歌播放由服务自身完成（核心修复）──
+    // 此前只广播 song、依赖 PlayerScreen 订阅 nextSongStream 后调用 playSong 才能真正出声；
+    // 但 nextSongStream 全项目仅播放页一个监听者，退出播放页进入 mini 播放器后订阅被取消，
+    // 自动切下一首（_advanceToNext）的广播无人消费 → 列表循环退化为「单曲」。
+    // 现在切歌即由本服务直接播放，不依赖任何页面生命周期，mini 播放器场景同样正常续播。
+    unawaited(playSong(song));
+    // 延迟清除防重入标志，等待下一首播放稳定
     Future.delayed(const Duration(milliseconds: 200), () {
       _transitioning = false;
     });

@@ -85,9 +85,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     audio.clearStopped();
 
     // 设置 nextSongStream 监听器
+    // 播放已由 AudioService._applyAndPlay 内部直接完成（不依赖本页面），
+    // 这里只同步展示（封面/歌词/收藏），避免重复调用 playSong。核心见 _syncUi。
     _nextSub?.cancel();
     _nextSub = audio.nextSongStream.listen((song) {
-      _onQueueAdvance(song);
+      _syncUi(song);
     });
 
     // 判断当前是否真正加载了可播放媒体（duration>0 表示已 open 媒体）。
@@ -154,6 +156,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   }
 
   // ── 播放流程 ──
+
+  /// 切歌时的 UI 同步：仅刷新当前播放歌曲的展示（封面/歌词/收藏），不重复发起播放。
+  /// 播放已由 AudioService 在 _applyAndPlay 内完成（服务自身 playSong，不依赖本页面），
+  /// 因此退出播放页进入 mini 播放器后，自动切下一首仍能正常续播（见 audio_service 修复）。
+  Future<void> _syncUi(Song song) async {
+    print('[Player] _syncUi(切歌仅刷新UI): ${song.name}');
+    if (!mounted) return;
+    await _loadSongMetadata(song);
+    _checkFavorite(song);
+  }
 
   Future<void> _onQueueAdvance(Song song) async {
     print('[Player] _onQueueAdvance: ${song.name}');
