@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -177,10 +179,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _scrollCtrl = ScrollController();
   bool _albumSearch = false; // 默认普通搜索，勾选后变为专辑搜索
 
+  /// 音频播放状态订阅（用于刷新各行试听按钮的播放/暂停图标）
+  StreamSubscription<PlayState>? _stateSub;
+
   @override
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
+    // 订阅播放状态变化，驱动试听按钮图标切换（正在试听的行显示暂停图标）
+    _stateSub = ref.read(audioServiceProvider).stateStream.listen((_) {
+      if (mounted) setState(() {});
+    });
     // widget 创建时恢复搜索框文字（provider 状态在 tab 切换时保留）
     final keyword = ref.read(_searchProvider).keyword;
     if (keyword.isNotEmpty) {
@@ -194,6 +203,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   void dispose() {
+    _stateSub?.cancel();
     _controller.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -324,13 +334,72 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       return SongTile(
                         song: searchState.songs[i],
                         onTap: () => playSong(context, ref, searchState.songs[i]),
-                        trailing: _addToPlaylistButton(searchState.songs[i]),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _previewButton(searchState.songs[i]),
+                            _addToPlaylistButton(searchState.songs[i]),
+                          ],
+                        ),
                       );
                     },
                   ),
           ),
         ],
       ),
+    );
+  }
+
+  /// 搜索结果行"试听"按钮（圆形：播放三角 / 暂停双竖条）
+  /// 点击原地试听该歌曲并加入当前播放队列，不跳转播放页；
+  /// 正在试听该歌时显示主色实心暂停图标，再次点击暂停。
+  Widget _previewButton(Song song) {
+    final theme = Theme.of(context);
+    final audio = ref.read(audioServiceProvider);
+    final isCurrent = audio.currentSong?.id == song.id;
+    final isPlaying = isCurrent && audio.state == PlayState.playing;
+    final icon = isPlaying
+        ? Icons.pause_rounded
+        : Icons.play_arrow_rounded;
+    return IconButton(
+      tooltip: '试听',
+      // 正在试听：主色实心圆底 + 白色暂停；否则：主色描边圆底 + 主色三角
+      style: IconButton.styleFrom(
+        backgroundColor: isPlaying ? theme.colorScheme.primary : Colors.transparent,
+        side: BorderSide(
+          color: isPlaying
+              ? theme.colorScheme.primary
+              : theme.colorScheme.primary.withValues(alpha: 0.6),
+          width: 1.5,
+        ),
+        shape: const CircleBorder(),
+        minimumSize: const Size(34, 34),
+        maximumSize: const Size(34, 34),
+        padding: EdgeInsets.zero,
+      ),
+      color: isPlaying ? theme.colorScheme.onPrimary : theme.colorScheme.primary,
+      iconSize: 19,
+      icon: Icon(icon),
+      onPressed: () async {
+        if (isPlaying) {
+          // 正在试听 → 暂停
+          debugPrint('[Search] 试听暂停: ${song.name}');
+          audio.pause();
+        } else if (isCurrent && audio.state == PlayState.paused) {
+          // 暂停在当前歌 → 恢复播放（resume 需已有媒体，否则回退重播）
+          debugPrint('[Search] 试听恢复: ${song.name}');
+          final dur = audio.duration?.inMilliseconds ?? 0;
+          if (dur > 0) {
+            audio.resume();
+          } else {
+            await previewSong(ref, song);
+          }
+        } else {
+          // 其他情况 → 原地试听（加入队列并播放，不跳转）
+          debugPrint('[Search] 试听开始: ${song.name}');
+          await previewSong(ref, song);
+        }
+      },
     );
   }
 
