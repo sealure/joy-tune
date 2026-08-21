@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +9,9 @@ import 'package:go_router/go_router.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../theme/player_colors.dart';
+import '../utils/download_path.dart';
 import '../utils/lyric_utils.dart';
+import '../widgets/cover_image.dart';
 import '../widgets/player_seek_bar.dart';
 import '../widgets/favorite_button.dart';
 import '../widgets/playlist_picker_sheet.dart';
@@ -418,12 +421,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           ),
         ),
         if (_coverUrl != null)
-          CachedNetworkImage(
-            imageUrl: _coverUrl!,
-            fit: BoxFit.cover,
-            placeholder: (_, __) => const SizedBox.shrink(),
-            errorWidget: (_, __, ___) => const SizedBox.shrink(),
-          ),
+          // 本地封面（已下载歌曲图片.jpg）铺满背景；否则网络图
+          _fullBleedCover(_coverUrl!),
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -498,6 +497,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               },
             ),
             ListTile(
+              leading: _moreMenuIcon(Icons.download_rounded),
+              title: const Text('下载'),
+              trailing: Icon(Icons.download_done_rounded,
+                  color: Colors.grey.withValues(alpha: 0.4), size: 20),
+              onTap: () {
+                Navigator.pop(context);
+                _startDownload(song);
+              },
+            ),
+            ListTile(
               leading: _moreMenuIcon(Icons.bedtime_outlined),
               title: const Text('定时关闭'),
               trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
@@ -540,6 +549,26 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       ),
       child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
     );
+  }
+
+  /// 下载当前歌曲（写入系统下载目录 下载/JoyTune/<歌名>-<歌手>/，离线可播）
+  Future<void> _startDownload(Song song) async {
+    // Android 写公共 Download 目录需存储权限：下载前检查并引导授权
+    if (!await hasDownloadWritePermission()) {
+      await requestDownloadWritePermission();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('首次下载需授予存储权限')),
+      );
+      return;
+    }
+    final ok = await ref.read(downloadServiceProvider).download(song);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(ok != null ? '已开始下载：${song.name}' : '下载失败，请重试'),
+      ));
   }
 
   Widget _topBarBtn(IconData icon, VoidCallback onTap) {
@@ -608,11 +637,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(borderRadius),
                 child: _coverUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: _coverUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => _coverPlaceholder(),
-                        errorWidget: (_, __, ___) => _coverPlaceholder(),
+                    ? _coverArtwork(
+                        url: _coverUrl!,
+                        size: coverSize,
+                        placeholder: () => _coverPlaceholder(),
+                        errorWidget: () => _coverPlaceholder(),
                       )
                     : _coverPlaceholder(),
               ),
@@ -653,6 +682,51 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
           color: Colors.white.withValues(alpha: 0.15),
         ),
       ),
+    );
+  }
+
+  /// 播放页背景封面（铺满）：本地封面（已下载图片.jpg）用 Image.file，否则网络图
+  Widget _fullBleedCover(String url) {
+    if (isLocalCoverUrl(url)) {
+      final path = url.startsWith('file://') ? Uri.parse(url).toFilePath() : url;
+      return Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => const SizedBox.shrink(),
+      errorWidget: (_, __, ___) => const SizedBox.shrink(),
+    );
+  }
+
+  /// 播放页圆形封面：本地封面（已下载图片.jpg）用 Image.file，否则网络图
+  Widget _coverArtwork({
+    required String url,
+    required double size,
+    required Widget Function() placeholder,
+    required Widget Function() errorWidget,
+  }) {
+    if (isLocalCoverUrl(url)) {
+      final path = url.startsWith('file://') ? Uri.parse(url).toFilePath() : url;
+      return Image.file(
+        File(path),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => errorWidget(),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => placeholder(),
+      errorWidget: (_, __, ___) => errorWidget(),
     );
   }
 

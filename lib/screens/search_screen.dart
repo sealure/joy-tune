@@ -8,6 +8,7 @@ import '../api/gdmusic_client.dart';
 import '../models/song.dart';
 import '../services/providers.dart';
 import '../utils/cover_resolver.dart';
+import '../utils/download_path.dart';
 import '../utils/player_utils.dart';
 import '../widgets/song_tile.dart';
 import '../widgets/playlist_picker_sheet.dart';
@@ -181,6 +182,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// 音频播放状态订阅（用于刷新各行试听按钮的播放/暂停图标）
   StreamSubscription<PlayState>? _stateSub;
+  /// 正在下载歌曲集合订阅（key = `${songId}_${source}`）
+  StreamSubscription<Set<String>>? _downloadingSub;
+  /// 已下载记录流订阅（用于刷新各行下载按钮状态）
+  StreamSubscription<List<Song>>? _downloadedSub;
+
+  /// 正在下载的歌曲 key 集合
+  Set<String> _downloadingKeys = const {};
+  /// 已下载的歌曲 key 集合
+  Set<String> _downloadedKeys = const {};
 
   @override
   void initState() {
@@ -190,6 +200,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _stateSub = ref.read(audioServiceProvider).stateStream.listen((_) {
       if (mounted) setState(() {});
     });
+    // 订阅下载进度集合，驱动各行下载按钮（未下载/下载中/已下载）切换
+    _downloadingSub = ref.read(downloadServiceProvider).downloadingStream.listen((keys) {
+      if (mounted) setState(() => _downloadingKeys = keys);
+    });
+    _downloadedSub =
+        ref.read(downloadRepositoryProvider).watchAll().listen((songs) {
+          if (mounted) {
+            setState(() {
+              _downloadedKeys = {for (final s in songs) '${s.id}_${s.source}'};
+            });
+          }
+        });
     // widget 创建时恢复搜索框文字（provider 状态在 tab 切换时保留）
     final keyword = ref.read(_searchProvider).keyword;
     if (keyword.isNotEmpty) {
@@ -204,6 +226,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void dispose() {
     _stateSub?.cancel();
+    _downloadingSub?.cancel();
+    _downloadedSub?.cancel();
     _controller.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -338,6 +362,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _previewButton(searchState.songs[i]),
+                            const SizedBox(width: 4),
+                            _downloadButton(searchState.songs[i]),
+                            // 与试听/下载保持 4px 同距（设计稿 .tile-actions gap:4）
+                            const SizedBox(width: 4),
                             _addToPlaylistButton(searchState.songs[i]),
                           ],
                         ),
@@ -403,14 +431,82 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  /// 搜索结果行"下载"按钮（三态：未下载=描边下载箭头 / 下载中=进度圈 / 已下载=主色实心白勾）
+  /// 点击下载该歌曲（音频/封面/歌词三文件）到 `下载/JoyTune/<歌名>-<歌手>/`。
+  Widget _downloadButton(Song song) {
+    final theme = Theme.of(context);
+    final key = '${song.id}_${song.source}';
+    final isDownloading = _downloadingKeys.contains(key);
+    final isDownloaded = _downloadedKeys.contains(key);
+
+    if (isDownloading) {
+      // 下载中：主色描边圆底 + 转圈
+      return Container(
+        width: 32, height: 32,
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 16, height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)),
+        ),
+      );
+    }
+
+    return IconButton(
+      tooltip: isDownloaded ? '已下载' : '下载',
+      style: IconButton.styleFrom(
+        backgroundColor: isDownloaded ? theme.colorScheme.primary : Colors.transparent,
+        side: BorderSide(
+          color: isDownloaded
+              ? theme.colorScheme.primary
+              : theme.colorScheme.primary.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        shape: const CircleBorder(),
+        minimumSize: const Size(32, 32),
+        maximumSize: const Size(32, 32),
+        padding: EdgeInsets.zero,
+      ),
+      color: isDownloaded ? theme.colorScheme.onPrimary : theme.colorScheme.primary,
+      iconSize: 16,
+      icon: Icon(
+        isDownloaded ? Icons.check_rounded : Icons.download_rounded,
+      ),
+      onPressed: () async {
+        // Android 写公共 Download 目录需存储权限：下载前检查并引导授权
+        if (!await hasDownloadWritePermission()) {
+          await requestDownloadWritePermission();
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('首次下载需授予存储权限')),
+          );
+          return;
+        }
+        final service = ref.read(downloadServiceProvider);
+        final ok = await service.download(song);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(
+            content: Text(ok != null ? '已开始下载：${song.name}' : '下载失败，请重试'),
+          ));
+      },
+    );
+  }
+
   /// 搜索结果行"加入歌单"按钮
   /// 从详情页"添加歌曲"进入时（路由 extra 带 playlistId 本地 UUID），直接加入该歌单；
   /// 否则弹出选择歌单弹层（可复用组件）
   Widget _addToPlaylistButton(Song song) {
     final extra = GoRouterState.of(context).extra as Map?;
     final playlistId = extra?['playlistId'] as String?;
+    // 与试听/下载按钮尺寸一致（32×32、无默认内边距），三者间距均匀
     return IconButton(
       tooltip: playlistId == null ? '加入歌单' : '添加到当前歌单',
+      style: IconButton.styleFrom(
+        minimumSize: const Size(32, 32),
+        maximumSize: const Size(32, 32),
+        padding: EdgeInsets.zero,
+      ),
       icon: Icon(Icons.playlist_add_rounded, color: Theme.of(context).colorScheme.primary),
       onPressed: () async {
         if (playlistId != null) {

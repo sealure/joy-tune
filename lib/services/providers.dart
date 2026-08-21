@@ -16,6 +16,7 @@ import '../db/daos/search_history_dao.dart';
 import '../db/daos/session_dao.dart';
 import '../db/daos/settings_dao.dart';
 import '../db/daos/song_meta_dao.dart';
+import '../db/daos/download_dao.dart';
 import '../models/song.dart';
 import '../models/music_source_config.dart';
 import '../models/user.dart';
@@ -23,9 +24,11 @@ import '../repositories/drift_favorite_repository.dart';
 import '../repositories/play_record_repository.dart';
 import '../repositories/playlist_follow_repository.dart';
 import '../repositories/playlist_repository.dart';
+import '../repositories/download_repository.dart';
 import '../services/search_service.dart';
 import '../services/favorite_service.dart';
 import '../services/audio_service.dart';
+import '../services/download_service.dart';
 import '../services/auth_service.dart';
 import '../services/song_resolver.dart';
 import '../services/sync/legacy_prefs_migrator.dart';
@@ -93,6 +96,39 @@ final settingsDaoProvider = Provider<SettingsDao>((ref) => SettingsDao(ref.watch
 /// 歌曲元数据缓存数据访问对象（封面/歌词/lyric_id 统一缓存，纯本地）
 final songMetaDaoProvider = Provider<SongMetaDao>((ref) {
   return SongMetaDao(ref.watch(databaseProvider));
+});
+
+/// 下载记录数据访问对象（local_downloads，纯本地不同步）
+final downloadDaoProvider = Provider<DownloadDao>((ref) {
+  return DownloadDao(ref.watch(databaseProvider));
+});
+
+/// 下载记录仓库（本地 SQLite 流式）
+final downloadRepositoryProvider = Provider<DownloadRepository>((ref) {
+  return DownloadRepository(ref.watch(downloadDaoProvider));
+});
+
+/// 已下载歌曲列表（本地 SQLite 流式，纯本地不同步）
+final downloadsProvider = StreamProvider<List<Song>>((ref) {
+  return ref.watch(downloadRepositoryProvider).watchAll();
+});
+
+/// 正在下载的歌曲集合（key = `${songId}_${source}`），驱动下载按钮三态
+final downloadingKeysProvider = StreamProvider<Set<String>>((ref) {
+  return ref.watch(downloadServiceProvider).downloadingStream;
+});
+
+/// 歌曲下载服务（解析→取URL→落盘到系统下载目录→写记录）
+final downloadServiceProvider = Provider<DownloadService>((ref) {
+  return DownloadService(
+    repository: ref.watch(downloadRepositoryProvider),
+    // 复用播放/试听的统一解析链路（查缓存→解析地址 + 封面/歌词元数据）
+    songResolver: ref.watch(songResolverProvider),
+    gdMusicClient: ref.watch(gdMusicClientProvider),
+    // 注入本地元数据缓存：封面/歌词优先读 local_song_meta / local_pic_covers
+    songMetaDao: ref.watch(songMetaDaoProvider),
+    picCoverDao: ref.watch(picCoverDaoProvider),
+  );
 });
 
 /// 封面解析结果缓存数据访问对象（纯本地：key=(pic_id, source)，歌曲/歌单封面共用）
@@ -166,6 +202,8 @@ final audioServiceProvider = Provider<AudioService>((ref) {
     // 注入解析器与音乐客户端，供 playSong()（mini 播放器/播放页共用）解析播放地址
     songResolver: ref.watch(songResolverProvider),
     gdMusicClient: ref.watch(gdMusicClientProvider),
+    // 注入下载记录，供 playSong() 已下载本地文件优先播放（离线可听）
+    downloadRepository: ref.watch(downloadRepositoryProvider),
   );
   // 播放上报：无论登录与否先写本地播放记录（is_synced=0），
   // 登录后由 SyncService 定时（30s）同步上报到后端 play-records

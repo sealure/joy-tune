@@ -22,6 +22,7 @@ part 'app_database.g.dart';
   LocalRecommendPlaylists,
   LocalRecommendPlaylistSongs,
   LocalPicCovers,
+  LocalDownloads,
 ])
 class AppDatabase extends _$AppDatabase {
   /// 默认构造：drift_flutter 统一移动端原生 + 桌面端 ffi
@@ -31,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -67,6 +68,10 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(localRecommendPlaylists, localRecommendPlaylists.coverPicId);
             await m.addColumn(localRecommendPlaylists, localRecommendPlaylists.coverSource);
             await m.createTable(localPicCovers);
+          }
+          // v8：新增本地下载记录表 local_downloads（用户显式下载到系统下载目录，纯本地）
+          if (from < 8) {
+            await m.createTable(localDownloads);
           }
         },
       );

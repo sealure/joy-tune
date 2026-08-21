@@ -347,3 +347,39 @@ class LocalPicCovers extends Table {
   @override
   Set<Column> get primaryKey => {picId, source};
 }
+
+/// 本地下载记录表（纯本地，不同步）
+/// 用户显式下载到系统下载目录 (`下载/JoyTune/<歌名>-<歌手>/`) 的歌曲，
+/// 与应用缓存（AudioCache / local_song_meta）完全独立：清理缓存不触碰下载文件。
+/// 主键 (song_id, source)：同一首歌不同音源各自独立下载。
+class LocalDownloads extends Table {
+  /// 歌曲 ID（原始音源 ID）
+  TextColumn get songId => text()();
+  /// 音源标识（netease/qqmusic/joox 等）
+  TextColumn get source => text()();
+  /// 歌曲名
+  TextColumn get name => text()();
+  /// 歌手
+  TextColumn get artist => text()();
+  /// 专辑
+  TextColumn get album => text().withDefault(const Constant(''))();
+  /// 封面图 pic_id（音源原始图片 ID，便于重取封面）
+  TextColumn get picId => text().nullable()();
+  /// 歌词 ID
+  TextColumn get lyricId => text().nullable()();
+  /// 封面 URL（解析结果）
+  TextColumn get coverUrl => text().nullable()();
+  /// 歌曲本地子文件夹绝对路径（如 /storage/emulated/0/Download/JoyTune/晴天-周杰伦）
+  TextColumn get folderPath => text()();
+  /// 音频本地路径（folderPath/<歌名>-<歌手>.mp3）
+  TextColumn get audioPath => text()();
+  /// 封面本地路径（folderPath/<歌名>-<歌手>.jpg，下载失败可空）
+  TextColumn get coverPath => text().nullable()();
+  /// 歌词本地路径（folderPath/<歌名>-<歌手>.lrc，下载失败可空）
+  TextColumn get lyricsPath => text().nullable()();
+  /// 下载时间
+  DateTimeColumn get downloadedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {songId, source};
+}

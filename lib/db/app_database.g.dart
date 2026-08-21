@@ -6167,6 +6167,670 @@ class LocalPicCoversCompanion extends UpdateCompanion<LocalPicCover> {
   }
 }
 
+class $LocalDownloadsTable extends LocalDownloads
+    with TableInfo<$LocalDownloadsTable, LocalDownload> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalDownloadsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _songIdMeta = const VerificationMeta('songId');
+  @override
+  late final GeneratedColumn<String> songId = GeneratedColumn<String>(
+      'song_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _artistMeta = const VerificationMeta('artist');
+  @override
+  late final GeneratedColumn<String> artist = GeneratedColumn<String>(
+      'artist', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _albumMeta = const VerificationMeta('album');
+  @override
+  late final GeneratedColumn<String> album = GeneratedColumn<String>(
+      'album', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _picIdMeta = const VerificationMeta('picId');
+  @override
+  late final GeneratedColumn<String> picId = GeneratedColumn<String>(
+      'pic_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lyricIdMeta =
+      const VerificationMeta('lyricId');
+  @override
+  late final GeneratedColumn<String> lyricId = GeneratedColumn<String>(
+      'lyric_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _coverUrlMeta =
+      const VerificationMeta('coverUrl');
+  @override
+  late final GeneratedColumn<String> coverUrl = GeneratedColumn<String>(
+      'cover_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _folderPathMeta =
+      const VerificationMeta('folderPath');
+  @override
+  late final GeneratedColumn<String> folderPath = GeneratedColumn<String>(
+      'folder_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _audioPathMeta =
+      const VerificationMeta('audioPath');
+  @override
+  late final GeneratedColumn<String> audioPath = GeneratedColumn<String>(
+      'audio_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _coverPathMeta =
+      const VerificationMeta('coverPath');
+  @override
+  late final GeneratedColumn<String> coverPath = GeneratedColumn<String>(
+      'cover_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _lyricsPathMeta =
+      const VerificationMeta('lyricsPath');
+  @override
+  late final GeneratedColumn<String> lyricsPath = GeneratedColumn<String>(
+      'lyrics_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _downloadedAtMeta =
+      const VerificationMeta('downloadedAt');
+  @override
+  late final GeneratedColumn<DateTime> downloadedAt = GeneratedColumn<DateTime>(
+      'downloaded_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        songId,
+        source,
+        name,
+        artist,
+        album,
+        picId,
+        lyricId,
+        coverUrl,
+        folderPath,
+        audioPath,
+        coverPath,
+        lyricsPath,
+        downloadedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_downloads';
+  @override
+  VerificationContext validateIntegrity(Insertable<LocalDownload> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('song_id')) {
+      context.handle(_songIdMeta,
+          songId.isAcceptableOrUnknown(data['song_id']!, _songIdMeta));
+    } else if (isInserting) {
+      context.missing(_songIdMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('artist')) {
+      context.handle(_artistMeta,
+          artist.isAcceptableOrUnknown(data['artist']!, _artistMeta));
+    } else if (isInserting) {
+      context.missing(_artistMeta);
+    }
+    if (data.containsKey('album')) {
+      context.handle(
+          _albumMeta, album.isAcceptableOrUnknown(data['album']!, _albumMeta));
+    }
+    if (data.containsKey('pic_id')) {
+      context.handle(
+          _picIdMeta, picId.isAcceptableOrUnknown(data['pic_id']!, _picIdMeta));
+    }
+    if (data.containsKey('lyric_id')) {
+      context.handle(_lyricIdMeta,
+          lyricId.isAcceptableOrUnknown(data['lyric_id']!, _lyricIdMeta));
+    }
+    if (data.containsKey('cover_url')) {
+      context.handle(_coverUrlMeta,
+          coverUrl.isAcceptableOrUnknown(data['cover_url']!, _coverUrlMeta));
+    }
+    if (data.containsKey('folder_path')) {
+      context.handle(
+          _folderPathMeta,
+          folderPath.isAcceptableOrUnknown(
+              data['folder_path']!, _folderPathMeta));
+    } else if (isInserting) {
+      context.missing(_folderPathMeta);
+    }
+    if (data.containsKey('audio_path')) {
+      context.handle(_audioPathMeta,
+          audioPath.isAcceptableOrUnknown(data['audio_path']!, _audioPathMeta));
+    } else if (isInserting) {
+      context.missing(_audioPathMeta);
+    }
+    if (data.containsKey('cover_path')) {
+      context.handle(_coverPathMeta,
+          coverPath.isAcceptableOrUnknown(data['cover_path']!, _coverPathMeta));
+    }
+    if (data.containsKey('lyrics_path')) {
+      context.handle(
+          _lyricsPathMeta,
+          lyricsPath.isAcceptableOrUnknown(
+              data['lyrics_path']!, _lyricsPathMeta));
+    }
+    if (data.containsKey('downloaded_at')) {
+      context.handle(
+          _downloadedAtMeta,
+          downloadedAt.isAcceptableOrUnknown(
+              data['downloaded_at']!, _downloadedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {songId, source};
+  @override
+  LocalDownload map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalDownload(
+      songId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}song_id'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      artist: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}artist'])!,
+      album: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}album'])!,
+      picId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pic_id']),
+      lyricId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyric_id']),
+      coverUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_url']),
+      folderPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}folder_path'])!,
+      audioPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}audio_path'])!,
+      coverPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}cover_path']),
+      lyricsPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lyrics_path']),
+      downloadedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}downloaded_at'])!,
+    );
+  }
+
+  @override
+  $LocalDownloadsTable createAlias(String alias) {
+    return $LocalDownloadsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalDownload extends DataClass implements Insertable<LocalDownload> {
+  /// 歌曲 ID（原始音源 ID）
+  final String songId;
+
+  /// 音源标识（netease/qqmusic/joox 等）
+  final String source;
+
+  /// 歌曲名
+  final String name;
+
+  /// 歌手
+  final String artist;
+
+  /// 专辑
+  final String album;
+
+  /// 封面图 pic_id（音源原始图片 ID，便于重取封面）
+  final String? picId;
+
+  /// 歌词 ID
+  final String? lyricId;
+
+  /// 封面 URL（解析结果）
+  final String? coverUrl;
+
+  /// 歌曲本地子文件夹绝对路径（如 /storage/emulated/0/Download/JoyTune/晴天-周杰伦）
+  final String folderPath;
+
+  /// 音频本地路径（folderPath/歌曲.mp3）
+  final String audioPath;
+
+  /// 封面本地路径（folderPath/图片.jpg，下载失败可空）
+  final String? coverPath;
+
+  /// 歌词本地路径（folderPath/歌词.lrc，下载失败可空）
+  final String? lyricsPath;
+
+  /// 下载时间
+  final DateTime downloadedAt;
+  const LocalDownload(
+      {required this.songId,
+      required this.source,
+      required this.name,
+      required this.artist,
+      required this.album,
+      this.picId,
+      this.lyricId,
+      this.coverUrl,
+      required this.folderPath,
+      required this.audioPath,
+      this.coverPath,
+      this.lyricsPath,
+      required this.downloadedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['song_id'] = Variable<String>(songId);
+    map['source'] = Variable<String>(source);
+    map['name'] = Variable<String>(name);
+    map['artist'] = Variable<String>(artist);
+    map['album'] = Variable<String>(album);
+    if (!nullToAbsent || picId != null) {
+      map['pic_id'] = Variable<String>(picId);
+    }
+    if (!nullToAbsent || lyricId != null) {
+      map['lyric_id'] = Variable<String>(lyricId);
+    }
+    if (!nullToAbsent || coverUrl != null) {
+      map['cover_url'] = Variable<String>(coverUrl);
+    }
+    map['folder_path'] = Variable<String>(folderPath);
+    map['audio_path'] = Variable<String>(audioPath);
+    if (!nullToAbsent || coverPath != null) {
+      map['cover_path'] = Variable<String>(coverPath);
+    }
+    if (!nullToAbsent || lyricsPath != null) {
+      map['lyrics_path'] = Variable<String>(lyricsPath);
+    }
+    map['downloaded_at'] = Variable<DateTime>(downloadedAt);
+    return map;
+  }
+
+  LocalDownloadsCompanion toCompanion(bool nullToAbsent) {
+    return LocalDownloadsCompanion(
+      songId: Value(songId),
+      source: Value(source),
+      name: Value(name),
+      artist: Value(artist),
+      album: Value(album),
+      picId:
+          picId == null && nullToAbsent ? const Value.absent() : Value(picId),
+      lyricId: lyricId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lyricId),
+      coverUrl: coverUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverUrl),
+      folderPath: Value(folderPath),
+      audioPath: Value(audioPath),
+      coverPath: coverPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverPath),
+      lyricsPath: lyricsPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lyricsPath),
+      downloadedAt: Value(downloadedAt),
+    );
+  }
+
+  factory LocalDownload.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalDownload(
+      songId: serializer.fromJson<String>(json['songId']),
+      source: serializer.fromJson<String>(json['source']),
+      name: serializer.fromJson<String>(json['name']),
+      artist: serializer.fromJson<String>(json['artist']),
+      album: serializer.fromJson<String>(json['album']),
+      picId: serializer.fromJson<String?>(json['picId']),
+      lyricId: serializer.fromJson<String?>(json['lyricId']),
+      coverUrl: serializer.fromJson<String?>(json['coverUrl']),
+      folderPath: serializer.fromJson<String>(json['folderPath']),
+      audioPath: serializer.fromJson<String>(json['audioPath']),
+      coverPath: serializer.fromJson<String?>(json['coverPath']),
+      lyricsPath: serializer.fromJson<String?>(json['lyricsPath']),
+      downloadedAt: serializer.fromJson<DateTime>(json['downloadedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'songId': serializer.toJson<String>(songId),
+      'source': serializer.toJson<String>(source),
+      'name': serializer.toJson<String>(name),
+      'artist': serializer.toJson<String>(artist),
+      'album': serializer.toJson<String>(album),
+      'picId': serializer.toJson<String?>(picId),
+      'lyricId': serializer.toJson<String?>(lyricId),
+      'coverUrl': serializer.toJson<String?>(coverUrl),
+      'folderPath': serializer.toJson<String>(folderPath),
+      'audioPath': serializer.toJson<String>(audioPath),
+      'coverPath': serializer.toJson<String?>(coverPath),
+      'lyricsPath': serializer.toJson<String?>(lyricsPath),
+      'downloadedAt': serializer.toJson<DateTime>(downloadedAt),
+    };
+  }
+
+  LocalDownload copyWith(
+          {String? songId,
+          String? source,
+          String? name,
+          String? artist,
+          String? album,
+          Value<String?> picId = const Value.absent(),
+          Value<String?> lyricId = const Value.absent(),
+          Value<String?> coverUrl = const Value.absent(),
+          String? folderPath,
+          String? audioPath,
+          Value<String?> coverPath = const Value.absent(),
+          Value<String?> lyricsPath = const Value.absent(),
+          DateTime? downloadedAt}) =>
+      LocalDownload(
+        songId: songId ?? this.songId,
+        source: source ?? this.source,
+        name: name ?? this.name,
+        artist: artist ?? this.artist,
+        album: album ?? this.album,
+        picId: picId.present ? picId.value : this.picId,
+        lyricId: lyricId.present ? lyricId.value : this.lyricId,
+        coverUrl: coverUrl.present ? coverUrl.value : this.coverUrl,
+        folderPath: folderPath ?? this.folderPath,
+        audioPath: audioPath ?? this.audioPath,
+        coverPath: coverPath.present ? coverPath.value : this.coverPath,
+        lyricsPath: lyricsPath.present ? lyricsPath.value : this.lyricsPath,
+        downloadedAt: downloadedAt ?? this.downloadedAt,
+      );
+  LocalDownload copyWithCompanion(LocalDownloadsCompanion data) {
+    return LocalDownload(
+      songId: data.songId.present ? data.songId.value : this.songId,
+      source: data.source.present ? data.source.value : this.source,
+      name: data.name.present ? data.name.value : this.name,
+      artist: data.artist.present ? data.artist.value : this.artist,
+      album: data.album.present ? data.album.value : this.album,
+      picId: data.picId.present ? data.picId.value : this.picId,
+      lyricId: data.lyricId.present ? data.lyricId.value : this.lyricId,
+      coverUrl: data.coverUrl.present ? data.coverUrl.value : this.coverUrl,
+      folderPath:
+          data.folderPath.present ? data.folderPath.value : this.folderPath,
+      audioPath: data.audioPath.present ? data.audioPath.value : this.audioPath,
+      coverPath: data.coverPath.present ? data.coverPath.value : this.coverPath,
+      lyricsPath:
+          data.lyricsPath.present ? data.lyricsPath.value : this.lyricsPath,
+      downloadedAt: data.downloadedAt.present
+          ? data.downloadedAt.value
+          : this.downloadedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalDownload(')
+          ..write('songId: $songId, ')
+          ..write('source: $source, ')
+          ..write('name: $name, ')
+          ..write('artist: $artist, ')
+          ..write('album: $album, ')
+          ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('folderPath: $folderPath, ')
+          ..write('audioPath: $audioPath, ')
+          ..write('coverPath: $coverPath, ')
+          ..write('lyricsPath: $lyricsPath, ')
+          ..write('downloadedAt: $downloadedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      songId,
+      source,
+      name,
+      artist,
+      album,
+      picId,
+      lyricId,
+      coverUrl,
+      folderPath,
+      audioPath,
+      coverPath,
+      lyricsPath,
+      downloadedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalDownload &&
+          other.songId == this.songId &&
+          other.source == this.source &&
+          other.name == this.name &&
+          other.artist == this.artist &&
+          other.album == this.album &&
+          other.picId == this.picId &&
+          other.lyricId == this.lyricId &&
+          other.coverUrl == this.coverUrl &&
+          other.folderPath == this.folderPath &&
+          other.audioPath == this.audioPath &&
+          other.coverPath == this.coverPath &&
+          other.lyricsPath == this.lyricsPath &&
+          other.downloadedAt == this.downloadedAt);
+}
+
+class LocalDownloadsCompanion extends UpdateCompanion<LocalDownload> {
+  final Value<String> songId;
+  final Value<String> source;
+  final Value<String> name;
+  final Value<String> artist;
+  final Value<String> album;
+  final Value<String?> picId;
+  final Value<String?> lyricId;
+  final Value<String?> coverUrl;
+  final Value<String> folderPath;
+  final Value<String> audioPath;
+  final Value<String?> coverPath;
+  final Value<String?> lyricsPath;
+  final Value<DateTime> downloadedAt;
+  final Value<int> rowid;
+  const LocalDownloadsCompanion({
+    this.songId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.name = const Value.absent(),
+    this.artist = const Value.absent(),
+    this.album = const Value.absent(),
+    this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    this.folderPath = const Value.absent(),
+    this.audioPath = const Value.absent(),
+    this.coverPath = const Value.absent(),
+    this.lyricsPath = const Value.absent(),
+    this.downloadedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalDownloadsCompanion.insert({
+    required String songId,
+    required String source,
+    required String name,
+    required String artist,
+    this.album = const Value.absent(),
+    this.picId = const Value.absent(),
+    this.lyricId = const Value.absent(),
+    this.coverUrl = const Value.absent(),
+    required String folderPath,
+    required String audioPath,
+    this.coverPath = const Value.absent(),
+    this.lyricsPath = const Value.absent(),
+    this.downloadedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : songId = Value(songId),
+        source = Value(source),
+        name = Value(name),
+        artist = Value(artist),
+        folderPath = Value(folderPath),
+        audioPath = Value(audioPath);
+  static Insertable<LocalDownload> custom({
+    Expression<String>? songId,
+    Expression<String>? source,
+    Expression<String>? name,
+    Expression<String>? artist,
+    Expression<String>? album,
+    Expression<String>? picId,
+    Expression<String>? lyricId,
+    Expression<String>? coverUrl,
+    Expression<String>? folderPath,
+    Expression<String>? audioPath,
+    Expression<String>? coverPath,
+    Expression<String>? lyricsPath,
+    Expression<DateTime>? downloadedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (songId != null) 'song_id': songId,
+      if (source != null) 'source': source,
+      if (name != null) 'name': name,
+      if (artist != null) 'artist': artist,
+      if (album != null) 'album': album,
+      if (picId != null) 'pic_id': picId,
+      if (lyricId != null) 'lyric_id': lyricId,
+      if (coverUrl != null) 'cover_url': coverUrl,
+      if (folderPath != null) 'folder_path': folderPath,
+      if (audioPath != null) 'audio_path': audioPath,
+      if (coverPath != null) 'cover_path': coverPath,
+      if (lyricsPath != null) 'lyrics_path': lyricsPath,
+      if (downloadedAt != null) 'downloaded_at': downloadedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalDownloadsCompanion copyWith(
+      {Value<String>? songId,
+      Value<String>? source,
+      Value<String>? name,
+      Value<String>? artist,
+      Value<String>? album,
+      Value<String?>? picId,
+      Value<String?>? lyricId,
+      Value<String?>? coverUrl,
+      Value<String>? folderPath,
+      Value<String>? audioPath,
+      Value<String?>? coverPath,
+      Value<String?>? lyricsPath,
+      Value<DateTime>? downloadedAt,
+      Value<int>? rowid}) {
+    return LocalDownloadsCompanion(
+      songId: songId ?? this.songId,
+      source: source ?? this.source,
+      name: name ?? this.name,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      picId: picId ?? this.picId,
+      lyricId: lyricId ?? this.lyricId,
+      coverUrl: coverUrl ?? this.coverUrl,
+      folderPath: folderPath ?? this.folderPath,
+      audioPath: audioPath ?? this.audioPath,
+      coverPath: coverPath ?? this.coverPath,
+      lyricsPath: lyricsPath ?? this.lyricsPath,
+      downloadedAt: downloadedAt ?? this.downloadedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (songId.present) {
+      map['song_id'] = Variable<String>(songId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (artist.present) {
+      map['artist'] = Variable<String>(artist.value);
+    }
+    if (album.present) {
+      map['album'] = Variable<String>(album.value);
+    }
+    if (picId.present) {
+      map['pic_id'] = Variable<String>(picId.value);
+    }
+    if (lyricId.present) {
+      map['lyric_id'] = Variable<String>(lyricId.value);
+    }
+    if (coverUrl.present) {
+      map['cover_url'] = Variable<String>(coverUrl.value);
+    }
+    if (folderPath.present) {
+      map['folder_path'] = Variable<String>(folderPath.value);
+    }
+    if (audioPath.present) {
+      map['audio_path'] = Variable<String>(audioPath.value);
+    }
+    if (coverPath.present) {
+      map['cover_path'] = Variable<String>(coverPath.value);
+    }
+    if (lyricsPath.present) {
+      map['lyrics_path'] = Variable<String>(lyricsPath.value);
+    }
+    if (downloadedAt.present) {
+      map['downloaded_at'] = Variable<DateTime>(downloadedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalDownloadsCompanion(')
+          ..write('songId: $songId, ')
+          ..write('source: $source, ')
+          ..write('name: $name, ')
+          ..write('artist: $artist, ')
+          ..write('album: $album, ')
+          ..write('picId: $picId, ')
+          ..write('lyricId: $lyricId, ')
+          ..write('coverUrl: $coverUrl, ')
+          ..write('folderPath: $folderPath, ')
+          ..write('audioPath: $audioPath, ')
+          ..write('coverPath: $coverPath, ')
+          ..write('lyricsPath: $lyricsPath, ')
+          ..write('downloadedAt: $downloadedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6189,6 +6853,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalRecommendPlaylistSongsTable localRecommendPlaylistSongs =
       $LocalRecommendPlaylistSongsTable(this);
   late final $LocalPicCoversTable localPicCovers = $LocalPicCoversTable(this);
+  late final $LocalDownloadsTable localDownloads = $LocalDownloadsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6205,7 +6870,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localPlaylistFollows,
         localRecommendPlaylists,
         localRecommendPlaylistSongs,
-        localPicCovers
+        localPicCovers,
+        localDownloads
       ];
 }
 
@@ -9323,6 +9989,301 @@ typedef $$LocalPicCoversTableProcessedTableManager = ProcessedTableManager<
     ),
     LocalPicCover,
     PrefetchHooks Function()>;
+typedef $$LocalDownloadsTableCreateCompanionBuilder = LocalDownloadsCompanion
+    Function({
+  required String songId,
+  required String source,
+  required String name,
+  required String artist,
+  Value<String> album,
+  Value<String?> picId,
+  Value<String?> lyricId,
+  Value<String?> coverUrl,
+  required String folderPath,
+  required String audioPath,
+  Value<String?> coverPath,
+  Value<String?> lyricsPath,
+  Value<DateTime> downloadedAt,
+  Value<int> rowid,
+});
+typedef $$LocalDownloadsTableUpdateCompanionBuilder = LocalDownloadsCompanion
+    Function({
+  Value<String> songId,
+  Value<String> source,
+  Value<String> name,
+  Value<String> artist,
+  Value<String> album,
+  Value<String?> picId,
+  Value<String?> lyricId,
+  Value<String?> coverUrl,
+  Value<String> folderPath,
+  Value<String> audioPath,
+  Value<String?> coverPath,
+  Value<String?> lyricsPath,
+  Value<DateTime> downloadedAt,
+  Value<int> rowid,
+});
+
+class $$LocalDownloadsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalDownloadsTable> {
+  $$LocalDownloadsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get songId => $composableBuilder(
+      column: $table.songId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get artist => $composableBuilder(
+      column: $table.artist, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get album => $composableBuilder(
+      column: $table.album, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get folderPath => $composableBuilder(
+      column: $table.folderPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get audioPath => $composableBuilder(
+      column: $table.audioPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get coverPath => $composableBuilder(
+      column: $table.coverPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lyricsPath => $composableBuilder(
+      column: $table.lyricsPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get downloadedAt => $composableBuilder(
+      column: $table.downloadedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalDownloadsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalDownloadsTable> {
+  $$LocalDownloadsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get songId => $composableBuilder(
+      column: $table.songId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get artist => $composableBuilder(
+      column: $table.artist, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get album => $composableBuilder(
+      column: $table.album, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get picId => $composableBuilder(
+      column: $table.picId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lyricId => $composableBuilder(
+      column: $table.lyricId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverUrl => $composableBuilder(
+      column: $table.coverUrl, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get folderPath => $composableBuilder(
+      column: $table.folderPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get audioPath => $composableBuilder(
+      column: $table.audioPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get coverPath => $composableBuilder(
+      column: $table.coverPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lyricsPath => $composableBuilder(
+      column: $table.lyricsPath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get downloadedAt => $composableBuilder(
+      column: $table.downloadedAt,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalDownloadsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalDownloadsTable> {
+  $$LocalDownloadsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get songId =>
+      $composableBuilder(column: $table.songId, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get artist =>
+      $composableBuilder(column: $table.artist, builder: (column) => column);
+
+  GeneratedColumn<String> get album =>
+      $composableBuilder(column: $table.album, builder: (column) => column);
+
+  GeneratedColumn<String> get picId =>
+      $composableBuilder(column: $table.picId, builder: (column) => column);
+
+  GeneratedColumn<String> get lyricId =>
+      $composableBuilder(column: $table.lyricId, builder: (column) => column);
+
+  GeneratedColumn<String> get coverUrl =>
+      $composableBuilder(column: $table.coverUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get folderPath => $composableBuilder(
+      column: $table.folderPath, builder: (column) => column);
+
+  GeneratedColumn<String> get audioPath =>
+      $composableBuilder(column: $table.audioPath, builder: (column) => column);
+
+  GeneratedColumn<String> get coverPath =>
+      $composableBuilder(column: $table.coverPath, builder: (column) => column);
+
+  GeneratedColumn<String> get lyricsPath => $composableBuilder(
+      column: $table.lyricsPath, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get downloadedAt => $composableBuilder(
+      column: $table.downloadedAt, builder: (column) => column);
+}
+
+class $$LocalDownloadsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalDownloadsTable,
+    LocalDownload,
+    $$LocalDownloadsTableFilterComposer,
+    $$LocalDownloadsTableOrderingComposer,
+    $$LocalDownloadsTableAnnotationComposer,
+    $$LocalDownloadsTableCreateCompanionBuilder,
+    $$LocalDownloadsTableUpdateCompanionBuilder,
+    (
+      LocalDownload,
+      BaseReferences<_$AppDatabase, $LocalDownloadsTable, LocalDownload>
+    ),
+    LocalDownload,
+    PrefetchHooks Function()> {
+  $$LocalDownloadsTableTableManager(
+      _$AppDatabase db, $LocalDownloadsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalDownloadsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalDownloadsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalDownloadsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> songId = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<String> artist = const Value.absent(),
+            Value<String> album = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
+            Value<String?> coverUrl = const Value.absent(),
+            Value<String> folderPath = const Value.absent(),
+            Value<String> audioPath = const Value.absent(),
+            Value<String?> coverPath = const Value.absent(),
+            Value<String?> lyricsPath = const Value.absent(),
+            Value<DateTime> downloadedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalDownloadsCompanion(
+            songId: songId,
+            source: source,
+            name: name,
+            artist: artist,
+            album: album,
+            picId: picId,
+            lyricId: lyricId,
+            coverUrl: coverUrl,
+            folderPath: folderPath,
+            audioPath: audioPath,
+            coverPath: coverPath,
+            lyricsPath: lyricsPath,
+            downloadedAt: downloadedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String songId,
+            required String source,
+            required String name,
+            required String artist,
+            Value<String> album = const Value.absent(),
+            Value<String?> picId = const Value.absent(),
+            Value<String?> lyricId = const Value.absent(),
+            Value<String?> coverUrl = const Value.absent(),
+            required String folderPath,
+            required String audioPath,
+            Value<String?> coverPath = const Value.absent(),
+            Value<String?> lyricsPath = const Value.absent(),
+            Value<DateTime> downloadedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalDownloadsCompanion.insert(
+            songId: songId,
+            source: source,
+            name: name,
+            artist: artist,
+            album: album,
+            picId: picId,
+            lyricId: lyricId,
+            coverUrl: coverUrl,
+            folderPath: folderPath,
+            audioPath: audioPath,
+            coverPath: coverPath,
+            lyricsPath: lyricsPath,
+            downloadedAt: downloadedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalDownloadsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $LocalDownloadsTable,
+    LocalDownload,
+    $$LocalDownloadsTableFilterComposer,
+    $$LocalDownloadsTableOrderingComposer,
+    $$LocalDownloadsTableAnnotationComposer,
+    $$LocalDownloadsTableCreateCompanionBuilder,
+    $$LocalDownloadsTableUpdateCompanionBuilder,
+    (
+      LocalDownload,
+      BaseReferences<_$AppDatabase, $LocalDownloadsTable, LocalDownload>
+    ),
+    LocalDownload,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9354,4 +10315,6 @@ class $AppDatabaseManager {
               _db, _db.localRecommendPlaylistSongs);
   $$LocalPicCoversTableTableManager get localPicCovers =>
       $$LocalPicCoversTableTableManager(_db, _db.localPicCovers);
+  $$LocalDownloadsTableTableManager get localDownloads =>
+      $$LocalDownloadsTableTableManager(_db, _db.localDownloads);
 }

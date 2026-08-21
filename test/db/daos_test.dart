@@ -10,6 +10,7 @@ import 'package:joy_tune/db/daos/search_history_dao.dart';
 import 'package:joy_tune/db/daos/session_dao.dart';
 import 'package:joy_tune/db/daos/settings_dao.dart';
 import 'package:joy_tune/db/daos/song_meta_dao.dart';
+import 'package:joy_tune/db/daos/download_dao.dart';
 import 'package:joy_tune/models/song.dart';
 
 void main() {
@@ -21,6 +22,7 @@ void main() {
   late SessionDao sessionDao;
   late SettingsDao settingsDao;
   late SongMetaDao songMetaDao;
+  late DownloadDao downloadDao;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -31,6 +33,7 @@ void main() {
     sessionDao = SessionDao(db);
     settingsDao = SettingsDao(db);
     songMetaDao = SongMetaDao(db);
+    downloadDao = DownloadDao(db);
   });
 
   tearDown(() => db.close());
@@ -255,6 +258,50 @@ void main() {
       await songMetaDao.upsert(songId: '1', source: 'joox', lyrics: 'x');
       await songMetaDao.clearAll();
       expect(await songMetaDao.getLyrics('1', 'joox'), isNull);
+    });
+  });
+
+  group('下载记录 DAO', () {
+    test('插入后 getByKey / watchAll 可见，重复插入幂等', () async {
+      await downloadDao.upsert(
+        song: song('1'),
+        folderPath: '/Download/JoyTune/晴天-周杰伦',
+        audioPath: '/Download/JoyTune/晴天-周杰伦/歌曲.mp3',
+        coverPath: '/Download/JoyTune/晴天-周杰伦/图片.jpg',
+      );
+      await downloadDao.upsert(
+        song: song('1'),
+        folderPath: '/Download/JoyTune/晴天-周杰伦',
+        audioPath: '/Download/JoyTune/晴天-周杰伦/歌曲.mp3',
+      );
+      final row = await downloadDao.getByKey('1', 'joox');
+      expect(row!.name, '晴天');
+      expect(row.folderPath, '/Download/JoyTune/晴天-周杰伦');
+      expect(await downloadDao.getAll(), hasLength(1));
+    });
+
+    test('不同音源同 song_id 独立下载记录', () async {
+      await downloadDao.upsert(
+        song: song('1'),
+        folderPath: '/Download/JoyTune/晴天-周杰伦',
+        audioPath: '/Download/JoyTune/晴天-周杰伦/歌曲.mp3',
+      );
+      await downloadDao.upsert(
+        song: Song(id: '1', source: 'netease', name: '晴天', artist: '周杰伦', album: ''),
+        folderPath: '/Download/JoyTune/晴天-周杰伦',
+        audioPath: '/Download/JoyTune/晴天-周杰伦/歌曲.mp3',
+      );
+      expect(await downloadDao.getAll(), hasLength(2));
+    });
+
+    test('remove 后记录删除', () async {
+      await downloadDao.upsert(
+        song: song('1'),
+        folderPath: '/Download/JoyTune/晴天-周杰伦',
+        audioPath: '/Download/JoyTune/晴天-周杰伦/歌曲.mp3',
+      );
+      await downloadDao.remove('1', 'joox');
+      expect(await downloadDao.getAll(), isEmpty);
     });
   });
 }

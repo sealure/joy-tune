@@ -175,6 +175,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     onTap: () => context.push('/favorites'),
                   ),
                   _MenuTile(
+                    icon: Icons.download_rounded,
+                    label: '已下载',
+                    iconBg: const Color(0xFFE0F2FE),
+                    iconColor: const Color(0xFF0EA5E9),
+                    // 下载为本地功能，游客/登录均可用
+                    onTap: () => context.push('/downloads'),
+                  ),
+                  _MenuTile(
                     icon: Icons.queue_music_rounded,
                     label: '我的歌单',
                     iconBg: const Color(0xFFECFDF5),

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:media_kit/media_kit.dart';
 import '../api/gdmusic_client.dart';
 import '../models/song.dart';
 import '../db/daos/session_dao.dart';
+import '../repositories/download_repository.dart';
 import 'audio_cache.dart';
 import 'prefetch_service.dart';
 import 'song_resolver.dart';
@@ -20,6 +22,8 @@ class AudioService {
   final SongResolver? _songResolver;
   /// 音乐 API 客户端（取播放 URL），可空以便脱离数据库的测试场景
   final GdMusicClient? _gdMusicClient;
+  /// 下载记录仓库（已下载本地优先播放），可空以便脱离数据库的测试场景
+  final DownloadRepository? _downloadRepository;
 
   /// 播放上报回调：一首歌成功开始播放时触发，外部用于埋点（如上报听歌总数）
   Future<void> Function(Song song)? onSongPlayed;
@@ -82,9 +86,11 @@ class AudioService {
     SessionDao? sessionDao,
     SongResolver? songResolver,
     GdMusicClient? gdMusicClient,
+    DownloadRepository? downloadRepository,
   })  : _sessionDao = sessionDao,
         _songResolver = songResolver,
-        _gdMusicClient = gdMusicClient {
+        _gdMusicClient = gdMusicClient,
+        _downloadRepository = downloadRepository {
     AudioCache.instance.init().catchError((_) {});
 
     // 每5秒自动保存播放进度
@@ -227,6 +233,37 @@ class AudioService {
     // 记录本次请求序号，后续解析完成后校验是否已被更新的播放请求（用户切歌）取代
     final mySeq = ++_playRequestSeq;
     print('[AudioService] playSong: ${song.name}, seq=$mySeq, restorePosition=$restorePosition, savedPos=$savedPos');
+
+    // 已下载 → 优先本地文件播放（离线可听，不联网）
+    final downloaded = await _downloadRepository?.getByKey(song.id, song.source);
+    if (downloaded != null && await File(downloaded.audioPath).exists()) {
+      // 读本地路径期间用户可能已切歌：丢弃迟到的播放
+      if (mySeq != _playRequestSeq) {
+        print('[AudioService] playSong 丢弃迟到的已下载结果: ${song.name}');
+        return null;
+      }
+      print('[AudioService] playSong 命中已下载: ${song.name} → ${downloaded.audioPath}');
+      await play(downloaded.audioPath, songId: song.id, song: song);
+      if (savedPos > 0) await seek(Duration(milliseconds: savedPos));
+      _prefetchNext();
+      // 已下载歌曲的封面/歌词从本地文件读取（或有元数据缓存）
+      final coverPath = downloaded.coverPath;
+      final lyricsPath = downloaded.lyricsPath;
+      String? coverLocal;
+      String? lyricsText;
+      if (coverPath != null && await File(coverPath).exists()) coverLocal = 'file://$coverPath';
+      if (lyricsPath != null && await File(lyricsPath).exists()) {
+        try { lyricsText = await File(lyricsPath).readAsString(); } catch (_) {}
+      }
+      if (coverLocal != null || lyricsText != null) {
+        return SongResolveResult(
+          playable: song,
+          coverUrl: coverLocal,
+          lyricsText: lyricsText,
+        );
+      }
+      return null;
+    }
 
     // 缓存命中 → 直接用本地文件播放（不重新解析）
     final localPath = await cache.getLocalPath(cacheKey);

@@ -25,40 +25,56 @@ class PlayerSeekBar extends StatelessWidget {
         children: [
           LayoutBuilder(
             builder: (_, constraints) {
+              // 点击/拖拽 → 按横向位置换算目标进度
+              void seekAt(BuildContext context, Offset localPos) {
+                final width = constraints.maxWidth;
+                final p = (localPos.dx / width).clamp(0.0, 1.0);
+                final seekPos = Duration(
+                  milliseconds: (duration.inMilliseconds * p).round(),
+                );
+                onSeek(seekPos);
+              }
+
               return GestureDetector(
-                onTapDown: (details) {
-                  final p = details.localPosition.dx / constraints.maxWidth;
-                  final seekPos = Duration(
-                    milliseconds: (duration.inMilliseconds * p).round(),
-                  );
-                  onSeek(seekPos);
-                },
+                // 透明背景也能命中（覆盖 44 高热区，便于触摸/鼠标点按）
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (details) => seekAt(context, details.localPosition),
+                onHorizontalDragStart: (details) => seekAt(context, details.localPosition),
+                onHorizontalDragUpdate: (details) => seekAt(context, details.localPosition),
                 child: Container(
-                  height: 20,
+                  height: 44,
                   alignment: Alignment.centerLeft,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      Container(
-                        height: 3,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(2),
-                          color: Colors.white.withValues(alpha: 0.12),
+                      // 轨道（视觉 3px，垂直居中）
+                      Positioned.fill(
+                        child: Center(
+                          child: Container(
+                            height: 3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              color: Colors.white.withValues(alpha: 0.12),
+                            ),
+                          ),
                         ),
                       ),
                       FractionallySizedBox(
                         widthFactor: progress.clamp(0.0, 1.0),
-                        child: Container(
-                          height: 3,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            color: Colors.white,
+                        child: Center(
+                          child: Container(
+                            height: 3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
+                      // 拖拽圆点（视觉 12px，命中区更大；垂直居中于 44 高热区）
                       Positioned(
                         left: (progress.clamp(0.0, 1.0) * constraints.maxWidth) - 6,
-                        top: -4,
+                        top: 16,
                         child: Container(
                           width: 12,
                           height: 12,

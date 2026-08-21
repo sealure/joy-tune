@@ -15,6 +15,7 @@ import 'screens/comments_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'screens/play_history_screen.dart';
+import 'screens/downloads_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player_bar.dart';
 
@@ -44,6 +45,8 @@ class ViaMusicApp extends StatelessWidget {
           GoRoute(path: '/my-playlists', builder: (_, __) => const MyPlaylistsScreen()),
           // 播放历史页（个人中心入口）
           GoRoute(path: '/play-history', builder: (_, __) => const PlayHistoryScreen()),
+          // 已下载页（个人中心入口，游客/登录均可用）
+          GoRoute(path: '/downloads', builder: (_, __) => const DownloadsScreen()),
           // 我的歌单详情页（管理能力），id 为本地歌单 UUID
           GoRoute(
             path: '/my-playlist/:id',
@@ -93,7 +96,12 @@ class _MainShell extends StatelessWidget {
       currentIndex = 1;
     } else if (location.startsWith('/favorites')) {
       currentIndex = 2;
-    } else if (location.startsWith('/profile')) {
+    } else if (location.startsWith('/profile') ||
+        // 从"我的"push 进入的子页（已下载/我的歌单/播放历史）保持"我的"高亮
+        location.startsWith('/downloads') ||
+        location.startsWith('/my-playlists') ||
+        location.startsWith('/my-playlist') ||
+        location.startsWith('/play-history')) {
       currentIndex = 3;
     } else {
       currentIndex = 0;

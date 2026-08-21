@@ -2,6 +2,10 @@
     <!-- Release 构建也需要网络：后端 API + GitHub Release 查询 + APK 下载
          （debug 由 flutter 工具注入，main manifest 必须显式声明） -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 歌曲下载：写公共 Download/JoyTune 目录（Android 6~10 运行时授权，
+         maxSdkVersion 29 屏蔽 Android 11+ 的 WRITE 声明；11+ 用 MANAGE_EXTERNAL_STORAGE） -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
     <!-- 自动更新：安装 APK 需要"安装未知应用"权限（Android 8+ 必须声明并授权，
          否则拉起系统安装器会被拒绝并提示"没有权限安装"） -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
@@ -9,7 +13,8 @@
         android:label="悦听"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
