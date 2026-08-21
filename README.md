@@ -2,8 +2,10 @@
 
 [![Telegram 群组](https://img.shields.io/badge/Telegram-%E7%BE%A4%E7%BB%84-blue)](https://t.me/+N_Aw6nHvxrtkZmMy)
 
-一款极简的多音源聚合音乐播放器。支持多音源在线搜索与试听、本地收藏与歌单管理、
-每日推荐、歌曲下载离线播放、播放历史与评论，覆盖 Windows / macOS / Android / iOS 等平台。
+JoyTune一款极简的多音源聚合音乐播放器。
+多音源在线搜索与试听、本地收藏与歌单管理、每日推荐、歌曲下载离线播放、播放历史与评论。
+覆盖 Windows / macOS / Android等平台。
+请前往Release下载
 
 ---
 
@@ -21,22 +23,8 @@
 
 ## 功能预览
 
-### 搜索页
-
-多音源聚合搜索，结果行支持 **试听 / 下载 / 加入歌单**：
-
-![搜索页](docs/images/search.png)
-
 ### 播放页
 
 在线播放与本地播放统一无感衔接，内置歌词、进度拖拽：
 
 ![播放页](docs/images/play.png)
-
-### 收藏页
-
-一键收藏，登录后云端同步、多端一致：
-
-![收藏页](docs/images/like.png)
-
----
