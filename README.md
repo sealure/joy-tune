@@ -1,9 +1,62 @@
-# JoyTune|[Telgram群组](https://t.me/+N_Aw6nHvxrtkZmMy)
+# JoyTune 悦听
 
-JoyTune悦听，一款极简音乐播放器
+[![Telegram 群组](https://img.shields.io/badge/Telegram-%E7%BE%A4%E7%BB%84-blue)](https://t.me/+N_Aw6nHvxrtkZmMy)
 
+一款极简的多音源聚合音乐播放器。支持多音源在线搜索与试听、本地收藏与歌单管理、
+每日推荐、歌曲下载离线播放、播放历史与评论，覆盖 Windows / macOS / Android / iOS 等平台。
 
+---
 
+## 功能一览
 
+- **多音源聚合**：一次搜索聚合多个音乐源结果，音源配置由服务端下发、离线回落内置列表。
+- **在线播放/试听**：搜索页结果行即点即播；播放页支持封面、歌词、进度拖拽与倍速。
+- **收藏与歌单**：喜欢列表、我的歌单、订阅他人公开歌单，登录后自动云端同步。
+- **每日推荐**：每日推荐歌单本地缓存异步刷新，首页即时可看、离线可读。
+- **歌曲下载**：单曲下载音频/封面/歌词到系统下载目录，离线也能听（本地文件优先播放）。
+- **播放历史**：自动记录播放历史与听歌总数。
+- **评论互动**：歌曲评论区、点赞、回复。
+- **自动更新**：基于 GitHub Release 的版本检查、按平台/架构匹配产物与一键更新。
+- **精确停服**：服务端可精确停服指定设备/全局；客户端启动不阻塞、停服时全屏提示。
 
+## 功能预览
 
+### 搜索页
+
+多音源聚合搜索，结果行支持 **试听 / 下载 / 加入歌单**：
+
+![搜索页](docs/images/search.png)
+
+### 播放页
+
+在线播放与本地播放统一无感衔接，内置歌词、进度拖拽：
+
+![播放页](docs/images/play.png)
+
+### 收藏页
+
+一键收藏，登录后云端同步、多端一致：
+
+![收藏页](docs/images/like.png)
+
+---
+
+## 快速开始
+
+1. 后端服务：启动 via-music 后端（gRPC-gateway，默认 `http://192.168.1.8:8080`），
+   客户端通过 `api_config.dart` 指向后端地址。
+2. 客户端：进入 `apps/joy-tune`，执行：
+
+   ```bash
+   flutter pub get
+   flutter run -d windows   # Windows
+   flutter run -d macos     # macOS
+   flutter run -d android   # Android（连接真机/模拟器）
+   ```
+
+3. 游客可直接搜索试听；登录后获得收藏同步、歌单与评论能力。
+
+## 技术栈
+
+- Flutter + Riverpod + GoRouter + Drift（本地 SQLite）
+- 后端：Go + gRPC-Gateway + Proto（snake_case JSON），见主仓库 `via-music`
