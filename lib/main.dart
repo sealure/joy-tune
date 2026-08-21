@@ -115,13 +115,30 @@ void main() async {
   // ── 启动后台同步任务（立即首扫 + 周期；游客态自动跳过推送）──
   container.read(syncServiceProvider).start();
 
-  // ── 启动一次性初始化（每次冷启动仅执行一轮，运行期不再重复）──
+  // ── 启动后台网络初始化（设备上报 + 停服检查 + 启动配置），不阻塞 UI ──
+  // 原实现把这些请求在 runApp 前串行 await，后端慢/不可用时首屏被卡住（各接口超时最长 10s+15s）；
+  // 现在全部移入后台执行，UI 立即进入欢迎页，结果到位后再拦截停服 / 应用音源配置。
+  final settingsDao = container.read(settingsDaoProvider);
+  // 设备 ID 为本地生成（SQLite + 系统标识），快速，保留 await
+  final deviceId = await _getDeviceId(settingsDao);
+  unawaited(_runBackgroundStartup(container, deviceId));
+
+  // 恢复上次播放会话（本地操作，毫秒级）
+  final audio = container.read(audioServiceProvider);
+  await audio.restoreSession();
+
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: ViaMusicApp(),
+  ));
+}
+
+/// 后台启动网络初始化：设备上报 → 停服检查 → 启动配置（音源/默认音质）
+/// 全部不 await 于 runApp 之前，任一失败静默忽略，用本地默认配置兜底。
+/// 每次冷启动仅执行一轮，运行期不再重复。
+Future<void> _runBackgroundStartup(ProviderContainer container, String deviceId) async {
   try {
     final backendClient = container.read(backendClientProvider);
-    final settingsDao = container.read(settingsDaoProvider);
-
-    // 获取设备 ID（存于本地 SQLite，含旧值迁移回退）
-    final deviceId = await _getDeviceId(settingsDao);
 
     // 1. 上报设备（写入后端 devices 表，作为停服定位依据；幂等，失败静默忽略）
     await backendClient.reportDevice(
@@ -131,12 +148,13 @@ void main() async {
       appVersion: await container.read(appInfoProvider).version,
     );
 
-    // 2. 检查停服开关（优先级最高；必须先于 3，依赖 devices 表已有本设备记录）
+    // 2. 检查停服开关（依赖上一步设备已在 devices 表）；结果写入 provider，
+    //    由 app 层全局监控，停服时自动弹全屏遮罩并定时退出，无需阻塞启动
     final shutdownResult = await backendClient.checkShutdown(deviceId: deviceId);
+    container.read(shutdownResultProvider.notifier).state = shutdownResult;
     if (shutdownResult.enabled) {
-      // 停服：弹窗提示后退出
-      runApp(_ShutdownApp(message: shutdownResult.message));
-      return;
+      debugPrint('>>> [STARTUP] 检测到停服: ${shutdownResult.message}');
+      return; // 已停服，无需再拉取启动配置
     }
 
     // 3. 一次性拉取启动配置（音源列表 + system_configs），FutureProvider 缓存供运行期复用
@@ -150,7 +168,7 @@ void main() async {
     }
 
     // 默认音质：把持久化值同步到播放客户端（设置页「默认音质」修改后也会重新写入）
-    final bitrateRaw = await settingsDao.get('default_bitrate');
+    final bitrateRaw = await container.read(settingsDaoProvider).get('default_bitrate');
     final bitrate = bitrateRaw != null ? int.tryParse(bitrateRaw) : null;
     if (bitrate != null) {
       client.defaultBitrate = bitrate;
@@ -158,63 +176,5 @@ void main() async {
     }
   } catch (e) {
     debugPrint('>>> [STARTUP] 初始化失败，使用默认配置: $e');
-  }
-
-  // 恢复上次播放会话
-  final audio = container.read(audioServiceProvider);
-  await audio.restoreSession();
-
-  runApp(UncontrolledProviderScope(
-    container: container,
-    child: ViaMusicApp(),
-  ));
-}
-
-/// 停服提示页面
-class _ShutdownApp extends StatelessWidget {
-  final String message;
-  const _ShutdownApp({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    // 延迟 2 秒后退出
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(seconds: 2), () {
-        // 关闭应用
-        if (Platform.isAndroid || Platform.isIOS) {
-          SystemNavigator.pop();
-        } else {
-          exit(0);
-        }
-      });
-    });
-
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.info_outline,
-                size: 64,
-                color: Colors.orange,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                message,
-                style: const TextStyle(fontSize: 18),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '应用将在 2 秒后退出...',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

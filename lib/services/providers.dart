@@ -60,10 +60,18 @@ class StartupConfig {
 /// 启动配置 provider：并发拉取一次音源列表 + 系统配置，FutureProvider 自动缓存
 final startupConfigProvider = FutureProvider<StartupConfig>((ref) async {
   final client = ref.watch(backendClientProvider);
-  final musicSources = await client.getMusicSources();
-  final systemConfigs = await client.getConfigs();
+  // 音源列表与系统配置同时发起（原串行两连 await，慢网时超时叠加拖慢启动）
+  final musicSourcesFuture = client.getMusicSources();
+  final systemConfigsFuture = client.getConfigs();
+  final musicSources = await musicSourcesFuture;
+  final systemConfigs = await systemConfigsFuture;
   return StartupConfig(musicSources: musicSources, systemConfigs: systemConfigs);
 });
+
+/// 停服检查结果（null = 尚未检查或未停服；非空且 enabled 即停服）
+/// 由后台启动初始化（见 main.dart 的 _runBackgroundStartup）异步写入，
+/// ViaMusicApp 全局监控该值，停服时弹出全屏遮罩并定时退出，不再阻塞启动。
+final shutdownResultProvider = StateProvider<ShutdownCheckResult?>((ref) => null);
 
 // ── 本地数据库 Provider ──
 

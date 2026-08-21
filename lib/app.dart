@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'screens/home_screen.dart';
@@ -16,10 +20,11 @@ import 'screens/profile_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'screens/play_history_screen.dart';
 import 'screens/downloads_screen.dart';
+import 'services/providers.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player_bar.dart';
 
-class ViaMusicApp extends StatelessWidget {
+class ViaMusicApp extends ConsumerWidget {
   ViaMusicApp({super.key});
 
   final _router = GoRouter(
@@ -69,7 +74,11 @@ class ViaMusicApp extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 全局监听停服状态：后台启动初始化异步写入，命中即全屏遮罩并定时退出
+    final shutdown = ref.watch(shutdownResultProvider);
+    final inShutdown = shutdown?.enabled ?? false;
+
     return MaterialApp.router(
       title: '悦听',
       theme: AppTheme.light,
@@ -77,6 +86,69 @@ class ViaMusicApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
+      // 停服时覆盖当前页面（含欢迎页），保证任何时机生效
+      builder: (context, child) =>
+          inShutdown ? _ShutdownGate(message: shutdown!.message) : child!,
+    );
+  }
+}
+
+/// 停服全屏遮罩：覆盖当前所有页面，延迟 2 秒后退出应用
+class _ShutdownGate extends StatefulWidget {
+  final String message;
+  const _ShutdownGate({required this.message});
+
+  @override
+  State<_ShutdownGate> createState() => _ShutdownGateState();
+}
+
+class _ShutdownGateState extends State<_ShutdownGate> {
+  @override
+  void initState() {
+    super.initState();
+    // 延迟 2 秒后退出
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), () {
+        // 关闭应用
+        if (Platform.isAndroid || Platform.isIOS) {
+          SystemNavigator.pop();
+        } else {
+          exit(0);
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 64,
+              color: Colors.orange[600],
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                widget.message,
+                style: const TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '应用将在 2 秒后退出...',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

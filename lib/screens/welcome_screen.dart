@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/providers.dart';
+import '../services/update/update_models.dart';
 import '../widgets/update_dialog.dart';
 
 /// 启动/欢迎页 — 深色靛蓝主题，Logo 呼吸动画，自动检测登录状态
@@ -41,7 +42,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
     try {
       // 并行：登录状态检测 + 更新检查（避免串行等待拖慢启动）
       final authFuture = ref.read(authServiceProvider).isLoggedIn;
-      final updateFuture = ref.read(updateServiceProvider).checkForUpdates();
+      // 更新检查加 5s 兜底超时：GitHub 网络慢/不可达时不阻塞欢迎页跳转（卡住启动）
+      // 仅限启动期的这次检查；设置页手动「检查更新」走完整超时，不受影响
+      final updateFuture = ref
+          .read(updateServiceProvider)
+          .checkForUpdates()
+          .timeout(const Duration(seconds: 5), onTimeout: () => UpdateCheckResult.failure('检查更新超时'));
       final hasToken = await authFuture;
       if (!mounted) return;
 
