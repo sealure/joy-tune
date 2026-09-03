@@ -20,6 +20,7 @@ import 'screens/profile_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'screens/play_history_screen.dart';
 import 'screens/downloads_screen.dart';
+import 'screens/shared_playlists_screen.dart';
 import 'services/providers.dart';
 import 'theme/app_theme.dart';
 import 'widgets/mini_player_bar.dart';
@@ -52,6 +53,8 @@ class ViaMusicApp extends ConsumerWidget {
           GoRoute(path: '/play-history', builder: (_, __) => const PlayHistoryScreen()),
           // 已下载页（个人中心入口，游客/登录均可用）
           GoRoute(path: '/downloads', builder: (_, __) => const DownloadsScreen()),
+          // 分享歌单列表页（首页「分享歌单」区「更多」入口，全量公开歌单）
+          GoRoute(path: '/shared-playlists', builder: (_, __) => const SharedPlaylistsScreen()),
           // 我的歌单详情页（管理能力），id 为本地歌单 UUID
           GoRoute(
             path: '/my-playlist/:id',
