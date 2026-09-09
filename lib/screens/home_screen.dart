@@ -432,6 +432,27 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
     _resolveCover();
   }
 
+  /// 点击播放按钮：读本地缓存歌单歌曲直接整单播放并进入播放页
+  ///（歌单为空时提示，不跳转）
+  Future<void> _onPlayTap() async {
+    final songs =
+        await ref.read(recommendPlaylistSongsProvider(widget.playlist.id).future);
+    if (songs.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('歌单暂无歌曲，下拉刷新后再试')),
+        );
+      }
+      return;
+    }
+    final audio = ref.read(audioServiceProvider);
+    audio.stop();
+    audio.setQueue(songs, startIndex: 0);
+    if (mounted) {
+      context.push('/player', extra: songs[0]);
+    }
+  }
+
   /// 无 coverUrl 时按 coverPicId/coverSource 懒加载解析（走共享解析器）
   Future<void> _resolveCover() async {
     if (_coverUrl != null && _coverUrl!.isNotEmpty) return;
@@ -544,15 +565,27 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // 右侧半透明圆 + 音符装饰
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
+                  // 右侧播放按钮（主题色实心圆 + 播放三角）：点击直接播放本歌单，
+                  // 无需进入歌单详情页
+                  GestureDetector(
+                    onTap: _onPlayTap,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        // 主题色（与详情页「播放全部」按钮一致 indigo）
+                        color: const Color(0xFF6366F1),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.play_arrow_rounded, size: 44, color: Colors.white),
                     ),
-                    child: Icon(Icons.music_note_rounded, size: 40, color: Colors.white.withValues(alpha: 0.6)),
                   ),
                 ],
               ),
