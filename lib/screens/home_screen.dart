@@ -432,8 +432,8 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
     _resolveCover();
   }
 
-  /// 点击播放按钮：读本地缓存歌单歌曲直接整单播放并进入播放页
-  ///（歌单为空时提示，不跳转）
+  /// 点击播放按钮：读本地缓存歌单歌曲直接整单播放，不进播放页
+  ///（迷你播放栏自动出现；歌单为空时提示，不做任何跳转）
   Future<void> _onPlayTap() async {
     final songs =
         await ref.read(recommendPlaylistSongsProvider(widget.playlist.id).future);
@@ -448,9 +448,8 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
     final audio = ref.read(audioServiceProvider);
     audio.stop();
     audio.setQueue(songs, startIndex: 0);
-    if (mounted) {
-      context.push('/player', extra: songs[0]);
-    }
+    // 直接播放第一首（playSong 内部完成解析/缓存/失败切歌），不跳播放页
+    await audio.playSong(songs[0]);
   }
 
   /// 无 coverUrl 时按 coverPicId/coverSource 懒加载解析（走共享解析器）
