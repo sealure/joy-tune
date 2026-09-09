@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -53,8 +54,15 @@ class ViaMusicApp extends ConsumerWidget {
           GoRoute(path: '/play-history', builder: (_, __) => const PlayHistoryScreen()),
           // 已下载页（个人中心入口，游客/登录均可用）
           GoRoute(path: '/downloads', builder: (_, __) => const DownloadsScreen()),
-          // 分享歌单列表页（首页「分享歌单」区「更多」入口，全量公开歌单）
-          GoRoute(path: '/shared-playlists', builder: (_, __) => const SharedPlaylistsScreen()),
+          // 公开歌单列表页（首页「查看全部」入口；?type=featured 仅推荐位，默认全量公开歌单）
+          GoRoute(
+            path: '/shared-playlists',
+            builder: (_, state) => SharedPlaylistsScreen(
+              filter: state.uri.queryParameters['type'] == 'featured'
+                  ? SharedPlaylistFilter.featured
+                  : SharedPlaylistFilter.all,
+            ),
+          ),
           // 我的歌单详情页（管理能力），id 为本地歌单 UUID
           GoRoute(
             path: '/my-playlist/:id',
@@ -88,6 +96,8 @@ class ViaMusicApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       routerConfig: _router,
+      // 桌面端允许鼠标拖拽触发滚动/下拉刷新（默认 ScrollBehavior 桌面仅触摸屏可拖拽）
+      scrollBehavior: const _MouseDragScrollBehavior(),
       debugShowCheckedModeBanner: false,
       // 停服时覆盖当前页面（含欢迎页），保证任何时机生效
       builder: (context, child) =>
@@ -217,4 +227,17 @@ class _MainShell extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 桌面端鼠标可拖拽滚动的 ScrollBehavior
+/// Flutter 默认在桌面平台只允许触摸屏拖拽（dragDevices 不含鼠标），
+/// 导致 Windows 上鼠标无法触发 RefreshIndicator 下拉刷新；此处把鼠标加入拖拽设备，
+/// 移动端行为不受影响（触摸本就在默认列表中）。
+class _MouseDragScrollBehavior extends MaterialScrollBehavior {
+  const _MouseDragScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        ...PointerDeviceKind.values,
+      };
 }

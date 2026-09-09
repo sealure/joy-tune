@@ -1,11 +1,12 @@
-// 首页「今日推荐」大卡片 +「推荐歌单」轮播 +「分享歌单」宫格 + 分享歌单列表页 widget 测试
+// 首页「今日推荐」大卡片 +「推荐歌单」轮播 +「分享歌单」宫格 + 公开歌单列表页 widget 测试
 // 验证：
 //  1. 有系统歌单时显示「今日推荐」大卡片
-//  2. featured 歌单进「推荐歌单」轮播，且不在分享歌单宫格重复出现
-//  3. 分享歌单 >6 个时宫格截断到 6 张卡片且显示「查看全部」入口
-//  4. 分享歌单 ≤6 个时全部展示且不显示「查看全部」
+//  2. featured 歌单进「推荐歌单」轮播（>4 截断），且不在分享歌单宫格重复出现
+//  3. featured 轮播 ≤4 全展示
+//  4. 分享歌单 >6 个时宫格截断到 6 张卡片
 //  5. 无系统歌单/无 featured 时正常降级（不显示对应区）
-//  6. 列表页全量展示非 system 歌单（featured + user，不截断）
+//  6. 列表页 all 模式：全量展示非 system 歌单（featured + user，不截断）
+//  7. 列表页 featured 模式：仅展示推荐位歌单
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,23 +59,42 @@ void main() {
     expect(find.text('分享歌单'), findsOneWidget);
   });
 
-  testWidgets('featured 歌单进「推荐歌单」轮播，不在分享宫格重复出现', (tester) async {
+  testWidgets('featured 轮播 >4 截断，不在分享宫格重复出现', (tester) async {
     final playlists = [
       _playlist(1, type: 'system'),
-      _playlist(2, type: 'featured'),
-      _playlist(3, type: 'featured'),
-      _playlist(4),
+      for (var i = 2; i <= 6; i++) _playlist(i, type: 'featured'), // 5 个推荐位
+      _playlist(7),
     ];
     await tester.pumpWidget(_wrap(playlists, const HomeScreen()));
     await tester.pumpAndSettle();
 
-    // 推荐歌单区标题存在，featured 卡片展示
+    // 推荐歌单区标题 + 「查看全部」常显
+    expect(find.text('推荐歌单'), findsOneWidget);
+    expect(find.text('查看全部'), findsWidgets);
+    // 轮播截断到 4 个（歌单2~5），第 5 个（歌单6）被截断
+    for (var i = 2; i <= 5; i++) {
+      expect(find.text('歌单$i'), findsOneWidget);
+    }
+    expect(find.text('歌单6'), findsNothing);
+    // 分享歌单宫格只含 user 歌单（featured 不重复出现）
+    expect(find.text('分享歌单'), findsOneWidget);
+    expect(find.text('歌单7'), findsOneWidget);
+  });
+
+  testWidgets('featured 轮播 ≤4 全展示', (tester) async {
+    final playlists = [
+      _playlist(1, type: 'system'),
+      _playlist(2, type: 'featured'),
+      _playlist(3, type: 'featured'),
+    ];
+    await tester.pumpWidget(_wrap(playlists, const HomeScreen()));
+    await tester.pumpAndSettle();
+
     expect(find.text('推荐歌单'), findsOneWidget);
     expect(find.text('歌单2'), findsOneWidget);
     expect(find.text('歌单3'), findsOneWidget);
-    // 分享歌单宫格只含 user 歌单（featured 不重复出现）
-    expect(find.text('分享歌单'), findsOneWidget);
-    expect(find.text('歌单4'), findsOneWidget);
+    // 分享区无 user 歌单时不显示
+    expect(find.text('分享歌单'), findsNothing);
   });
 
   testWidgets('无系统歌单/无 featured：对应区不显示，分享歌单正常展示', (tester) async {
@@ -85,6 +105,7 @@ void main() {
     expect(find.text('今日推荐'), findsNothing);
     expect(find.text('DAILY PICK'), findsNothing);
     expect(find.text('推荐歌单'), findsNothing);
+    expect(find.text('查看全部'), findsOneWidget); // 仅分享歌单区
     expect(find.text('分享歌单'), findsOneWidget);
     expect(find.text('歌单2'), findsOneWidget);
   });
@@ -112,7 +133,7 @@ void main() {
     expect(find.text('歌单9'), findsNothing);
   });
 
-  testWidgets('分享歌单 ≤6 个：全部展示，不显示「查看全部」入口', (tester) async {
+  testWidgets('分享歌单 ≤6 个：全部展示，「查看全部」常显', (tester) async {
     final playlists = [_playlist(1, type: 'system')];
     for (var i = 2; i <= 6; i++) {
       playlists.add(_playlist(i));
@@ -121,11 +142,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('分享歌单'), findsOneWidget);
-    // 不足 6 个：全部展示、无「查看全部」
+    // 不足 6 个：全部展示，「查看全部」常显进列表页
     for (var i = 2; i <= 6; i++) {
       expect(find.text('歌单$i'), findsOneWidget);
     }
-    expect(find.text('查看全部'), findsNothing);
+    expect(find.text('查看全部'), findsWidgets); // 推荐区 + 分享区
   });
 
   testWidgets('分享歌单列表页：全量展示非 system 歌单（featured + user），不含系统歌单', (tester) async {
@@ -151,6 +172,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('歌单9'), findsOneWidget);
     // 系统歌单滚到哪都不出现
+    expect(find.text('歌单1'), findsNothing);
+  });
+
+  testWidgets('列表页 featured 模式：仅展示推荐位歌单', (tester) async {
+    final playlists = [
+      _playlist(1, type: 'system'),
+      _playlist(2, type: 'featured'),
+      _playlist(3, type: 'featured'),
+      for (var i = 4; i <= 7; i++) _playlist(i),
+    ];
+    await tester.pumpWidget(
+      _wrap(playlists, const SharedPlaylistsScreen(filter: SharedPlaylistFilter.featured)),
+    );
+    await tester.pumpAndSettle();
+
+    // 标题为推荐歌单
+    expect(find.text('推荐歌单'), findsOneWidget);
+    // 仅 2 个 featured，user 歌单与系统歌单都不出现
+    expect(find.text('歌单2'), findsOneWidget);
+    expect(find.text('歌单3'), findsOneWidget);
+    for (var i = 4; i <= 7; i++) {
+      expect(find.text('歌单$i'), findsNothing);
+    }
     expect(find.text('歌单1'), findsNothing);
   });
 }

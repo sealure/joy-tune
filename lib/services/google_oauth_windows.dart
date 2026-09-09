@@ -14,7 +14,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Google OAuth 回调端口（固定值；Desktop app 类型客户端走 loopback，无需在
 /// Google Cloud 注册该端口，只要指向 localhost 即可）
-const int kGoogleOAuthPort = 9092;
+///
+/// 端口选择注意：Windows Hyper-V/WSL 会随机保留端口段（netsh int ipv4 show
+/// excludedportrange protocol=tcp 可查），曾用 9092 撞上保留段 9082-9181、
+/// 50052 落在显式保留段 50000-50059，均导致 errno 10013 bind 失败；
+/// 53942 为避开保留段的私有高位端口。
+const int kGoogleOAuthPort = 53942;
 
 /// Windows 专用 Google OAuth 登录
 /// google_sign_in 插件无 Windows 实现，Windows 上通过「浏览器 OAuth + PKCE(loopback 重定向)」

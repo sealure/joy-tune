@@ -28,6 +28,9 @@ const _gradients = [
 /// 首页「分享歌单」区默认展示的最大卡片数（3×2 宫格）
 const _sharedGridMax = 6;
 
+/// 首页「推荐歌单」区默认展示的最大卡片数（横向轮播，超出进列表页）
+const _featuredCarouselMax = 4;
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -90,14 +93,18 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
           if (featuredList.isNotEmpty) ...[
-            _sectionTitle('推荐歌单'),
-            _buildFeaturedCarousel(context, ref, featuredList),
+            // 推荐歌单区标题 + 「查看全部」入口（进列表页仅看推荐位歌单）
+            _sectionTitleWithMore(
+              '推荐歌单',
+              onMore: () => context.push('/shared-playlists?type=featured'),
+            ),
+            // 轮播截断到上限，剩余推荐位歌单在「查看全部」列表页
+            _buildFeaturedCarousel(context, ref, featuredList.take(_featuredCarouselMax).toList()),
           ],
           if (sharedList.isNotEmpty) ...[
-            // 分享歌单区标题 + 「查看全部」入口（超过宫格上限才显示）
+            // 分享歌单区标题 + 「查看全部」入口（进列表页看全部公开歌单）
             _sectionTitleWithMore(
               '分享歌单',
-              showMore: sharedList.length > _sharedGridMax,
               onMore: () => context.push('/shared-playlists'),
             ),
             _buildSharedGrid(context, ref, sharedList),
@@ -108,38 +115,29 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// 分区标题（带右侧「更多」入口）
-  Widget _sectionTitleWithMore(String title, {required bool showMore, required VoidCallback onMore}) {
+  /// 分区标题（带右侧「查看全部」入口）
+  Widget _sectionTitleWithMore(String title, {required VoidCallback onMore}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 8, 10),
       child: Row(
         children: [
           Expanded(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
-          if (showMore)
-            TextButton(
-              onPressed: onMore,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                minimumSize: Size.zero,
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('查看全部', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                  Icon(Icons.chevron_right_rounded, size: 16, color: Colors.black54),
-                ],
-              ),
+          TextButton(
+            onPressed: onMore,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
             ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('查看全部', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                Icon(Icons.chevron_right_rounded, size: 16, color: Colors.black54),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  /// 分区标题
-  Widget _sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
-      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
     );
   }
 

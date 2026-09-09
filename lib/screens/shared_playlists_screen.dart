@@ -1,5 +1,7 @@
-// 分享歌单列表页
-// 首页「分享歌单」区「更多」进入的全量用户公开歌单列表（type=user 且 is_public=true），
+// 公开歌单列表页
+// 首页「分享歌单」「推荐歌单」区「查看全部」进入的全量列表页，按 filter 区分展示范围：
+//  - all（默认）：全部公开歌单（推荐位 featured + 分享 user）
+//  - featured：仅推荐位歌单（被收藏最多的公开歌单）
 // 数据与首页共用 recommendPlaylistsProvider（本地 SQLite 缓存流式读取），纵向下滑浏览全部，
 // 支持下拉刷新（强制拉取后端并覆盖本地缓存）。对应设计稿 ui/shared-playlists/
 
@@ -11,9 +13,20 @@ import '../api/backend_client.dart';
 import '../services/providers.dart';
 import '../widgets/playlist_cover.dart';
 
-/// 分享歌单列表页
+/// 列表过滤模式
+enum SharedPlaylistFilter {
+  /// 全部公开歌单（featured + user）
+  all,
+  /// 仅推荐位歌单（featured）
+  featured,
+}
+
+/// 公开歌单列表页
 class SharedPlaylistsScreen extends ConsumerWidget {
-  const SharedPlaylistsScreen({super.key});
+  /// 过滤模式（决定展示范围与标题/空态文案）
+  final SharedPlaylistFilter filter;
+
+  const SharedPlaylistsScreen({super.key, this.filter = SharedPlaylistFilter.all});
 
   /// 强制刷新推荐歌单：后台拉取后端并覆盖本地缓存，再失效 provider 重新读取（与首页一致）
   Future<void> _refresh(WidgetRef ref) async {
@@ -25,16 +38,19 @@ class SharedPlaylistsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistsAsync = ref.watch(recommendPlaylistsProvider);
     final theme = Theme.of(context);
+    // 推荐模式标题与全量模式区分
+    final title = filter == SharedPlaylistFilter.featured ? '推荐歌单' : '分享歌单';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('分享歌单')),
+      appBar: AppBar(title: Text(title)),
       body: playlistsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => _buildEmptyState(ref),
         data: (playlists) {
-          // 仅展示用户公开分享歌单（type=user），系统推荐歌单留在首页轮播
-          // 全量公开歌单：含推荐位（featured）与分享（user），系统歌单（system）除外
-          final shared = playlists.where((p) => p.type != 'system').toList();
+          // featured 模式仅推荐位；all 模式含推荐位（featured）与分享（user），系统歌单除外
+          final shared = filter == SharedPlaylistFilter.featured
+              ? playlists.where((p) => p.type == 'featured').toList()
+              : playlists.where((p) => p.type != 'system').toList();
           if (shared.isEmpty) {
             return _buildEmptyState(ref);
           }
@@ -46,24 +62,26 @@ class SharedPlaylistsScreen extends ConsumerWidget {
 
   /// 空态：本地无公开歌单缓存（新用户首开 / 后端不可用），下拉刷新引导
   Widget _buildEmptyState(WidgetRef ref) {
+    // 推荐模式与全量模式文案区分
+    final isEmptyFeatured = filter == SharedPlaylistFilter.featured;
     return RefreshIndicator(
       onRefresh: () => _refresh(ref),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 140),
-          Icon(Icons.library_music_outlined, size: 64, color: Colors.black26),
-          SizedBox(height: 16),
+        children: [
+          const SizedBox(height: 140),
+          const Icon(Icons.library_music_outlined, size: 64, color: Colors.black26),
+          const SizedBox(height: 16),
           Text(
-            '还没有分享歌单',
+            isEmptyFeatured ? '还没有推荐歌单' : '还没有分享歌单',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black54),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black54),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            '下拉刷新，从服务器拉取大家的公开歌单',
+            isEmptyFeatured ? '下拉刷新，从服务器拉取热门推荐歌单' : '下拉刷新，从服务器拉取大家的公开歌单',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.black38),
+            style: const TextStyle(fontSize: 13, color: Colors.black38),
           ),
         ],
       ),
