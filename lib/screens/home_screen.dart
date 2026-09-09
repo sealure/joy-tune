@@ -472,7 +472,7 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
 
   @override
   Widget build(BuildContext context) {
-    // 有封面时在渐变底上叠加封面图（CachedNetworkImage 磁盘缓存，二次进入秒开），否则仅渐变背景
+    // 有封面时封面全亮显示（无渐变底透色干扰），无封面时渐变占位
     final hasCover = _coverUrl != null && _coverUrl!.isNotEmpty;
     return GestureDetector(
       onTap: widget.onTap,
@@ -482,12 +482,15 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          // 渐变始终保留，作为封面加载中/加载失败的占位底色
-          gradient: LinearGradient(
-            colors: widget.gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          // 渐变仅作封面加载中/失败时的占位底色，封面就绪后不再显示（避免与封面混色）
+          gradient: hasCover
+              ? null
+              : LinearGradient(
+                  colors: widget.gradient,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          color: hasCover ? Colors.black : null,
           boxShadow: [
             BoxShadow(color: widget.gradient.first.withValues(alpha: 0.25), blurRadius: 16, offset: const Offset(0, 6)),
           ],
@@ -495,35 +498,17 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
         child: Stack(
           children: [
             // 封面图：与 CoverImage/PlaylistCover 一致走磁盘缓存，加载中/失败回落到渐变底；
-            // 半透明显示（下方渐变底透出），避免实图盖住左侧文字
+            // 全亮显示（不叠渐变混色），文字直接压在封面上
             if (hasCover)
               Positioned.fill(
-                child: Opacity(
-                  opacity: 0.55,
-                  child: CachedNetworkImage(
-                    imageUrl: _coverUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => const SizedBox.shrink(),
-                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+                child: CachedNetworkImage(
+                  imageUrl: _coverUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => const SizedBox.shrink(),
+                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
-            // 半透明暗色遮罩，保证文字可读（封面之上、文字之下）
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.45),
-                      Colors.black.withValues(alpha: 0.05),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // 左侧文案 + 右侧音符装饰
+            // 左侧文案 + 右侧播放按钮（无暗色遮罩层，封面直接透出）
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Row(
