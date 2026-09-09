@@ -33,7 +33,8 @@ class SharedPlaylistsScreen extends ConsumerWidget {
         error: (_, __) => _buildEmptyState(ref),
         data: (playlists) {
           // 仅展示用户公开分享歌单（type=user），系统推荐歌单留在首页轮播
-          final shared = playlists.where((p) => p.type == 'user').toList();
+          // 全量公开歌单：含推荐位（featured）与分享（user），系统歌单（system）除外
+          final shared = playlists.where((p) => p.type != 'system').toList();
           if (shared.isEmpty) {
             return _buildEmptyState(ref);
           }
