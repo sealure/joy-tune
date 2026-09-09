@@ -473,14 +473,18 @@ class _DailyHeroCardState extends ConsumerState<_DailyHeroCard> {
         ),
         child: Stack(
           children: [
-            // 封面图：与 CoverImage/PlaylistCover 一致走磁盘缓存，加载中/失败回落到渐变底
+            // 封面图：与 CoverImage/PlaylistCover 一致走磁盘缓存，加载中/失败回落到渐变底；
+            // 半透明显示（下方渐变底透出），避免实图盖住左侧文字
             if (hasCover)
               Positioned.fill(
-                child: CachedNetworkImage(
-                  imageUrl: _coverUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => const SizedBox.shrink(),
-                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                child: Opacity(
+                  opacity: 0.55,
+                  child: CachedNetworkImage(
+                    imageUrl: _coverUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => const SizedBox.shrink(),
+                    errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  ),
                 ),
               ),
             // 半透明暗色遮罩，保证文字可读（封面之上、文字之下）
